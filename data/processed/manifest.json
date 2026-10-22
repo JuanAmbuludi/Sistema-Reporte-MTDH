@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0.0",
+  "generado_utc": "2026-10-22T15:34:38.244092+00:00",
+  "periodo": "2026-09-01",
+  "periodo_label": "Septiembre 2026",
+  "periodo_origen": "Resumen_Ejecutivo_MTDH_2026_09.pdf: Septiembre 2026; totales provinciales conciliados con el boletín.",
+  "fuente": {
+    "archivo": "Acumulado VIS-VIE.xlsx",
+    "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e"
+  },
+  "granularidad": "Una fila por corte, programa y provincia; fuente agregada.",
+  "moneda": "USD",
+  "filas": 296,
+  "totales": {
+    "usuarios": 2034258,
+    "beneficiarios": 1578019,
+    "usuarios_servicios": 456239,
+    "unidades": 11158,
+    "monto_fiscal": 1180002196.4343,
+    "monto_gobierno": 4512402557.131901,
+    "monto_anterior": 3332400360.6976013,
+    "presupuesto_ejecutado": null,
+    "presupuesto_ejecutado_parcial": null,
+    "ejecucion_cobertura_pct": 0.0,
+    "registros": 296,
+    "provincias": 24,
+    "programas": 12,
+    "periodo": "2026-09-01",
+    "anio": 2026
+  },
+  "advertencias": [
+    "Los conteos son agregados reportados por programa y provincia. Sin identificadores nominales no se pueden deduplicar personas entre programas, servicios o cortes.",
+    "El mes de corte no consta en el Excel; se registra por parámetro explícito con su evidencia. No existe una serie mensual en este archivo.",
+    "Presupuesto fiscal es el campo Presupuesto del año. La fuente no certifica si es devengado, pagado, codificado u otra fase; no se interpreta automáticamente como presupuesto ejecutado ni monto mensual transferido.",
+    "El monto acumulado de gobierno combina el acumulado anterior y el presupuesto fiscal; no se suma nuevamente con esos componentes.",
+    "Las referencias de 2024 y 2025 no informan mes de corte. Sus cifras no son comparables como variaciones interanuales ni como ejecución fiscal de igual período.",
+    "Las unidades de bonos y pensiones se marcan como no aplicables (nulo); el cero original queda en unidades_origen.",
+    "Zona en estudio se conserva con código interno 90; no se cuenta como una provincia adicional.",
+    "La hoja calculos dic contiene un prorrateo cantonal de referencia, con período no documentado y datos incompletos. Se conserva separada y no se suma al corte provincial vigente.",
+    "Presupuesto ejecutado no disponible: use un CSV complementario verificado para completar ese indicador."
+  ],
+  "definiciones": {
+    "periodo": "Primer día del mes de corte indicado por el operador; no representa fecha de transacción.",
+    "usuarios": "Conteo agregado reportado en Usuarios; en bonos se presenta como beneficiarios reportados. No equivale a usuarios únicos verificados.",
+    "unidades": "Suma de unidades de atención reportadas en servicios; no aplica a bonos y pensiones.",
+    "monto_fiscal": "Valor de Presupuesto 2026, en USD, sin fase presupuestaria certificada en el insumo.",
+    "monto_anterior": "Acumulado 2023–2025 reportado, en USD.",
+    "monto_gobierno": "Acumulado reportado de gobierno: monto_anterior + monto_fiscal, en USD.",
+    "presupuesto_ejecutado": "Ejecución verificada, solo desde CSV complementario. Nulo significa no disponible, no cero.",
+    "provincia_codigo": "Código provincial ecuatoriano de dos dígitos; 90 es una clave interna para Zona en estudio.",
+    "fuente_hoja / fuente_fila": "Procedencia exacta del registro dentro del Excel original."
+  },
+  "ejecucion_complementaria": null,
+  "control_calidad": {
+    "claves_duplicadas": 0,
+    "valores_negativos": 0,
+    "conteos_fraccionarios": 0,
+    "acumulados_no_conciliados": 0,
+    "diferencias_acumulado_2025": 0,
+    "ejecucion_disponible_filas": 0,
+    "precision_monetaria_decimales": 6,
+    "tolerancia_conciliacion_usd": 0.01
+  },
+  "historicos": [
+    {
+      "anio_referencia": 2024,
+      "filas": 296,
+      "mes_corte": null
+    },
+    {
+      "anio_referencia": 2025,
+      "filas": 296,
+      "mes_corte": null
+    }
+  ],
+  "hojas_origen": [
+    {
+      "hoja": "provincial",
+      "filas_excel": 297,
+      "columnas_declaradas": 12
+    },
+    {
+      "hoja": "provincial (2025)",
+      "filas_excel": 297,
+      "columnas_declaradas": 13
+    },
+    {
+      "hoja": "Hoja1 (2)",
+      "filas_excel": 297,
+      "columnas_declaradas": 8
+    },
+    {
+      "hoja": "calculos dic",
+      "filas_excel": 747,
+      "columnas_declaradas": 16384
+    }
+  ],
+  "archivos": {
+    "indicadores.parquet": {
+      "sha256": "cc8baf196606e3953a9f315b958fc768a16a27fba5e6ebaf8f2efc63be259072",
+      "bytes": 14797,
+      "filas": 296
+    },
+    "historico_referencia.parquet": {
+      "sha256": "94948b3b65d0021f81f13b90e66ca2cd03dc33a6d64183804ceacdbd597bee4a",
+      "bytes": 29530,
+      "filas": 592
+    },
+    "auxiliar_cantonal.parquet": {
+      "sha256": "2eb26a36d75593d449b510f04e70b743fa69fb2e8f648aeb3c55af4503f933bb",
+      "bytes": 20795,
+      "filas": 746
+    }
+  }
+}

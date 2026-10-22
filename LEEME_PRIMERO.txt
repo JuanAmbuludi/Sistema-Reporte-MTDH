@@ -1,0 +1,20 @@
+InfoReportes MTDH — PAQUETE LISTO PARA GITHUB
+
+1. Descomprime el paquete y abre la carpeta del proyecto.
+2. Sube TODO su contenido a tu repositorio privado de GitHub.
+   app.py y requirements.txt deben quedar en la raíz del repositorio.
+   Conserva las carpetas config, src, assets, templates, data y .streamlit.
+3. En Streamlit Community Cloud, crea una app con ese repositorio.
+   Archivo principal: app.py. Versión de Python: 3.12.
+4. Despliega e ingresa:
+
+   Usuario: admin
+   Contraseña: admin12345678
+
+El acceso ya está preparado. No necesitas ejecutar configure_auth.py
+ni copiar un archivo Secrets para comenzar.
+
+Para abrirlo en Windows, con Python 3.12 instalado, ejecuta
+INICIAR_WINDOWS.bat.
+
+La guía completa se encuentra en README.md.

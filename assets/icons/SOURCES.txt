@@ -1,0 +1,3 @@
+Lucide hand-coins and shield-check. https://github.com/lucide-icons/lucide/tree/main/icons
+ISC license: LICENSE in this folder.
+PNG files render the original icons in institutional purple #512F8D.

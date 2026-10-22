@@ -1,0 +1,11 @@
+# Acceso inicial solicitado por el propietario.
+# Settings > Secrets puede reemplazar esta configuración.
+[auth]
+idle_minutes = 30
+max_hours = 8
+
+[auth.users.admin]
+name = "Administrador"
+password_hash = "pbkdf2_sha256$600000$2BxZAikcR7ccGiJhtebPpuWkR8fSnQ3w$hVY17syi5B4ntmB7kLxoNDKZGieUSjpzYG1Pcs8Ax64="
+role = "admin"
+enabled = true
