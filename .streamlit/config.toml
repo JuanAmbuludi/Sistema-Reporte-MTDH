@@ -1,0 +1,54 @@
+# InfoReportes · MTDH — configuración de Streamlit
+# Identidad institucional: morado del Ministerio, superficies del boletín y
+# tipografías alojadas en el propio proyecto (static/fonts), sin servicios externos.
+
+[server]
+enableStaticServing = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+
+[theme]
+base = "light"
+primaryColor = "#512F8D"
+backgroundColor = "#F7F5FA"
+secondaryBackgroundColor = "#EFEAF7"
+textColor = "#20202B"
+linkColor = "#512F8D"
+linkUnderline = false
+borderColor = "#E2DBEE"
+showWidgetBorder = true
+baseRadius = "0.8rem"
+buttonRadius = "0.85rem"
+font = "Public Sans, sans-serif"
+headingFont = "Montserrat, sans-serif"
+headingFontWeights = [800, 700, 700, 600, 600, 600]
+codeFont = "monospace"
+blueColor = "#512F8D"
+violetColor = "#7657B9"
+greenColor = "#2F8F5B"
+yellowColor = "#F8C018"
+orangeColor = "#D98A00"
+redColor = "#C8323C"
+grayColor = "#8C86A0"
+dataframeBorderColor = "#E7E1F0"
+dataframeHeaderBackgroundColor = "#EBE5F3"
+dataframeHeaderTextColor = "#3D216D"
+chartCategoricalColors = ["#5A369A", "#C33F8D"]
+chartSequentialColors = ["#F7F6FD", "#EAE7F9", "#D8D0F4", "#C1B4EC", "#A995E0", "#8F75CF", "#7657B9", "#603EA0", "#512F8D", "#3D216D"]
+
+[[theme.fontFaces]]
+family = "Public Sans"
+url = "app/static/fonts/PublicSans-latin-variable.woff2"
+weight = "100 900"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Montserrat"
+url = "app/static/fonts/Montserrat-latin-variable.woff2"
+weight = "100 900"
+style = "normal"

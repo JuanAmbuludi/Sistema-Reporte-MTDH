@@ -8,7 +8,7 @@ import pytest
 from lxml import etree
 
 from src.data import load_data, load_manifest, filter_data
-from src.reports import build_report_context, generate_pdf, generate_docx, generate_pptx
+from src.reports import build_report_context, generate_pdf, generate_docx, generate_pptx, generate_xlsx
 
 
 def test_reports_use_exact_filtered_dashboard_selection():
@@ -87,3 +87,40 @@ def test_pdf_is_real_pdf_and_does_not_require_external_renderer():
     content = generate_pdf(context)
     assert content.startswith(b"%PDF-")
     assert len(content) > 30_000
+
+
+def test_excel_workbook_is_institutional_scoped_and_numeric():
+    import openpyxl
+    frame = filter_data(load_data(), provincias=["Guayas"], programas=["BDH"])
+    context = build_report_context(frame, load_manifest(), {"include_territory": True})
+    content = generate_xlsx(context)
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        theme = archive.read("xl/theme/theme1.xml").decode()
+        assert 'name="MTDH Institucional"' in theme and "512F8D" in theme
+        for name in archive.namelist():
+            if name.endswith(".xml"):
+                etree.fromstring(archive.read(name))
+    book = openpyxl.load_workbook(BytesIO(content))
+    assert book.sheetnames == ["Portada", "Resumen", "Bonos y pensiones", "Territorio", "Detalle", "Notas"]
+    detail = book["Detalle"]
+    header = next(r for r in range(1, 20) if detail.cell(r, 2).value == "Ámbito")
+    rows = [r for r in range(header + 1, detail.max_row + 1) if detail.cell(r, 2).value]
+    assert len(rows) == len(frame) == 1
+    people = detail.cell(rows[0], 8).value
+    assert isinstance(people, (int, float)) and people == int(frame.usuarios.sum())
+    texts = " ".join(str(c.value) for sheet in book for row in sheet.iter_rows() for c in row if c.value is not None)
+    assert "Guayas" in texts and "Pensión Mis Mejores Años" not in texts
+    assert "N/D" in texts
+
+
+def test_excel_national_workbook_covers_every_row_and_section():
+    import openpyxl
+    frame = load_data()
+    book = openpyxl.load_workbook(BytesIO(generate_xlsx(build_report_context(frame, load_manifest()))))
+    assert {"Bonos y pensiones", "Protección integral", "Territorio"} <= set(book.sheetnames)
+    detail = book["Detalle"]
+    header = next(r for r in range(1, 20) if detail.cell(r, 2).value == "Ámbito")
+    data_rows = sum(1 for r in range(header + 1, detail.max_row + 1) if detail.cell(r, 2).value)
+    assert data_rows == len(frame) == 296
+    totals = next(r for r in range(1, header) if str(detail.cell(r, 8).value or "").startswith("=SUBTOTAL"))
+    assert detail.cell(totals, 8).value.startswith("=SUBTOTAL(109")

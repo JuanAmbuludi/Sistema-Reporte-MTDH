@@ -16,6 +16,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 from lxml import etree as ET
 
+from .charts import map_png
 from .context import money, number
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -138,7 +139,7 @@ def _update_cache(cache, values, numeric=False):
         ET.SubElement(pt, _q("c", "v")).text = str(float(value)) if numeric else str(value)
 
 
-def _chart_and_workbook(chart_bytes, workbook_bytes, rows, label):
+def _chart_and_workbook(chart_bytes, workbook_bytes, rows, label, color="512F8D"):
     # Native bar axes render in reverse category order; ascending input places
     # the largest reported count at the top without changing its value.
     values = sorted(rows, key=lambda x: x.get("people") or 0)
@@ -148,6 +149,9 @@ def _chart_and_workbook(chart_bytes, workbook_bytes, rows, label):
         raise ValueError("El gráfico contiene un conteo inválido.")
     chart = _xml(chart_bytes)
     chart.find("c:lang", NS).set("val", "es-EC")
+    # Series colour follows the programme family (bonos: purple, services: fuchsia).
+    for fill in chart.findall(".//c:ser/c:spPr/a:solidFill/a:srgbClr", NS):
+        fill.set("val", color)
     chart.find(".//c:ser/c:tx/c:v", NS).text = label
     _update_cache(chart.find(".//c:cat/c:strRef/c:strCache", NS), categories)
     _update_cache(chart.find(".//c:val/c:numRef/c:numCache", NS), numbers, True)
@@ -205,13 +209,61 @@ def _short_chart_rows(rows, territory=False):
     for item in rows:
         row = dict(item)
         if territory:
-            row["chart_label"] = item["label"].title()
+            row["chart_label"] = item["label"]
         elif item.get("id") == "PAM_SERV":
             row["chart_label"] = "Personas adultas mayores"
         elif len(item["label"]) > 34 and item.get("id") not in SHORT:
             row["chart_label"] = item["label"].replace("Personas con", "").replace("personas con", "").strip()
         result.append(row)
     return result
+
+
+def _shape(slide, name):
+    for shape in slide.findall(".//p:sp", NS):
+        props = shape.find("p:nvSpPr/p:cNvPr", NS)
+        if props is not None and props.get("name") == name:
+            return shape
+    return None
+
+
+def _place(shape, x=None, y=None, cx=None, cy=None):
+    xfrm = shape.find("p:spPr/a:xfrm", NS)
+    off, ext = xfrm.find("a:off", NS), xfrm.find("a:ext", NS)
+    for node, key, value in [(off, "x", x), (off, "y", y), (ext, "cx", cx), (ext, "cy", cy)]:
+        if value is not None:
+            node.set(key, str(int(value)))
+
+
+def _set_text(slide, name, text):
+    shape = _shape(slide, name)
+    if shape is not None:
+        _body_text(shape.find("p:txBody", NS), text)
+    return shape
+
+
+def _picture(slide, rid, x, y, cx, cy, shape_id, name, description):
+    """Append a native picture shape that references an image relationship."""
+    tree = slide.find(".//p:cSld/p:spTree", NS)
+    pic = ET.SubElement(tree, _q("p", "pic"))
+    nv = ET.SubElement(pic, _q("p", "nvPicPr"))
+    ET.SubElement(nv, _q("p", "cNvPr"), id=str(shape_id), name=name, descr=description)
+    locks = ET.SubElement(ET.SubElement(nv, _q("p", "cNvPicPr")), _q("a", "picLocks"))
+    locks.set("noChangeAspect", "1")
+    ET.SubElement(nv, _q("p", "nvPr"))
+    fill = ET.SubElement(pic, _q("p", "blipFill"))
+    blip = ET.SubElement(fill, _q("a", "blip"))
+    blip.set(_q("r", "embed"), rid)
+    ET.SubElement(ET.SubElement(fill, _q("a", "stretch")), _q("a", "fillRect"))
+    sppr = ET.SubElement(pic, _q("p", "spPr"))
+    xfrm = ET.SubElement(sppr, _q("a", "xfrm"))
+    ET.SubElement(xfrm, _q("a", "off"), x=str(int(x)), y=str(int(y)))
+    ET.SubElement(xfrm, _q("a", "ext"), cx=str(int(cx)), cy=str(int(cy)))
+    ET.SubElement(ET.SubElement(sppr, _q("a", "prstGeom"), prst="rect"), _q("a", "avLst"))
+    return pic
+
+
+def _image_rel(rels, rid, target):
+    ET.SubElement(rels, _q("rel", "Relationship"), Id=rid, Type=REL + "image", Target=target)
 
 
 def generate_pptx(context: dict) -> bytes:
@@ -253,6 +305,27 @@ def generate_pptx(context: dict) -> bytes:
                          + "\nÍconos Lucide, licencia ISC: https://lucide.dev/license\nSelección: " + context.get("selection_hash", ""),
     }
     pages.append((1, common, None, None, False))
+    territory = context.get("territory", [])
+    map_values = {t["code"]: t["people"] for t in territory}
+    few = {t["code"] for t in territory if t["code"] != "90"}
+    cover_map = map_png(map_values, mode="night", selected=few if len(few) <= 3 else set(), annotate=0, legend=False,
+                        scale="quantile", width=5.6, height=4.8) if territory else None
+    if cover_map:
+        output["ppt/media/cover_map.png"] = cover_map
+    if context.get("include_territory", True) and territory:
+        output["ppt/media/territory_map.png"] = map_png(map_values, label="Cobertura reportada", annotate=6, width=6.6, height=5.6)
+        places = [t for t in territory if t["code"] != "90"]
+        total_people = sum(t["people"] or 0 for t in territory) or 1
+        ranking = "\n".join(f"{i + 1}.  {t['label']}: {number(t['people'])} ({number((t['people'] or 0) / total_people * 100, 1)} %)"
+                            for i, t in enumerate(places[:8]))
+        top3 = places[:3]
+        share3 = sum(t["people"] or 0 for t in top3) / total_people * 100
+        names = ", ".join(t["label"] for t in top3[:-1]) + (" y " + top3[-1]["label"] if len(top3) > 1 else top3[0]["label"] if top3 else "")
+        reading = (f"{names} concentran el {number(share3, 1)} % de la cobertura reportada de la selección." if len(top3) > 1
+                   else f"La selección corresponde a {names}." if top3 else "")
+        pages.append((4, {**common, "_MAP": True, "NOTE_TITLE_1": "Provincias con mayor cobertura", "NOTE_BODY_1": ranking,
+                          "NOTE_TITLE_2": "Lectura territorial", "NOTE_BODY_2": reading,
+                          "NOTE_TITLE_3": "", "NOTE_BODY_3": ""}, None, None, False))
     for section in context["sections"]:
         values = {
             **common, "SECTION_TITLE": section["title"], "PEOPLE": number(section.get("people")),
@@ -280,8 +353,8 @@ def generate_pptx(context: dict) -> bytes:
             pages.append((3, details, section, chunk, chunk_index == len(chunks)-1))
         if context.get("include_territory", True) and section.get("territories"):
             top = section["territories"][:8]
-            territorial = {**values, "CHART_SUBTITLE": f"Los {len(top)} ámbitos territoriales con mayor cobertura",
-                           "COUNT_NOTE": "El gráfico muestra los ámbitos seleccionados con mayor conteo reportado."}
+            territorial = {**values, "CHART_SUBTITLE": f"Las {len(top)} provincias con mayor cobertura",
+                           "COUNT_NOTE": "El gráfico muestra las provincias seleccionadas con mayor conteo reportado."}
             pages.append((2, territorial, section, _short_chart_rows(top, territory=True), False))
     executed = context.get("executed_total")
     methods = {
@@ -299,9 +372,33 @@ def generate_pptx(context: dict) -> bytes:
         _fill(slide, {**values, "PAGE": f"{index:02d}"})
         if template_index == 1 and len(context["title"]) > 48:
             _font_for_shape(slide, "cover-title", 48 if len(context["title"]) < 80 else 42)
+        extra_rels = []
+        if template_index == 1 and cover_map:
+            for name in ("cover-title", "cover-period", "cover-scope", "cover-source"):
+                shape = _shape(slide, name)
+                if shape is not None:
+                    _place(shape, cx=6_150_000)
+            _picture(slide, "rIdCoverMap", 6_980_000, 1_380_000, 4_620_000, 3_960_000, 900, "Mapa del Ecuador",
+                     "Mapa del Ecuador con la cobertura reportada por provincia")
+            extra_rels.append(("rIdCoverMap", "/ppt/media/cover_map.png"))
+        if template_index == 4 and values.get("_MAP"):
+            _set_text(slide, "title", "Cobertura en el territorio")
+            for name, y, cy in [("method-head-1", 1_640_000, 380_000), ("method-body-1", 2_040_000, 2_700_000),
+                                ("method-head-2", 4_880_000, 380_000), ("method-body-2", 5_260_000, 900_000),
+                                ("method-head-3", 6_200_000, 10_000), ("method-body-3", 6_210_000, 10_000)]:
+                shape = _shape(slide, name)
+                if shape is not None:
+                    _place(shape, x=6_560_000, y=y, cx=4_950_000, cy=cy)
+            _font_for_shape(slide, "method-body-1", 20)
+            _font_for_shape(slide, "method-body-2", 20)
+            _picture(slide, "rIdTerritoryMap", 560_000, 1_560_000, 5_620_000, 4_770_000, 901, "Mapa territorial",
+                     "Mapa coroplético de la cobertura reportada por provincia")
+            extra_rels.append(("rIdTerritoryMap", "/ppt/media/territory_map.png"))
         if template_index == 3:
             _populate_table(slide, rows, section, context, last)
         slide_rels = _xml(old[f"ppt/slides/_rels/slide{template_index}.xml.rels"])
+        for rid, target in extra_rels:
+            _image_rel(slide_rels, rid, target)
         for rel in slide_rels:
             kind = rel.get("Type", "")
             if kind == REL + "notesSlide":
@@ -310,7 +407,9 @@ def generate_pptx(context: dict) -> bytes:
                 rel.set("Target", "/ppt/media/shield-check.png")
             elif kind == REL + "chart":
                 chart_count += 1
-                chart, wb = _chart_and_workbook(old["ppt/slides/charts/chart1.xml"], old["ppt/embeddings/chart-data-snapshot-001.xlsx"], rows, section["people_label"])
+                tone = "C33F8D" if section["id"] == "proteccion_integral" else "512F8D"
+                chart, wb = _chart_and_workbook(old["ppt/slides/charts/chart1.xml"], old["ppt/embeddings/chart-data-snapshot-001.xlsx"],
+                                                rows, section["people_label"], tone)
                 chart_path = f"ppt/slides/charts/chart{chart_count}.xml"
                 workbook_path = f"ppt/embeddings/chart-data-{chart_count:03d}.xlsx"
                 output[chart_path] = chart

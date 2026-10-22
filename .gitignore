@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Streamlit: personal secrets stay local (config.toml is part of the app)
+.streamlit/secrets.toml
+
+# Editors and systems
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

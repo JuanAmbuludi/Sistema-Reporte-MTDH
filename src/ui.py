@@ -1,48 +1,73 @@
-"""Small, reusable presentation components for the institutional interface."""
+"""Presentation components for the institutional interface.
+
+Every component returns trusted, application-owned HTML on a single line (so
+Markdown never re-interprets it).  User or data text is always escaped.
+"""
 from __future__ import annotations
 
 import base64
+from functools import lru_cache
 import html
 from pathlib import Path
+import re
 
 import pandas as pd
 import streamlit as st
 
+from src import geo, theme
+
 ROOT = Path(__file__).resolve().parents[1]
-PURPLE = "#512F8D"
-FUCHSIA = "#C33F8D"
-NAVY = "#192642"
+LOGO = ROOT / "assets" / "brand" / "mtdh_logo.png"
 
-SECTIONS = {
-    "bonos_pensiones": "Bonos y pensiones",
-    "proteccion_integral": "Servicios de protección integral",
-}
+# Re-exported for modules that still import the palette from here.
+PURPLE = theme.MORADO
+FUCSIA = theme.FUCSIA
+NAVY = theme.MORADO_900
+SECTIONS = theme.SECTIONS
 
+# Lucide icon geometry (ISC license, see assets/icons/LICENSE).
 _PATHS = {
-    "dashboard": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="18" width="7" height="3" rx="1"/>',
-    "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/>',
-    "wallet": '<path d="M20 8V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14v12H6a3 3 0 0 1-3-3V6m17 7h-5v4h5"/>',
-    "building": '<path d="M3 21h18M5 21V5l7-3 7 3v16M9 21v-5h6v5M9 7h.01M15 7h.01M9 11h.01M15 11h.01"/>',
-    "chart": '<path d="M3 3v18h18M7 16v-4m5 4V7m5 9v-6"/>',
-    "shield": '<path d="M12 22s9-4 9-11V4l-9-3-9 3v7c0 7 9 11 9 11zM8 11l3 3 5-5"/>',
-    "document": '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6"/>',
-    "presentation": '<path d="M3 3h18M4 3v13h16V3M12 16v5m-4 1 4-1 4 1M8 11V9m4 2V6m4 5V8"/>',
-    "pin": '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',
-    "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
-    "calendar": '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
+    "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    "hand-coins": '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+    "building": '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>',
+    "landmark": '<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M12 2 20 7H4z"/>',
+    "banknote": '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+    "coins": '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+    "wallet": '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+    "map": '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+    "pin": '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    "chart": '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/>',
+    "grid": '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    "table": '<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>',
+    "sheet": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>',
+    "document": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+    "presentation": '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/>',
+    "shield": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    "calendar": '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+    "database": '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+    "check": '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+    "history": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+    "layers": '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    "lock": '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    "swipe": '<path d="m18 8 4 4-4 4"/><path d="M2 12h20"/><path d="m6 8-4 4 4 4"/>',
 }
 
 
-def icon(name: str, size: int = 22, color: str = "currentColor") -> str:
+def icon(name: str, size: int = 22, color: str = "currentColor", stroke: float = 1.8) -> str:
     """Return trusted, application-owned SVG; user text never enters paths."""
     path = _PATHS.get(name, _PATHS["chart"])
-    return f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{path}</svg>'
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" '
+            f'stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{path}</svg>')
 
 
 def inject_styles() -> None:
     css = (ROOT / "assets" / "styles.css").read_text(encoding="utf-8")
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
+
+# --- Number formatting (Spanish conventions: 1.578.019 and 1.180,5) ----------
 
 def number(value: object, decimals: int = 0) -> str:
     if value is None or pd.isna(value):
@@ -54,74 +79,336 @@ def money(value: object, compact: bool = False) -> str:
     if value is None or pd.isna(value):
         return "No disponible"
     if compact:
-        return f"{number(float(value) / 1_000_000, 2)} M"
+        return f"{number(float(value) / 1_000_000, 1)} M"
     return f"USD {number(value, 2)}"
 
 
+def millions(value: object, decimals: int = 1) -> str:
+    if value is None or pd.isna(value):
+        return "—"
+    return number(float(value) / 1_000_000, decimals)
+
+
+def pct(value: object, decimals: int = 1) -> str:
+    if value is None or pd.isna(value):
+        return "—"
+    return f"{number(value, decimals)} %"
+
+
+def is_mobile() -> bool:
+    """Phones and tablets, from the browser's User-Agent; desktop when unknown."""
+    try:
+        agent = st.context.headers.get("User-Agent", "") or ""
+    except Exception:  # noqa: BLE001 - outside a browser session (tests)
+        return False
+    return any(token in agent for token in ("Mobi", "Android", "iPhone", "iPad"))
+
+
 def pretty_label(text: str) -> str:
-    """Province casing, with accents preserved from the data model."""
-    return str(text).title().replace(" De ", " de ").replace(" Del ", " del ").replace(" Y ", " y ")
+    """Province names already carry their official casing and accents."""
+    return str(text)
 
 
-def image_data(path: Path) -> str:
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+_PARTICLES = {"de", "del", "la", "las", "los", "el", "y", "e", "en"}
 
 
-def hero(period: str, territory: str) -> None:
-    logo = ROOT / "assets" / "brand" / "mtdh_logo.png"
-    brand = f'<img src="{image_data(logo)}" alt="Ministerio de Trabajo y Desarrollo Humano"/>' if logo.exists() else '<span>Ministerio de Trabajo y Desarrollo Humano</span>'
+def place_name(text: object) -> str:
+    """Readable place names from upper-case sources: SAN MIGUEL DE LOS BANCOS → San Miguel de los Bancos."""
+    if text is None or (not isinstance(text, str) and pd.isna(text)):
+        return "—"
+    raw = " ".join(str(text).split())
+    if raw != raw.upper():
+        return raw
+
+    def word(match: re.Match) -> str:
+        token, start = match.group(0), match.start()
+        if start > 0 and token in _PARTICLES and raw[start - 1] == " ":
+            return token
+        return token[:1].upper() + token[1:]
+
+    return re.sub(r"[^\W\d_]+", word, raw.lower())
+
+
+@lru_cache(maxsize=1)
+def logo_data() -> str:
+    """The official logo with its transparent margins trimmed for compact layouts."""
+    if not LOGO.exists():
+        return ""
+    from io import BytesIO
+    from PIL import Image
+    image = Image.open(LOGO).convert("RGBA")
+    box = image.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+    if box:
+        pad = 6
+        image = image.crop((max(0, box[0] - pad), max(0, box[1] - pad), min(image.width, box[2] + pad), min(image.height, box[3] + pad)))
+    buffer = BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _esc(text: object) -> str:
+    return html.escape(str(text), quote=True)
+
+
+def _counter_digits(group: str, pad: bool) -> str:
+    """CSS counters for one digit group; padded groups keep their leading zeros."""
+    value = int(group)
+    if not pad:
+        return f'<i class="ct" style="--v:{value}"></i>'
+    if len(group) == 1:
+        return f'<i class="ct" style="--v:{value}"></i>'
+    if len(group) == 2:
+        return f'<i class="ct z2" style="--v:{value}"></i>'
+    head, tail = group[0], group[1:]
+    return f'<i class="ct" style="--v:{int(head)}"></i><i class="ct z2" style="--v:{int(tail)}"></i>'
+
+
+def animated(value: object, decimals: int = 0) -> str:
+    """A number that counts up with CSS only; the final text stays readable.
+
+    The animated digits are hidden from assistive technology and a visually
+    hidden copy carries the exact value.  Without @property support the final
+    value is shown immediately.
+    """
+    if value is None or pd.isna(value):
+        return '<span class="num-na">No disponible</span>'
+    text = number(value, decimals)
+    integer, _, fraction = text.partition(",")
+    groups = integer.split(".")
+    parts = []
+    for index, group in enumerate(groups):
+        if index:
+            parts.append('<b class="sep">.</b>')
+        parts.append(_counter_digits(group, pad=index > 0))
+    if fraction:
+        parts.append('<b class="sep">,</b>')
+        parts.append(_counter_digits(fraction, pad=True))
+    return f'<span class="num-anim" aria-hidden="true">{"".join(parts)}</span><span class="sr-only">{_esc(text)}</span>'
+
+
+# --- Shell -----------------------------------------------------------------------
+
+def brand_mark() -> None:
+    logo = f'<img class="brand-logo" src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
     st.markdown(
-        f'<div class="institutional-hero"><div class="hero-copy"><div class="hero-eyebrow">ESTADÍSTICA INSTITUCIONAL</div>'
-        f'<h1>Evidencia para mejores decisiones.</h1><p>Protección social en cifras, con una visión integral del territorio.</p>'
-        f'<div class="hero-meta"><span>{icon("calendar", 15)} {html.escape(period)}</span><span>{icon("pin", 15)} {html.escape(territory)}</span></div></div>'
-        f'<div class="hero-brand">{brand}<div class="brand-rule"></div><span>Ministerio de Trabajo<br/>y Desarrollo Humano</span></div></div>',
+        f'<div class="brand-mark">{logo}<div class="brand-product"><strong>InfoReportes</strong><span>Estadística de protección social</span></div></div>',
         unsafe_allow_html=True,
     )
 
 
-def metric(label: str, value: str, note: str, symbol: str = "chart", tone: str = "purple", prefix: str = "") -> None:
+def user_chip(user_name: str) -> None:
+    initials = "".join(part[0] for part in str(user_name).split()[:2]).upper() or "U"
     st.markdown(
-        f'<div class="metric-card {tone}"><div class="metric-top"><span>{html.escape(label)}</span><div class="metric-icon">{icon(symbol, 21)}</div></div>'
-        f'<div class="metric-value"><small>{html.escape(prefix)}</small>{html.escape(value)}</div><div class="metric-note">{html.escape(note)}</div></div>',
+        f'<div class="brand-user" title="{_esc(user_name)}"><span class="avatar">{_esc(initials)}</span>'
+        f'<span class="who"><strong>{_esc(user_name)}</strong><small>Sesión activa</small></span></div>',
         unsafe_allow_html=True,
     )
 
 
-def section_heading(title: str, subtitle: str = "", symbol: str = "chart", eyebrow: str = "") -> None:
-    eyebrow_html = f'<div class="section-eyebrow">{html.escape(eyebrow)}</div>' if eyebrow else ""
-    sub = f'<p>{html.escape(subtitle)}</p>' if subtitle else ""
-    st.markdown(f'<div class="section-heading"><div class="section-icon">{icon(symbol)}</div><div>{eyebrow_html}<h2>{html.escape(title)}</h2>{sub}</div></div>', unsafe_allow_html=True)
+def hero_copy(period: str, headline: str, lead: str) -> None:
+    st.markdown(
+        f'<div class="hero-copy"><div class="hero-period"><span class="pulse"></span>Corte {_esc(period.lower())}</div>'
+        f'<h1>{_esc(headline)}</h1><p class="hero-lead">{_esc(lead)}</p></div>',
+        unsafe_allow_html=True,
+    )
 
 
-def chart_title(title: str, subtitle: str = "") -> None:
-    st.markdown(f'<div class="chart-title"><h3>{html.escape(title)}</h3><p>{html.escape(subtitle)}</p></div>', unsafe_allow_html=True)
+def hero_map(values: dict[str, float], names: dict[str, str], selected: set[str], metric_label: str,
+             value_format=lambda v: number(v), zone_note: str = "") -> None:
+    codes = [c for c in values if c != geo.NO_POLYGON]
+    colors = theme.ramp([values[c] for c in codes], theme.NIGHT_SEQUENTIAL)
+    fills = {c: col for c, col in zip(codes, colors) if col}
+    titles = {c: f"{names.get(c, c)}: {value_format(values[c])} {metric_label.lower()}" for c in codes}
+    svg = geo.svg_map(fills, titles=titles, selected=selected, stroke=theme.MORADO_900)
+    steps = "".join(f'<i style="background:{c}"></i>' for c in theme.NIGHT_SEQUENTIAL)
+    selected_key = '<span class="key-sel"><i></i>Territorio seleccionado</span>' if selected else ""
+    zone = f'<p class="map-zone">{_esc(zone_note)}</p>' if zone_note else ""
+    st.markdown(
+        f'<figure class="hero-map">{svg}<figcaption><span class="key-label">{_esc(metric_label)} por provincia</span>'
+        f'<span class="key-ramp"><small>Menor</small>{steps}<small>Mayor</small></span>{selected_key}'
+        f'<span class="key-eq"><i></i>Latitud 0°</span></figcaption>{zone}</figure>',
+        unsafe_allow_html=True,
+    )
 
 
-def info_note(text: str, label: str = "Lectura de los datos") -> None:
-    st.markdown(f'<div class="data-note"><span class="data-note-label">{html.escape(label)}</span><span>{html.escape(text)}</span></div>', unsafe_allow_html=True)
+def kpi_grid(cards: list[dict]) -> None:
+    """Cards: label, value, decimals, prefix, suffix, note, icon, tone, share."""
+    items = []
+    for i, card in enumerate(cards):
+        share = card.get("share")
+        share_html = ""
+        if share is not None:
+            width = max(0.0, min(100.0, float(share)))
+            share_html = (f'<div class="kpi-share"><div class="bar"><span style="--w:{width:.2f}%"></span></div>'
+                          f'<small>{_esc(pct(share))} {_esc(card.get("share_label", "del total nacional"))}</small></div>')
+        prefix = f'<small class="pre">{_esc(card["prefix"])}</small>' if card.get("prefix") else ""
+        suffix = f'<small class="suf">{_esc(card["suffix"])}</small>' if card.get("suffix") else ""
+        items.append(
+            f'<article class="kpi tone-{card.get("tone", "morado")}" style="--i:{i}"><header><span class="kpi-icon">{icon(card.get("icon", "chart"), 22)}</span>'
+            f'<h3>{_esc(card["label"])}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
+            f'<p class="kpi-note">{_esc(card.get("note", ""))}</p>{share_html}</article>'
+        )
+    st.markdown(f'<section class="kpi-grid" aria-label="Indicadores principales">{"".join(items)}</section>', unsafe_allow_html=True)
 
 
-def report_cover(title: str, period: str, scope: str, stats: dict, presentation: bool = False) -> None:
-    label = "PRESENTACIÓN INSTITUCIONAL" if presentation else "BOLETÍN ESTADÍSTICO"
-    logo = ROOT / "assets" / "brand" / "mtdh_logo.png"
-    brand = f'<img src="{image_data(logo)}" alt="MTDH"/>' if logo.exists() else "MTDH"
-    if "Bonos y pensiones" in scope and "Servicios" not in scope:
-        c1, l1 = number(stats.get("beneficiarios", 0)), "Beneficiarios reportados"
-        c2, l2 = money(stats.get("monto_fiscal"), True), "Monto fiscal · USD"
-    elif "Servicios" in scope and "Bonos y pensiones" not in scope:
-        c1, l1 = number(stats.get("usuarios_servicios", 0)), "Usuarios reportados"
-        c2, l2 = number(stats.get("unidades")), "Unidades de atención"
+def section_heading(title: str, subtitle: str = "", symbol: str = "chart", anchor: str = "") -> None:
+    sub = f"<p>{_esc(subtitle)}</p>" if subtitle else ""
+    anchor_attr = f' id="{_esc(anchor)}"' if anchor else ""
+    st.markdown(f'<div class="section-heading"{anchor_attr}><span class="section-icon">{icon(symbol, 22)}</span><div><h2>{_esc(title)}</h2>{sub}</div></div>', unsafe_allow_html=True)
+
+
+def chart_title(title: str, subtitle: str = "", badge: str = "") -> None:
+    badge_html = f'<span class="card-badge">{_esc(badge)}</span>' if badge else ""
+    st.markdown(f'<div class="card-title"><div><h3>{_esc(title)}</h3><p>{_esc(subtitle)}</p></div>{badge_html}</div>', unsafe_allow_html=True)
+
+
+def info_note(text: str, label: str = "Cómo leer estas cifras", tone: str = "info") -> None:
+    st.markdown(f'<div class="note note-{tone}"><span class="note-icon">{icon("info", 18)}</span><div><strong>{_esc(label)}</strong><span>{_esc(text)}</span></div></div>', unsafe_allow_html=True)
+
+
+def budget_strip(items: list[tuple[str, str, str, str, bool]]) -> None:
+    """items: (label, value, unit, note, available)."""
+    blocks = []
+    for i, (label, value, unit, note, available) in enumerate(items):
+        state = "" if available else " is-na"
+        unit_html = f"<small>{_esc(unit)}</small>" if unit and available else ""
+        blocks.append(f'<div class="budget-item{state}" style="--i:{i}"><span class="budget-label">{_esc(label)}</span>'
+                      f'<strong>{_esc(value)}{unit_html}</strong><p>{_esc(note)}</p></div>')
+    st.markdown(f'<div class="budget-strip">{"".join(blocks)}</div>', unsafe_allow_html=True)
+
+
+def share_list(rows: list[tuple[str, float, str, str]]) -> None:
+    """rows: (label, share %, formatted amount, color)."""
+    items = []
+    for label, share, amount, color in rows:
+        items.append(f'<li><span class="sw" style="background:{color}"></span><span class="lbl">{_esc(label)}</span>'
+                     f'<span class="amt">{_esc(amount)}</span><strong>{_esc(pct(share))}</strong>'
+                     f'<span class="meter"><i style="--w:{max(0, min(100, share)):.2f}%;background:{color}"></i></span></li>')
+    st.markdown(f'<ul class="share-list">{"".join(items)}</ul>', unsafe_allow_html=True)
+
+
+def definition_grid(items: list[tuple[str, str, str]]) -> None:
+    """items: (icon, title, text)."""
+    cards = "".join(f'<div class="def-card"><span class="def-icon">{icon(sym, 20)}</span><h4>{_esc(t)}</h4><p>{_esc(x)}</p></div>' for sym, t, x in items)
+    st.markdown(f'<div class="def-grid">{cards}</div>', unsafe_allow_html=True)
+
+
+def quality_badges(items: list[tuple[str, str, bool]]) -> None:
+    """items: (label, value, ok)."""
+    chips = "".join(f'<li class="{"ok" if ok else "warn"}">{icon("check" if ok else "info", 16)}<span>{_esc(label)}</span><strong>{_esc(value)}</strong></li>' for label, value, ok in items)
+    st.markdown(f'<ul class="quality">{chips}</ul>', unsafe_allow_html=True)
+
+
+def scope_chips(items: list[tuple[str, str]]) -> None:
+    chips = "".join(f'<span class="scope-chip"><small>{_esc(k)}</small>{_esc(v)}</span>' for k, v in items)
+    st.markdown(f'<div class="scope-chips">{chips}</div>', unsafe_allow_html=True)
+
+
+def content_list(items: list[tuple[str, str, str]]) -> None:
+    """Report contents: (icon, title, description)."""
+    rows = "".join(f'<li><span class="ci">{icon(sym, 18)}</span><div><strong>{_esc(t)}</strong><small>{_esc(d)}</small></div></li>' for sym, t, d in items)
+    st.markdown(f'<ul class="content-list">{rows}</ul>', unsafe_allow_html=True)
+
+
+# --- Data tables -----------------------------------------------------------------
+
+# kind -> (decimals, scale, suffix).  "share" is a 0–1 fraction shown as a percentage.
+_TABLE_KINDS = {"int": (0, 1, ""), "pct": (1, 1, " %"), "money": (2, 1, ""), "share": (2, 100, " %")}
+
+
+def _cell_format(decimals: int, scale: float, suffix: str):
+    def fmt(value):
+        if value is None or pd.isna(value):
+            return "—"
+        return number(float(value) * scale, decimals) + suffix
+    return fmt
+
+
+def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | str = "auto", key: str | None = None,
+               bar: str | None = None) -> None:
+    """Sortable table with Ecuadorian figures (127.982 · 55.867.299,38 · 32,0 %) whatever the browser language.
+
+    ``columns`` maps a field to ``(label, kind[, width[, help[, phone label]]])`` with kind text, int, pct, money or
+    share.  Values stay numeric, so sorting is exact; the styled text only changes how they read.  Missing values show
+    a dash.  ``bar`` names a 0–100 column that gets a label-free bar right after its figure.  Short tables show every
+    row.  On phones label columns narrow, headers may use their shorter form and a line explains the sideways scroll.
+    """
+    order, config, formats = [], {}, {}
+    view = frame.copy()
+    compact = is_mobile()
+    labels = [f for f, spec in columns.items() if f in view and spec[1] == "text"]
+    for field, spec in columns.items():
+        if field not in view:
+            continue
+        label, kind, width, help_text, short = (tuple(spec) + (None, None, None))[:5]
+        if compact and short:
+            label = short
+        order.append(field)
+        if kind == "text":
+            if compact and isinstance(width, int):
+                width = max(120, int(width * 0.55))
+            # A single label column stays pinned, so phones scroll the figures sideways and keep the name in view.
+            config[field] = st.column_config.TextColumn(label, width=width or "medium", help=help_text,
+                                                        pinned=True if len(labels) == 1 else None)
+            continue
+        view[field] = pd.to_numeric(view[field], errors="coerce").astype(float)
+        formats[field] = _cell_format(*_TABLE_KINDS[kind])
+        config[field] = st.column_config.NumberColumn(label, width=width, help=help_text)
+        if field == bar:
+            meter = f"{field}_barra"
+            view[meter] = view[field].clip(lower=0, upper=100)
+            order.append(meter)
+            config[meter] = st.column_config.ProgressColumn(" ", min_value=0, max_value=100, format=" ", width="small")
+    view = view[order].reset_index(drop=True)
+    if height == "auto" and len(view) <= 20:
+        height = 35 * (max(1, len(view)) + 1) + 3
+    st.dataframe(view.style.format(formats), hide_index=True, width="stretch", height=height, key=key,
+                 placeholder="—", column_config=config)
+    if compact and len(order) > 2:
+        st.markdown(f'<p class="table-hint">{icon("swipe", 16)}Desliza la tabla hacia la izquierda para ver todas las columnas.</p>',
+                    unsafe_allow_html=True)
+
+
+# --- Report previews -------------------------------------------------------------
+
+def _mini_map(selected: set[str], values: dict[str, float]) -> str:
+    codes = [c for c in values if c != geo.NO_POLYGON]
+    colors = theme.ramp([values[c] for c in codes], theme.SEQUENTIAL[2:])
+    fills = {c: col for c, col in zip(codes, colors) if col}
+    return geo.svg_map(fills, width=300, pad=6, stroke="#FFFFFF", selected=selected, selected_fill=theme.ORO,
+                       equator=None, frame_color="rgba(81,47,141,.35)", label_color="rgba(81,47,141,.6)", css_class="ec-map mini")
+
+
+def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tuple[str, str]],
+                   sheets: list[str], selected: set[str], values: dict[str, float]) -> None:
+    logo = f'<img src="{logo_data()}" alt=""/>' if logo_data() else ""
+    kpi_html = "".join(f'<div><strong>{_esc(v)}</strong><span>{_esc(k)}</span></div>' for k, v in kpis[:4])
+    mini = _mini_map(selected, values)
+    if kind == "excel":
+        tabs = "".join(f'<span class="{"on" if i == 0 else ""}">{_esc(s)}</span>' for i, s in enumerate(sheets))
+        cols = "".join(f"<i>{c}</i>" for c in "ABCDEFGHIJ")
+        body = (f'<div class="xl-window"><div class="xl-chrome"><span class="dots"><i></i><i></i><i></i></span><span class="file">{_esc(title)}</span><span class="ext">XLSX</span></div>'
+                f'<div class="xl-formula"><span>A1</span><em>fx</em><b>{_esc(title)}</b></div><div class="xl-cols"><span></span>{cols}</div>'
+                f'<div class="xl-sheet"><div class="xl-band">{logo}<div class="xl-title"><small>Reporte estadístico institucional</small><strong>{_esc(title)}</strong><span>{_esc(period)} · {_esc(scope)}</span></div>{mini}</div>'
+                f'<div class="xl-rule"></div><div class="xl-kpis">{kpi_html}</div><div class="xl-rows"><i></i><i></i><i></i><i></i></div></div>'
+                f'<div class="xl-tabs">{tabs}</div></div>')
+    elif kind == "ppt":
+        body = (f'<div class="slide-mock"><div class="slide-left">{logo}<small>Presentación institucional</small><strong>{_esc(title)}</strong><span>{_esc(period)}</span></div>'
+                f'<div class="slide-right">{mini}<div class="slide-kpis">{kpi_html}</div></div></div>')
     else:
-        c1, l1 = number(stats.get("beneficiarios", 0)), "Beneficiarios reportados"
-        c2, l2 = number(stats.get("usuarios_servicios", 0)), "Usuarios de servicios"
+        label = "Boletín PDF" if kind == "pdf" else "Documento Word editable"
+        body = (f'<div class="page-mock"><div class="page-band">{logo}<span>{_esc(period)}</span></div><div class="page-body"><small>{_esc(label)}</small>'
+                f'<strong>{_esc(title)}</strong><span class="page-scope">{_esc(scope)}</span><div class="page-kpis">{kpi_html}</div>'
+                f'<div class="page-map">{mini}<div class="page-lines"><i></i><i></i><i></i><i></i><i></i></div></div></div></div>')
+    st.markdown(f'<div class="preview preview-{_esc(kind)}">{body}</div>', unsafe_allow_html=True)
+
+
+def footer(period: str, source: str, selection: str = "") -> None:
+    logo = f'<img src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
+    sel = f"<span>Selección {_esc(selection)}</span>" if selection else ""
     st.markdown(
-        f'<div class="report-cover {"landscape" if presentation else ""}"><div class="cover-head">{brand}</div>'
-        f'<div class="cover-body"><div class="cover-kicker">{label}</div><div class="cover-rule"></div><h2>{html.escape(title)}</h2><div class="cover-date">{html.escape(period)}</div>'
-        f'<p>{html.escape(scope)}</p><div class="cover-mini-grid"><div><strong>{c1}</strong><span>{l1}</span></div><div><strong>{c2}</strong><span>{l2}</span></div></div></div>'
-        f'<div class="cover-footer">Evidencia para mejores decisiones <span>MTDH</span></div></div>',
+        f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>InfoReportes · Estadística institucional</strong>'
+        f'<span>Fuente: {_esc(source)}</span><span>Corte: {_esc(period)}</span>{sel}</div>'
+        f'<p>Cifras agregadas por programa y provincia. Una misma persona puede constar en más de un programa.</p></footer>',
         unsafe_allow_html=True,
     )
-
-
-def footer(period: str, source: str) -> None:
-    st.markdown(f'<div class="app-footer"><div><strong>MTDH · Estadística institucional</strong><span>{html.escape(source)}</span></div><div>{html.escape(period)}<br/><span>Cifras sujetas al alcance de la fuente</span></div></div>', unsafe_allow_html=True)

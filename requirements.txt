@@ -9,3 +9,4 @@ Pillow==12.3.0
 matplotlib>=3.9,<4
 lxml>=5,<7
 numpy>=1.26,<3
+XlsxWriter==3.2.9

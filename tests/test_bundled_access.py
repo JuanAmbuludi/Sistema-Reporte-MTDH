@@ -24,7 +24,8 @@ def test_real_app_login_without_secrets():
     app.text_input[1].set_value("admin12345678")
     next(b for b in app.button if "Ingresar al sistema" in b.label).click().run()
     assert not app.exception
-    assert any(b.label == "Dashboard estadístico" for b in app.button)
+    assert any(b.label == "Salir" for b in app.button)
+    assert app.segmented_control(key="workspace").value == "Tablero"
     assert app.session_state["_auth_session"]["username"] == "admin"
 
 
@@ -34,4 +35,4 @@ def test_explicit_empty_auth_disables_bundled_account():
     app.run()
     assert not app.exception
     assert not app.text_input
-    assert not any(b.label == "Dashboard estadístico" for b in app.button)
+    assert not any(b.label == "Salir" for b in app.button)
