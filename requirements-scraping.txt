@@ -1,0 +1,4 @@
+# Solo para actualizar las fuentes web. Streamlit consume los Parquet incluidos.
+-r requirements.txt
+requests>=2.32.3,<3
+playwright==1.51.0

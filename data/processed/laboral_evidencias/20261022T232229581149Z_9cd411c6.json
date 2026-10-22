@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "metodo": "scraping_dom_publico_y_html_oficial",
+  "fecha_consulta_utc": "2026-10-22T23:22:29.581149+00:00",
+  "desde": "2026-01",
+  "hasta": "2026-09",
+  "sut": {
+    "landing_url": "https://sut.trabajo.gob.ec/contratos-web/mrl/contenido/indicadores/indiContratos.xhtml",
+    "powerbi_url": "https://app.powerbi.com/view?r=eyJrIjoiMTk3MThlMWQtOGYyZC00YWE1LTk1MjgtODBhZjI4ZWFhY2ZhIiwidCI6IjcyMzhjNzFmLWE2OWMtNGE5ZC05MmFjLThkMTE1MTA0OTU3MSIsImMiOjR9",
+    "landing_sha256": "be9a36239341dd3384b958f897db1922072f6a6a53bf7e2f06ee989ea90c241d",
+    "total": {
+      "tarjeta": "Cantidad de Contratos 2.789.419.",
+      "actualizacion": "22/10/2026 3:56:59",
+      "desde": "31/12/2015",
+      "hasta": "21/10/2026",
+      "estado": {
+        "Finalizado": false,
+        "Vigente": true
+      },
+      "otros_seleccionados": [],
+      "desplegables": [
+        "Todas",
+        "Todas",
+        "Todas"
+      ]
+    },
+    "series": [
+      {
+        "inicio": "2026-01-01",
+        "fin": "2026-09-30",
+        "snapshot": {
+          "tarjeta": "Cantidad de Contratos 507.451.",
+          "actualizacion": "22/10/2026 3:56:59",
+          "desde": "01/01/2026",
+          "hasta": "30/09/2026",
+          "estado": {
+            "Finalizado": false,
+            "Vigente": true
+          },
+          "otros_seleccionados": [],
+          "desplegables": [],
+          "meses": [
+            "ene",
+            "feb",
+            "mar",
+            "abr",
+            "may",
+            "jun",
+            "jul",
+            "ago",
+            "sep"
+          ],
+          "anios": [
+            "2026"
+          ],
+          "valores": [
+            "52136",
+            "40236",
+            "46214",
+            "50296",
+            "54635",
+            "56794",
+            "62139",
+            "66827",
+            "78174"
+          ]
+        }
+      }
+    ]
+  },
+  "jubilados": {
+    "anio": 2026,
+    "beneficiarios": 4676,
+    "monto_usd": "229000000",
+    "operador_monto": ">",
+    "parrafo": "Solo durante 2026, el Gobierno Nacional ha destinado más de USD 229 millones para el pago de compensaciones jubilares, beneficiando a 4.676 exservidores y extrabajadores.",
+    "publicacion": "2026-08-25T14:35:28+00:00",
+    "html_sha256": "fe00ee0cef74d925c2e527c664e2ec29366df9dfa9e4a8dbafe31e88742be3a6",
+    "url": "https://www.trabajo.gob.ec/el-gobierno-del-presidente-daniel-noboa-cumple-con-cerca-de-15-mil-exservidores-y-extrabajadores-mediante-el-pago-de-sus-compensaciones-jubilares/"
+  }
+}

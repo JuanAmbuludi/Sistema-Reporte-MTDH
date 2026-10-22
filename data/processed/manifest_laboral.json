@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "consulta_id": "20261022T232229581149Z_9cd411c6",
+  "fecha_consulta_utc": "2026-10-22T23:22:29.581149+00:00",
+  "filas": 12,
+  "meses_contratos": [
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "evidencia": "laboral_evidencias/20261022T232229581149Z_9cd411c6.json",
+  "evidencia_sha256": "9cd411c6f843bfeef7f1505d0bd6d730e002f70fc6c94d4b7553c4fb08cda80e",
+  "copia_del_corte": "laboral_cortes/20261022T232229581149Z_9cd411c6.parquet",
+  "parquet_sha256": "0424a02304f55cb7f0a2d1b669f6c082e5f3a0292daf829a44540b3f6235a858",
+  "fuentes": {
+    "sut": "https://sut.trabajo.gob.ec/contratos-web/mrl/contenido/indicadores/indiContratos.xhtml",
+    "powerbi": "https://app.powerbi.com/view?r=eyJrIjoiMTk3MThlMWQtOGYyZC00YWE1LTk1MjgtODBhZjI4ZWFhY2ZhIiwidCI6IjcyMzhjNzFmLWE2OWMtNGE5ZC05MmFjLThkMTE1MTA0OTU3MSIsImMiOjR9",
+    "jubilados": "https://www.trabajo.gob.ec/el-gobierno-del-presidente-daniel-noboa-cumple-con-cerca-de-15-mil-exservidores-y-extrabajadores-mediante-el-pago-de-sus-compensaciones-jubilares/"
+  },
+  "controles": {
+    "meses_completos": true,
+    "sumas_conciliadas": true,
+    "filtro_vigente": true
+  },
+  "advertencias": [
+    "No sumar indicadores, unidades, cortes ni naturalezas diferentes.",
+    "Los meses del SUT son cohortes con estado actual, no stocks históricos.",
+    "El monto de jubilaciones respeta el operador de la fuente; > es límite inferior.",
+    "Jubilados: año conocido, mes de cierre no documentado. Noticia configurada, no feed automático.",
+    "No incluye contingencias ni ejecución presupuestaria general."
+  ]
+}
