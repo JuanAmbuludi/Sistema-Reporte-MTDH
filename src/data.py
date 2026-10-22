@@ -52,6 +52,42 @@ def load_history(data_dir: str | Path | None = None) -> pd.DataFrame:
     return frame
 
 
+MONTHS = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+          "noviembre", "diciembre")
+PERIOD_COLUMNS = ["periodo", "anio", "seccion", "programa_id", "programa", "provincia_codigo", "provincia", *METRIC_COLUMNS]
+
+
+def load_periods(data_dir: str | Path | None = None) -> tuple[pd.DataFrame, list[dict]]:
+    """Every period the base can show: monthly cuts and annual reference years.
+
+    Rows keep their own ``periodo_id``; filter to one period before adding anything.  The catalog lists the
+    periods newest first, each with ``id``, ``year``, ``month`` (None for a year without a monthly cut) and
+    ``label`` ("Septiembre 2026", "Año 2025").
+    """
+    current = load_data(data_dir)
+    current = current.assign(periodo_id=current["periodo"].dt.strftime("%Y-%m"),
+                             periodo_anio=current["periodo"].dt.year.astype(int),
+                             periodo_mes=current["periodo"].dt.month.astype(int))
+    frames = [current[PERIOD_COLUMNS + ["periodo_id", "periodo_anio", "periodo_mes"]]]
+    history = load_history(data_dir)
+    if not history.empty:
+        years = history["anio_referencia"].astype(int)
+        annual = history.assign(anio=years, periodo=pd.NaT, periodo_id=years.astype(str), periodo_anio=years, periodo_mes=0)
+        frames.append(annual[PERIOD_COLUMNS + ["periodo_id", "periodo_anio", "periodo_mes"]])
+    combined = pd.concat(frames, ignore_index=True)
+    for col in ["usuarios", "unidades"]:
+        combined[col] = pd.to_numeric(combined[col], errors="coerce").astype("Int64")
+    for col in MONEY_COLUMNS:
+        combined[col] = pd.to_numeric(combined[col], errors="coerce").astype(float)
+    catalog = []
+    for (period_id, year, month), _rows in combined.groupby(["periodo_id", "periodo_anio", "periodo_mes"], sort=False):
+        month = int(month) or None
+        label = f"{MONTHS[month - 1].capitalize()} {year}" if month else f"Año {year}"
+        catalog.append({"id": period_id, "year": int(year), "month": month, "label": label})
+    catalog.sort(key=lambda p: (p["year"], p["month"] or 13), reverse=True)
+    return combined, catalog
+
+
 def filter_data(
     df: pd.DataFrame,
     provincias: Iterable[str] | None = None,
@@ -81,6 +117,8 @@ def _sum(series: pd.Series, *, integer: bool = False):
 
 
 def _assert_single_period(df: pd.DataFrame) -> None:
+    if "periodo_id" in df and df["periodo_id"].nunique() > 1:
+        raise ValueError("Seleccione un solo corte: los usuarios y unidades no se suman entre períodos.")
     if "periodo" in df and df["periodo"].dropna().nunique() > 1:
         raise ValueError("Seleccione un solo corte: los usuarios y unidades no se suman entre períodos.")
     if "anio_referencia" in df and df["anio_referencia"].nunique() > 1:

@@ -1,7 +1,8 @@
-"""InfoReportes MTDH: tablero estadístico y centro de reportes institucionales.
+"""InfoReportes MTDH: tablero de indicadores estratégicos y centro de reportes institucionales.
 
 Run from the repository root with ``streamlit run app.py``.
-All views and report exports receive the same filtered, validated snapshot.
+Each view reads one period and one thematic module (transfers and services are never mixed), and every
+export receives exactly the rows shown on screen.
 """
 from __future__ import annotations
 
@@ -22,31 +23,26 @@ st.set_page_config(
 
 from src import charts, geo, theme, ui
 from src.auth import logout, require_login
-from src.data import DEFAULT_DATA_DIR, aggregate, filter_data, load_data, load_manifest, summarize
-from src.reference_views import render_references
+from src.data import DEFAULT_DATA_DIR, aggregate, filter_data, load_periods, summarize
+from src.indicators import MODULES
 
 ui.inject_styles()
 user = require_login()
 COMPACT = ui.is_mobile()
 
-SCOPES = {
-    "Panorama integral": None,
-    "Bonos y pensiones": ["bonos_pensiones"],
-    "Protección integral": ["proteccion_integral"],
-}
 WORKSPACES = {"Tablero": ":material/insights: Tablero", "Reportes": ":material/description: Reportes"}
 PLOTLY_CONFIG = {
     "displaylogo": False, "scrollZoom": False, "doubleClick": False, "responsive": True,
     "modeBarButtonsToRemove": ["select2d", "lasso2d", "autoScale2d", "zoom2d", "pan2d", "zoomIn2d", "zoomOut2d",
-                               "resetScale2d", "zoomInGeo", "zoomOutGeo", "resetGeo", "hoverClosestGeo", "toggleHover"],
+                               "resetScale2d", "toggleHover"],
     "toImageButtonOptions": {"format": "png", "filename": "MTDH_InfoReportes", "scale": 2},
 }
 
 
 @st.cache_data(show_spinner=False)
-def read_snapshot(version: int):
-    """Invalidated when the authoritative parquet changes."""
-    return load_data(), load_manifest()
+def read_periods(version: int):
+    """Invalidated when any processed file changes."""
+    return load_periods()
 
 
 def clear_filters() -> None:
@@ -59,30 +55,23 @@ def show_chart(figure, key: str) -> None:
     st.plotly_chart(figure, width="stretch", theme=None, key=key, config=config)
 
 
-def money_millions(value) -> str:
-    return "No disponible" if value is None or pd.isna(value) else f"USD {ui.millions(value)} M"
-
-
 try:
-    data_path = DEFAULT_DATA_DIR / "indicadores.parquet"
-    manifest_path = DEFAULT_DATA_DIR / "manifest.json"
-    snapshot_version = max(data_path.stat().st_mtime_ns, manifest_path.stat().st_mtime_ns)
-    data, manifest = read_snapshot(snapshot_version)
-except (FileNotFoundError, ValueError, OSError) as exc:
-    ui.info_note("No se pudo abrir la base validada. Genera los datos con scripts/build_data.py y vuelve a cargar la aplicación.",
-                 "Base de datos no disponible", tone="warn")
-    st.code(str(exc), language=None)
+    processed = [DEFAULT_DATA_DIR / name for name in ("indicadores.parquet", "historico_referencia.parquet", "manifest.json")]
+    data, catalog = read_periods(max(path.stat().st_mtime_ns for path in processed if path.exists()))
+except (FileNotFoundError, ValueError, OSError):
+    ui.info_note("La información no está disponible en este momento. Vuelva a cargar la página en unos minutos.",
+                 "Información no disponible", tone="warn")
     st.stop()
 
-period_label = manifest.get("periodo_label", "Corte vigente")
-fiscal_year = int(data.anio.iloc[0])
-source_file = manifest.get("fuente", {}).get("archivo", "Fuente institucional")
 province_names = data.drop_duplicates("provincia_codigo").set_index("provincia_codigo").provincia.to_dict()
-# Chart-length program names (official names stay in tables, except on phones where the label column is narrow).
+# Chart-length program names; official names stay in tables, except on phones where the label column is narrow.
 short_programs = {row.programa: theme.program_label(row.programa_id, row.programa)
                   for row in data.drop_duplicates("programa_id").itertuples()}
-st.session_state.setdefault("scope_label", "Panorama integral")
+years = sorted({p["year"] for p in catalog}, reverse=True)
 st.session_state.setdefault("workspace", "Tablero")
+st.session_state.setdefault("module", next(iter(MODULES)))
+if st.session_state.get("period_year") not in years:
+    st.session_state["period_year"] = years[0]
 
 # ---------------------------------------------------------------------------
 # Institutional band: top bar, consultation and the map of Ecuador
@@ -100,15 +89,31 @@ with st.container(key="band"):
     with hero_left:
         copy_slot = st.empty()
         with st.container(key="consulta"):
-            scope_label = st.segmented_control("Ámbito de la consulta", list(SCOPES), key="scope_label", required=True, width="stretch")
-            sections = SCOPES[scope_label]
-            scoped = filter_data(data, secciones=sections)
-            province_options = list(scoped.drop_duplicates("provincia_codigo").sort_values("provincia_codigo").provincia_codigo)
-            province_options.sort(key=lambda c: (c == geo.NO_POLYGON, province_names[c]))
-            program_frame = scoped[["programa_id", "programa", "seccion"]].drop_duplicates()
-            program_lookup = program_frame.set_index("programa_id").programa.to_dict()
-            program_order = list(program_frame.sort_values(["seccion", "programa"]).programa_id)
-            # Scope changes must not leave hidden, stale selections in another section.
+            col_year, col_month = st.columns(2, gap="small")
+            with col_year:
+                year = st.segmented_control("Año", years, key="period_year", required=True, format_func=str, width="stretch")
+            months = [p for p in catalog if p["year"] == year and p["month"]]
+            with col_month:
+                if months:
+                    month_ids = [p["id"] for p in months]
+                    if st.session_state.get("period_month") not in month_ids:
+                        st.session_state["period_month"] = month_ids[0]
+                    month_names = {p["id"]: p["label"].split()[0] for p in months}
+                    period_id = st.segmented_control("Mes", month_ids, format_func=month_names.get, key="period_month",
+                                                     required=True, width="stretch")
+                else:
+                    period_id = next(p["id"] for p in catalog if p["year"] == year)
+                    st.segmented_control("Mes", ["Corte anual"], default="Corte anual", key="period_month_annual",
+                                         disabled=True, width="stretch")
+            period = next(p for p in catalog if p["id"] == period_id)
+            module_id = st.segmented_control("Ámbito", list(MODULES), format_func=lambda m: MODULES[m].label, key="module",
+                                             required=True, width="stretch")
+            module = MODULES[module_id]
+            scoped = filter_data(data.loc[data.periodo_id.eq(period_id)], secciones=list(module.sections))
+            province_options = sorted(scoped.provincia_codigo.unique(), key=lambda c: (c == geo.NO_POLYGON, province_names[c]))
+            program_order = list(scoped.groupby("programa_id").usuarios.sum().sort_values(ascending=False).index)
+            program_lookup = scoped.drop_duplicates("programa_id").set_index("programa_id").programa.to_dict()
+            # A change of period or module must not leave hidden selections behind.
             for key, available in [("selected_provinces", province_options), ("selected_programs", program_order)]:
                 if key in st.session_state:
                     st.session_state[key] = [v for v in st.session_state[key] if v in available]
@@ -117,95 +122,90 @@ with st.container(key="band"):
                 selected_provinces = st.multiselect("Territorio", province_options, format_func=province_names.get,
                                                     placeholder="Todo el país", key="selected_provinces")
             with col_program:
-                selected_programs = st.multiselect("Programa o servicio", program_order, format_func=program_lookup.get,
-                                                   placeholder="Todos los programas", key="selected_programs")
+                selected_programs = st.multiselect(module.item.capitalize(), program_order, format_func=program_lookup.get,
+                                                   placeholder=f"Todos los {module.items}", key="selected_programs")
             if selected_provinces or selected_programs:
-                st.button("Ver todo el país y todos los programas", icon=":material/restart_alt:", on_click=clear_filters,
+                st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=clear_filters,
                           type="tertiary", key="reset_filters")
-    map_slot = hero_right.empty()
+
+    indicators = module.indicators(period["year"])
+    by_key = {indicator.key: indicator for indicator in indicators}
+    if st.session_state.get("map_indicator") not in by_key:
+        st.session_state["map_indicator"] = indicators[0].key
+    with hero_right:
+        map_key = st.segmented_control("Indicador territorial", list(by_key), format_func=lambda k: by_key[k].compact,
+                                       key="map_indicator", required=True, width="stretch")
+        map_slot = st.empty()
+    indicator = by_key[map_key]
 
 filtered = filter_data(scoped, provincias=selected_provinces or None, programas=selected_programs or None)
 if filtered.empty:
-    ui.info_note("La combinación elegida no tiene registros. Cambia el territorio o el programa para continuar.",
-                 "Sin datos para esta selección", tone="warn")
+    ui.info_note("La combinación elegida no registra información. Ajuste el territorio o la selección de programas.",
+                 "Sin resultados para esta selección", tone="warn")
     st.stop()
 
-stats = summarize(filtered)
-national = summarize(filter_data(scoped, programas=selected_programs or None))
-scope_total = summarize(scoped)
-active_sections = set(filtered.seccion)
-filters_active = bool(selected_provinces or selected_programs)
+# National context: same period, module and programs, every province.  Shares, maps and rankings use it.
+national = filter_data(scoped, programas=selected_programs or None)
+stats, national_stats, scope_stats = summarize(filtered), summarize(national), summarize(scoped)
 selected_codes = set(selected_provinces)
+money = module.money(period["year"])
+people = module.people_indicator()
 selection_hash = hashlib.sha256(pd.util.hash_pandas_object(filtered, index=True).values.tobytes()).hexdigest()[:10]
 
 if len(selected_provinces) == 1:
-    headline = f"Protección social en {province_names[selected_provinces[0]]}"
     territory_label = province_names[selected_provinces[0]]
+    headline = f"{module.label} en {territory_label}"
 elif selected_provinces:
-    headline = f"Protección social en {len(selected_provinces)} territorios"
-    territory_label = f"{len(selected_provinces)} territorios"
+    territory_label = f"{len(selected_provinces)} provincias"
+    headline = f"{module.label} en {territory_label}"
 else:
-    headline = "Protección social, provincia por provincia"
-    territory_label = "Cobertura nacional"
-program_count = stats["programas"]
-province_count = stats["provincias"]
-zone_included = filtered.provincia_codigo.eq(geo.NO_POLYGON).any()
-lead = (f"{scope_label}: {program_count} {'programa' if program_count == 1 else 'programas'} con presencia en "
-        f"{province_count} {'provincia' if province_count == 1 else 'provincias'}"
-        + (" y la zona en estudio." if zone_included else "."))
+    territory_label = "Nacional"
+    headline = module.label
+programs_label = (program_lookup[selected_programs[0]] if len(selected_programs) == 1 else
+                  f"{len(selected_programs)} {module.items}" if selected_programs else f"Todos los {module.items}")
+period_chip = f"Corte {period['label'].lower()}" if period["month"] else period["label"]
+context_label = f"{period['label']} · {territory_label}"
 with copy_slot:
-    ui.hero_copy(period_label, headline, lead)
+    ui.hero_copy(period_chip, headline, module.description)
 
-map_data = filter_data(scoped, programas=selected_programs or None)
-map_values = charts.province_values(map_data, "usuarios").set_index("provincia_codigo")["usuarios"].astype(float).to_dict()
-zone_value = map_values.get(geo.NO_POLYGON)
-zone_note = f"Zona en estudio: {ui.number(zone_value)} registros sin polígono en el mapa." if zone_value else ""
+
+def value_text(value, ind) -> str:
+    return charts.fmt_value(value, ind)
+
+
+map_values = charts.province_values(national, indicator.key).set_index("provincia_codigo")[indicator.key].astype(float).to_dict()
 with map_slot:
-    ui.hero_map(map_values, province_names, selected_codes, "Cobertura reportada", zone_note=zone_note)
+    ui.hero_map(map_values, province_names, selected_codes, indicator.label, lambda v: value_text(v, indicator))
 
 
 # ---------------------------------------------------------------------------
 # Headline indicators
 # ---------------------------------------------------------------------------
-def share_of(value, base):
-    if not filters_active or value is None or not base:
-        return None
-    return value / base * 100
-
-
 def kpi_cards() -> list[dict]:
-    bonos_programs = filtered.loc[filtered.seccion.eq("bonos_pensiones"), "programa_id"].nunique()
-    service_programs = filtered.loc[filtered.seccion.eq("proteccion_integral"), "programa_id"].nunique()
-    fiscal = {"label": f"Monto fiscal {fiscal_year}", "value": (stats["monto_fiscal"] or 0) / 1e6, "decimals": 1,
-              "prefix": "USD", "suffix": "millones", "icon": "banknote", "tone": "oro",
-              "note": f"Acumulado de gobierno: USD {ui.millions(stats['monto_gobierno'])} millones",
-              "share": share_of(stats["monto_fiscal"], national["monto_fiscal"] if selected_provinces else scope_total["monto_fiscal"])}
-    government = {"label": "Acumulado de gobierno", "value": (stats["monto_gobierno"] or 0) / 1e6, "decimals": 1,
-                  "prefix": "USD", "suffix": "millones", "icon": "landmark", "tone": "violeta",
-                  "note": f"Incluye el acumulado 2023–{fiscal_year - 1} y el monto fiscal {fiscal_year}",
-                  "share": share_of(stats["monto_gobierno"], national["monto_gobierno"] if selected_provinces else scope_total["monto_gobierno"])}
-    base_label = "del total nacional" if selected_provinces else "del total del ámbito"
-    beneficiaries = {"label": "Beneficiarios de bonos y pensiones", "value": stats["beneficiarios"], "icon": "hand-coins",
-                     "tone": "morado", "note": f"{bonos_programs} {'programa' if bonos_programs == 1 else 'programas'} de transferencias monetarias",
-                     "share": share_of(stats["beneficiarios"], national["beneficiarios"] if selected_provinces else scope_total["beneficiarios"]),
-                     "share_label": base_label}
-    users = {"label": "Usuarios de servicios de protección integral", "value": stats["usuarios_servicios"], "icon": "users",
-             "tone": "fucsia", "note": f"{service_programs} {'servicio' if service_programs == 1 else 'servicios'} de atención directa",
-             "share": share_of(stats["usuarios_servicios"], national["usuarios_servicios"] if selected_provinces else scope_total["usuarios_servicios"]),
-             "share_label": base_label}
-    units = {"label": "Unidades de atención", "value": stats["unidades"], "icon": "building", "tone": "violeta",
-             "note": "Reportadas por los servicios de protección integral",
-             "share": share_of(stats["unidades"], national["unidades"] if selected_provinces else scope_total["unidades"]),
-             "share_label": base_label}
-    fiscal["share_label"] = government["share_label"] = base_label
-    if active_sections == {"bonos_pensiones"}:
-        covered = filtered.groupby("programa_id").usuarios.sum().gt(0).sum()
-        programs = {"label": "Programas con beneficiarios", "value": int(covered), "icon": "layers", "tone": "fucsia",
-                    "note": f"De {bonos_programs} programas en la selección; los demás conservan saldos históricos"}
-        return [beneficiaries, fiscal, government, programs]
-    if active_sections == {"proteccion_integral"}:
-        return [users, units, fiscal, government]
-    return [beneficiaries, users, units, fiscal]
+    filters_active = bool(selected_provinces or selected_programs)
+    share_label = "del total nacional" if selected_provinces else "del total del ámbito"
+    reference = national_stats if selected_provinces else scope_stats
+
+    def share(key):
+        value, whole = stats.get(key), reference.get(key)
+        return value / whole * 100 if filters_active and value is not None and whole else None
+
+    cards = [{"label": people.label, "value": stats["usuarios"], "icon": people.icon, "tone": "morado",
+              "share": share("usuarios"), "share_label": share_label}]
+    if module.extra:
+        for extra in module.extra:
+            cards.append({"label": extra.label, "value": stats[extra.key], "icon": extra.icon, "tone": "violeta",
+                          "share": share(extra.key), "share_label": share_label})
+    else:
+        active = int(filtered.groupby("programa_id").usuarios.sum().gt(0).sum())
+        total = int(filtered.programa_id.nunique())
+        cards.append({"label": f"{module.items.capitalize()} con {people.label.lower()}", "value": active, "icon": "layers",
+                      "tone": "violeta", "note": f"De {total} {module.items if total != 1 else module.item} en la selección"})
+    for role, icon, tone in [("fiscal", "banknote", "oro"), ("government", "landmark", "fucsia")]:
+        key = money[role].key
+        cards.append({"label": money[role].label, "value": (stats[key] or 0) / 1e6, "decimals": 1, "prefix": "USD",
+                      "suffix": "millones", "icon": icon, "tone": tone, "share": share(key), "share_label": share_label})
+    return cards
 
 
 ui.kpi_grid(kpi_cards())
@@ -214,49 +214,8 @@ ui.kpi_grid(kpi_cards())
 # ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
-def display_table(frame: pd.DataFrame, height: int | str = "auto", key: str | None = None) -> None:
-    # Amounts follow the budget strip: previous accumulated + fiscal amount = government accumulated.
-    # Execution only takes a column when the selection has verified figures; the strip above already says when it does not.
-    if "presupuesto_ejecutado" in frame and pd.to_numeric(frame.presupuesto_ejecutado, errors="coerce").isna().all():
-        frame = frame.drop(columns="presupuesto_ejecutado")
-    if COMPACT and "programa" in frame:
-        frame = frame.assign(programa=frame.programa.map(lambda name: short_programs.get(name, name)))
-    meaning = theme.definitions(fiscal_year)
-    ui.data_table(frame, {
-        "provincia": ("Provincia o territorio", "text", 190),
-        "programa": ("Programa o servicio", "text", 292),
-        "usuarios": ("Beneficiarios y usuarios", "int", None, meaning["usuarios"], "Cobertura"),
-        "participacion": ("Participación", "pct", None, "Peso de cada fila en los beneficiarios y usuarios de la tabla.", "Peso"),
-        "unidades": ("Unidades de atención", "int", None, meaning["unidades"], "Unidades"),
-        # Amounts are in USD (said in the caption and the header help), which keeps the table inside the card.
-        "monto_anterior": (f"Acumulado 2023–{fiscal_year - 1}", "money", None, meaning["monto_anterior"]),
-        "monto_fiscal": (f"Monto fiscal {fiscal_year}", "money", None, meaning["monto_fiscal"]),
-        "monto_gobierno": ("Acumulado de gobierno", "money", None, meaning["monto_gobierno"]),
-        "presupuesto_ejecutado": ("Presupuesto ejecutado", "money", None, meaning["presupuesto_ejecutado"]),
-    }, height=height, key=key, bar="participacion")
-
-
-@st.cache_data(show_spinner=False, max_entries=24)
-def detail_workbook(detail: pd.DataFrame, subtitle: str, selection: str) -> bytes:
-    """The detail table as an institutional Excel sheet; it opens well whatever the regional settings."""
-    from src.reports import table_xlsx
-    layout = [("Provincia o territorio", "provincia", "text", 26.0), ("Programa o servicio", "programa", "text", 36.0),
-              ("Beneficiarios y usuarios", "usuarios", "int", 14.0), ("Participación", "participacion", "pct", 12.0),
-              ("Unidades de atención", "unidades", "units", 12.5),
-              (f"Acumulado 2023–{fiscal_year - 1} (USD)", "monto_anterior", "usd", 19.0),
-              (f"Monto fiscal {fiscal_year} (USD)", "monto_fiscal", "usd", 19.0),
-              ("Acumulado de gobierno (USD)", "monto_gobierno", "usd", 19.0),
-              ("Presupuesto ejecutado (USD)", "presupuesto_ejecutado", "usd", 19.0)]
-    layout = [item for item in layout if item[1] in detail]
-    records = []
-    for item in detail.to_dict("records"):
-        record = {k: (None if not isinstance(v, str) and pd.isna(v) else v) for k, v in item.items()}
-        record["participacion"] = (record.get("participacion") or 0) / 100
-        records.append(record)
-    return table_xlsx(records, layout, title="Detalle verificable", subtitle=subtitle,
-                      period_label=period_label, selection=selection,
-                      note="Una misma persona puede constar en más de un programa; los conteos no se suman como personas únicas. "
-                           "N/D: dato no disponible. No aplica: unidades de atención en bonos y pensiones.")
+TABLE_LEVELS = {f"Por {module.item}": ["programa"], "Por provincia": ["provincia"],
+                f"Por provincia y {module.item}": ["provincia", "programa"]}
 
 
 def with_share(frame: pd.DataFrame) -> pd.DataFrame:
@@ -266,244 +225,186 @@ def with_share(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.sort_values("usuarios", ascending=False)
 
 
+def display_table(frame: pd.DataFrame, key: str, height: int | str = "auto") -> None:
+    if COMPACT and "programa" in frame:
+        frame = frame.assign(programa=frame.programa.map(lambda name: short_programs.get(name, name)))
+    columns = {
+        "provincia": ("Provincia", "text", 190),
+        "programa": (module.item.capitalize(), "text", 292),
+        "usuarios": (people.label, "int", None, None, people.label),
+        "participacion": ("Participación", "pct", None, None, "Peso"),
+    }
+    for extra in module.extra:
+        columns[extra.key] = (extra.label, "int", 156, None, extra.compact.split()[0])
+    columns.update({
+        money["fiscal"].key: (f"{money['fiscal'].label} (USD)", "money"),
+        money["previous"].key: (f"{money['previous'].compact} (USD)", "money"),
+        money["government"].key: (f"{money['government'].compact} (USD)", "money"),
+    })
+    if frame["presupuesto_ejecutado"].notna().any():
+        columns["presupuesto_ejecutado"] = ("Presupuesto ejecutado (USD)", "money")
+    ui.data_table(frame, columns, height=height, key=key, bar="participacion")
+
+
+@st.cache_data(show_spinner=False, max_entries=24)
+def table_workbook(detail: pd.DataFrame, module_id: str, year: int, subtitle: str, selection: str, period_label: str) -> bytes:
+    """The results table as an institutional Excel sheet; it opens well whatever the regional settings."""
+    from src.reports import table_xlsx
+    mod = MODULES[module_id]
+    cash = mod.money(year)
+    layout = [("Provincia", "provincia", "text", 26.0), (mod.item.capitalize(), "programa", "text", 36.0),
+              (mod.people, "usuarios", "int", 14.0), ("Participación", "participacion", "pct", 12.0)]
+    layout += [(extra.label, extra.key, "int", 13.0) for extra in mod.extra]
+    layout += [(f"{cash['fiscal'].label} (USD)", cash["fiscal"].key, "usd", 19.0),
+               (f"{cash['previous'].label} (USD)", cash["previous"].key, "usd", 21.0),
+               (f"{cash['government'].label} (USD)", cash["government"].key, "usd", 21.0)]
+    layout = [item for item in layout if item[1] in detail]
+    records = []
+    for item in detail.to_dict("records"):
+        record = {k: (None if not isinstance(v, str) and pd.isna(v) else v) for k, v in item.items()}
+        record["participacion"] = (record.get("participacion") or 0) / 100
+        records.append(record)
+    return table_xlsx(records, layout, title="Cuadro de resultados", subtitle=subtitle, period_label=period_label,
+                      selection=selection, sheet="Resultados")
+
+
 def dashboard() -> None:
-    ui.section_heading("Cobertura por programa", "Beneficiarios y usuarios reportados en el corte, junto con los recursos acumulados de cada programa.", "chart")
-    left, right = st.columns(2, gap="medium")
-    with left, st.container(border=True, key="card_coverage"):
-        ui.chart_title("Cobertura reportada", "Personas registradas por programa o servicio", period_label)
-        show_chart(charts.program_bars(filtered), "program_coverage")
-    with right, st.container(border=True, key="card_budget"):
-        ui.chart_title("Recursos acumulados por programa", f"Acumulado de gobierno = acumulado 2023–{fiscal_year - 1} + monto fiscal {fiscal_year}", "Millones de USD")
-        show_chart(charts.budget_stack(filtered), "program_budget")
-    ui.info_note("Los conteos son agregados por programa. Una misma persona puede figurar en más de uno, por eso no se suman como personas únicas.")
+    ui.section_heading(f"Resultados por {module.item}", context_label, "chart")
+    if module.extra:
+        left, right = st.columns(2, gap="medium")
+        with left, st.container(border=True, key="card_people"):
+            ui.chart_title(f"{people.label} por {module.item}", "Número de personas")
+            show_chart(charts.category_bars(filtered, people, short_programs), "category_people")
+        extra = module.extra[0]
+        with right, st.container(border=True, key="card_extra"):
+            ui.chart_title(f"{extra.label} por {module.item}", "Número de unidades")
+            show_chart(charts.category_bars(filtered, extra, short_programs), "category_extra")
+        with st.container(border=True, key="card_budget"):
+            ui.chart_title(f"Presupuesto por {module.item}", f"Millones de USD · {money['previous'].label} y {money['fiscal'].label.lower()}")
+            show_chart(charts.resources_stack(filtered, money, short_programs), "category_budget")
+    else:
+        left, right = st.columns(2, gap="medium")
+        with left, st.container(border=True, key="card_people"):
+            ui.chart_title(f"{people.label} por {module.item}", "Número de personas")
+            show_chart(charts.category_bars(filtered, people, short_programs), "category_people")
+        with right, st.container(border=True, key="card_budget"):
+            ui.chart_title(f"Presupuesto por {module.item}", f"Millones de USD · {money['previous'].label} y {money['fiscal'].label.lower()}")
+            show_chart(charts.resources_stack(filtered, money, short_programs), "category_budget")
 
-    ui.section_heading("Recursos", "Montos tomados de la fuente y expresados en USD. No equivalen a transferencias mensuales.", "banknote")
-    execution = stats["presupuesto_ejecutado"]
-    ui.budget_strip([
-        (f"Acumulado 2023–{fiscal_year - 1}", f"USD {ui.millions(stats['monto_anterior'])}", "millones", "Saldo reportado de años anteriores", True),
-        (f"Monto fiscal {fiscal_year}", f"USD {ui.millions(stats['monto_fiscal'])}", "millones", f"Columna Presupuesto {fiscal_year} de la fuente", True),
-        ("Acumulado de gobierno", f"USD {ui.millions(stats['monto_gobierno'])}", "millones", "Suma del acumulado previo y el monto fiscal", True),
-        ("Presupuesto ejecutado", f"USD {ui.millions(execution)}" if execution is not None else "No disponible", "millones",
-         "Ejecución verificada" if execution is not None else "La fuente no certifica la fase de ejecución", execution is not None),
-    ])
-    if execution is None and stats.get("presupuesto_ejecutado_parcial") is not None:
-        st.caption(f"Hay ejecución verificada para {ui.number(stats['ejecucion_cobertura_pct'], 1)} % de las filas "
-                   f"({ui.money(stats['presupuesto_ejecutado_parcial'])}). Ese monto parcial no se presenta como total.")
-    fiscal_by_program = aggregate(filtered, ["seccion", "programa_id", "programa"]).sort_values("monto_fiscal", ascending=False)
-    fiscal_total = fiscal_by_program.monto_fiscal.sum()
-    if fiscal_total and fiscal_total > 0:
-        tree, legend = st.columns([1.35, 1], gap="medium")
-        with tree, st.container(border=True, key="card_treemap"):
-            ui.chart_title(f"¿Cómo se distribuye el monto fiscal {fiscal_year}?", "Cada bloque es proporcional al monto del programa", money_millions(fiscal_total))
-            show_chart(charts.fiscal_treemap(filtered), "fiscal_treemap")
-        with legend, st.container(border=True, key="card_share"):
-            ui.chart_title("Participación por programa", f"Porcentaje del monto fiscal {fiscal_year} de la selección")
-            rows = []
-            for row in fiscal_by_program.itertuples():
-                if not row.monto_fiscal or row.monto_fiscal <= 0:
-                    continue
-                rows.append((theme.program_label(row.programa_id, row.programa), row.monto_fiscal / fiscal_total * 100,
-                             f"USD {ui.millions(row.monto_fiscal)} M", theme.SECTION_COLORS[row.seccion]))
-            ui.share_list(rows)
-            zero = [theme.program_label(r.programa_id, r.programa) for r in fiscal_by_program.itertuples() if not r.monto_fiscal]
-            if zero:
-                st.caption("Sin monto fiscal en el corte: " + ", ".join(zero) + ". Conservan saldos en el acumulado de gobierno.")
-
-    ui.section_heading("Territorio", "Ubica la cobertura y los recursos en el mapa, compara provincias y revisa la composición de cada una.", "map")
-    options = ["Cobertura reportada", f"Monto fiscal {fiscal_year}"] + (["Unidades de atención"] if "proteccion_integral" in active_sections else [])
-    if st.session_state.get("territorial_metric") not in options:
-        st.session_state["territorial_metric"] = options[0]
-    metric_label = st.segmented_control("Indicador del mapa", options, key="territorial_metric", required=True,
-                                        width="stretch" if COMPACT else "content")
-    metric_key = {"Cobertura reportada": "usuarios", f"Monto fiscal {fiscal_year}": "monto_fiscal", "Unidades de atención": "unidades"}[metric_label]
-
-    def by_metric(frame: pd.DataFrame) -> pd.DataFrame:
-        return frame if metric_key != "unidades" else frame.loc[frame.seccion.eq("proteccion_integral")]
-
-    terrain = by_metric(filtered)
-    # With territories chosen, the map and the ranking keep the whole country as context and mark the selection in gold.
-    context = by_metric(map_data) if selected_provinces else terrain
-    chosen_names = [province_names[c] for c in selected_provinces]
-    if len(chosen_names) == 1:
-        chosen_text = f"{chosen_names[0]} aparece en oro"
-    elif chosen_names:
-        chosen_text = "Los territorios elegidos aparecen en oro"
-    share_label = "del total nacional" if selected_provinces else "de la selección"
-    map_col, rank_col = st.columns([1.25, 1], gap="medium")
-    with map_col, st.container(border=True, key="card_map"):
-        subtitle = (f"{chosen_text}; el resto del país sirve de referencia" if selected_provinces
-                    else "Toca o pasa el cursor sobre una provincia para ver su valor")
-        ui.chart_title(f"{metric_label} por provincia", subtitle, "Mapa")
-        show_chart(charts.province_map(context, metric_key, compact=COMPACT, highlight=selected_codes, share_label=share_label), "province_map")
+    ui.section_heading("Resultados por provincia", f"{indicator.label} · {period['label']}", "map")
+    share_label = "del total nacional"
+    rank_col, matrix_col = st.columns([1, 1.15], gap="medium")
     with rank_col, st.container(border=True, key="card_rank"):
-        if selected_provinces:
-            ui.chart_title("Posición en el país", f"{chosen_text}, con su lugar entre las provincias")
-        else:
-            ui.chart_title("Ranking territorial", "Las tres provincias con mayor valor se destacan en morado")
-        show_chart(charts.province_bars(context, metric_key, highlight=selected_codes, share_label=share_label), "province_bars")
-    zone = context.loc[context.provincia_codigo.eq(geo.NO_POLYGON), metric_key].sum()
-    if zone and zone > 0:
-        st.caption(f"Zona en estudio: {charts.fmt_value(zone, metric_key)}. Se incluye en los totales y el ranking, pero no tiene polígono en el mapa.")
-    with st.container(border=True, key="card_matrix"):
-        if len(chosen_names) == 1:
-            ui.chart_title(f"Composición de {chosen_names[0]}", "Porcentaje que aporta cada programa en la provincia; el valor exacto aparece al pasar el cursor", "Mapa de calor")
-        else:
-            ui.chart_title("Composición de cada territorio", "Porcentaje que aporta cada programa dentro de la provincia; el detalle aparece al pasar el cursor", "Mapa de calor")
-        matrix = charts.territorial_matrix(terrain, metric_key)
+        ui.chart_title(f"{indicator.label} por provincia",
+                       "Provincias seleccionadas en dorado" if selected_codes else "Provincias ordenadas de mayor a menor")
+        show_chart(charts.province_ranking(national, indicator, highlight=selected_codes, share_label=share_label), "province_ranking")
+    with matrix_col, st.container(border=True, key="card_matrix"):
+        ui.chart_title(f"Distribución por {module.item}", f"Participación de cada {module.item} en la provincia")
+        matrix = charts.composition_matrix(national, indicator, short_programs, highlight=selected_codes)
         if COMPACT:
-            # Phones scroll the matrix sideways instead of squeezing twelve columns.
             # A fixed size (not autosized) keeps Plotly from shrinking it to the scroll container on a resize.
             matrix.update_layout(width=760, autosize=False)
             st.plotly_chart(matrix, width="content", theme=None, key="province_matrix",
                             config={**PLOTLY_CONFIG, "displayModeBar": False, "responsive": False})
         else:
             show_chart(matrix, "province_matrix")
-    abbreviations = sorted({(theme.PROGRAM_ABBR[r.programa_id], r.programa) for r in terrain.drop_duplicates("programa_id").itertuples()})
-    st.caption("Siglas: " + "; ".join(f"{a}: {name}" for a, name in abbreviations) + ".")
 
-    ui.section_heading("Detalle verificable", "Las mismas cifras de los gráficos, listas para revisar, ordenar y descargar.", "table")
-    level = st.segmented_control("Nivel de detalle", ["Por programa", "Por provincia", "Por provincia y programa"],
-                                 default="Por programa", key="detail_level", required=True, width="stretch" if COMPACT else "content")
-    groups = {"Por programa": ["programa"], "Por provincia": ["provincia"], "Por provincia y programa": ["provincia", "programa"]}[level]
-    detail = with_share(aggregate(filtered, groups))
+    ui.section_heading("Cuadro de resultados", context_label, "table")
+    if st.session_state.get("detail_level") not in TABLE_LEVELS:
+        st.session_state["detail_level"] = next(iter(TABLE_LEVELS))
+    level = st.segmented_control("Nivel de detalle", list(TABLE_LEVELS), key="detail_level", required=True,
+                                 width="stretch" if COMPACT else "content")
+    detail = with_share(aggregate(filtered, TABLE_LEVELS[level]))
     with st.container(border=True, key="card_detail"):
-        display_table(detail, height=min(640, 35 * (len(detail) + 1) + 3), key="detail_table")
-        with st.container(horizontal=True, gap="small", key="detail_downloads"):
-            sheet_subtitle = f"{period_label} · {scope_label} · {territory_label} · {level.lower()}"
-            st.download_button("Descargar en Excel", detail_workbook(detail, sheet_subtitle, selection_hash),
-                               file_name=f'MTDH_detalle_{manifest["periodo"][:7]}.xlsx',
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", icon=":material/table_view:",
-                               key="detail_xlsx", type="primary")
-            st.download_button("Descargar CSV", detail.drop(columns=["participacion"]).to_csv(index=False).encode("utf-8-sig"),
-                               file_name=f'MTDH_detalle_{manifest["periodo"][:7]}.csv', mime="text/csv", icon=":material/download:",
-                               key="detail_csv", help="Datos planos con separador de coma y punto decimal, para otros sistemas")
-    st.caption("Montos en USD, con la precisión de la fuente. Guion: dato no disponible o no aplicable. El presupuesto ejecutado "
-               "aparece como columna cuando la selección tiene ejecución verificada.")
-
-    ui.section_heading("Fuentes, definiciones y calidad", "Qué mide cada cifra y qué controles superó la base antes de publicarse.", "shield")
-    definitions = theme.definitions(fiscal_year)
-    evidence = str(manifest.get("periodo_origen", "")).strip().rstrip(".")
-    ui.definition_grid([
-        ("users", "Beneficiarios y usuarios", definitions["usuarios"]),
-        ("building", "Unidades de atención", definitions["unidades"]),
-        ("banknote", f"Monto fiscal {fiscal_year}", definitions["monto_fiscal"]),
-        ("landmark", "Acumulado de gobierno", definitions["monto_gobierno"]),
-        ("wallet", "Presupuesto ejecutado", definitions["presupuesto_ejecutado"]),
-        ("calendar", "Corte de la información", f"{period_label}. Evidencia registrada: {evidence}." if evidence else period_label),
-    ])
-    controls = manifest.get("control_calidad", {})
-    ui.quality_badges([
-        ("Registros del corte", ui.number(manifest.get("filas")), True),
-        ("Claves duplicadas", ui.number(controls.get("claves_duplicadas", 0)), controls.get("claves_duplicadas", 0) == 0),
-        ("Valores negativos", ui.number(controls.get("valores_negativos", 0)), controls.get("valores_negativos", 0) == 0),
-        ("Acumulados no conciliados", ui.number(controls.get("acumulados_no_conciliados", 0)), controls.get("acumulados_no_conciliados", 0) == 0),
-        ("Diferencias con la referencia 2025", ui.number(controls.get("diferencias_acumulado_2025", 0)), controls.get("diferencias_acumulado_2025", 0) == 0),
-        ("Filas con ejecución verificada", ui.number(controls.get("ejecucion_disponible_filas", 0)), controls.get("ejecucion_disponible_filas", 0) > 0),
-    ])
-    sha = manifest.get("fuente", {}).get("sha256", "")
-    st.caption(f"Fuente: {source_file}, hoja provincial. Huella SHA-256: {sha[:16]}… Filas seleccionadas: {stats['registros']}. "
-               "Base agregada, sin identificadores personales. Las referencias históricas no se suman al corte vigente.")
-
-    ui.section_heading("Referencias históricas y cantonales", "Otras hojas del Excel, con alcance propio. No se mezclan con el corte vigente.", "history")
-    render_references(provincias=selected_provinces or None, programas=selected_programs or None, secciones=sections)
+        display_table(detail, key="detail_table", height=min(640, 35 * (len(detail) + 1) + 3))
+        sheet_subtitle = f"{period['label']} · {module.label} · {territory_label} · {level.lower()}"
+        st.download_button("Descargar cuadro en Excel",
+                           table_workbook(detail, module.id, period["year"], sheet_subtitle, selection_hash, period["label"]),
+                           file_name=f"MTDH_cuadro_{module.id}_{period_id}.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", icon=":material/table_view:",
+                           key="detail_xlsx", type="primary")
 
 
 # ---------------------------------------------------------------------------
 # Report center
 # ---------------------------------------------------------------------------
-FORMATS = {
-    "Excel": {"label": ":material/table_view: Excel", "kind": "excel", "ext": "xlsx",
-              "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "slug": "reporte"},
-    "PDF": {"label": ":material/picture_as_pdf: PDF", "kind": "pdf", "ext": "pdf", "mime": "application/pdf", "slug": "boletin"},
-    "Word": {"label": ":material/article: Word", "kind": "word", "ext": "docx",
-             "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "slug": "boletin"},
-    "PowerPoint": {"label": ":material/slideshow: PowerPoint", "kind": "ppt", "ext": "pptx",
-                   "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation", "slug": "presentacion"},
-}
-FORMAT_NOTES = {
-    "Excel": "Libro con portada, resumen ejecutivo, hojas por ámbito, mapa territorial, detalle filtrable y notas metodológicas.",
-    "PDF": "Boletín listo para imprimir o enviar, con portada, indicadores, tablas, mapa y criterios de lectura.",
-    "Word": "Documento editable con la misma estructura del boletín, para ajustar redacción antes de publicar.",
-    "PowerPoint": "Presentación editable 16:9 con gráficos nativos, mapa territorial y notas para quien expone.",
+PRODUCTS = {
+    "Resumen ejecutivo": {"label": ":material/picture_as_pdf: Resumen ejecutivo", "kind": "resumen", "ext": "pdf",
+                          "mime": "application/pdf", "slug": "resumen",
+                          "note": "Una página en PDF con las cifras clave, el mapa, los resultados por programa y los aspectos destacados."},
+    "Presentación": {"label": ":material/slideshow: Presentación", "kind": "presentacion", "ext": "pptx",
+                     "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation", "slug": "presentacion",
+                     "note": "Tres diapositivas editables en PowerPoint: cifras clave, resultados por provincia y por programa."},
+    "Libro de datos": {"label": ":material/table_view: Libro de datos", "kind": "datos", "ext": "xlsx",
+                       "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "slug": "datos",
+                       "note": "Libro de Excel con resumen, resultados por programa y por provincia, detalle con filtros y ficha técnica."},
 }
 
 
-def excel_sheets(include_territory: bool) -> list[str]:
-    sheets = ["Portada", "Resumen"]
-    if "bonos_pensiones" in active_sections:
-        sheets.append("Bonos y pensiones")
-    if "proteccion_integral" in active_sections:
-        sheets.append("Protección integral")
-    if include_territory:
-        sheets.append("Territorio")
-    return sheets + ["Detalle", "Notas"]
+def data_sheets() -> list[str]:
+    return ["Resumen", module.items.capitalize(), "Provincias", "Detalle", "Ficha técnica"]
 
 
-def report_contents(kind: str, include_territory: bool) -> list[tuple[str, str, str]]:
-    if kind == "excel":
-        items = [("grid", "Portada", "Título, corte, alcance, mapa y accesos a cada hoja"),
-                 ("chart", "Resumen ejecutivo", "Indicadores clave, lectura del corte y gráficos nativos de Excel")]
-        if "bonos_pensiones" in active_sections:
-            items.append(("hand-coins", "Bonos y pensiones", "Tabla por programa con barras de participación y provincias principales"))
-        if "proteccion_integral" in active_sections:
-            items.append(("users", "Protección integral", "Usuarios, unidades de atención y recursos por servicio"))
-        if include_territory:
-            items.append(("map", "Territorio", "Mapa coroplético, ranking provincial y matriz de composición"))
-        items += [("table", "Detalle", "Provincia por programa, con filtros y totales"),
-                  ("shield", "Notas", "Definiciones, controles de calidad y trazabilidad de la fuente")]
-        return items
-    items = [("grid", "Portada e indicadores", "Cifras clave del corte y alcance territorial"),
-             ("table", "Capítulos por ámbito", "Tablas por programa o servicio con totales de la selección")]
-    if include_territory:
-        items.append(("map", "Mapa y ranking territorial", "Distribución provincial de la cobertura reportada"))
-    items.append(("shield", "Criterios de lectura", "Definiciones y advertencias de interpretación"))
-    return items
+def report_contents(kind: str) -> list[tuple[str, str, str]]:
+    if kind == "datos":
+        return [("grid", "Resumen", "Cifras clave, mapa y aspectos destacados"),
+                ("chart", module.items.capitalize(), f"{people.label}, participación y presupuesto por {module.item}"),
+                ("map", "Provincias", "Posición de cada provincia en el país"),
+                ("table", "Detalle", f"Cada {module.item} en cada provincia, con filtros y totales"),
+                ("shield", "Ficha técnica", "Periodo, ámbito, territorio e indicadores")]
+    if kind == "presentacion":
+        return [("grid", "Cifras clave", "Portada con los indicadores principales"),
+                ("map", "Resultados por provincia", "Mapa y provincias con mayor cobertura"),
+                ("chart", f"Resultados por {module.item}", "Gráfico editable y aspectos destacados")]
+    return [("grid", "Cifras clave", "Indicadores principales del periodo"),
+            ("map", "Territorio", "Mapa y provincias con mayor cobertura"),
+            ("chart", f"Resultados por {module.item}", f"{people.label} por {module.item}"),
+            ("award", "Aspectos destacados", "Tres conclusiones para la toma de decisiones")]
 
 
 def report_center() -> None:
-    ui.section_heading("Centro de reportes", "Genera piezas institucionales con exactamente la misma selección del tablero.", "document")
+    ui.section_heading("Centro de reportes", "Productos institucionales con el periodo, el ámbito y el territorio seleccionados.", "document")
     left, right = st.columns([1, 1.08], gap="large")
     with left, st.container(border=True, key="card_report_form"):
-        ui.chart_title("Configura el reporte", "Formato, título y contenido territorial")
-        output_format = st.segmented_control("Formato", list(FORMATS), format_func=lambda k: FORMATS[k]["label"],
-                                             default="Excel", key="report_format", required=True, width="stretch")
-        spec = FORMATS[output_format]
-        st.caption(FORMAT_NOTES[output_format])
-        title = st.text_input("Título del reporte", value="Boletín de protección social", max_chars=95, key="report_title").strip() \
-            or "Boletín de protección social"
-        include_territory = st.toggle("Incluir análisis territorial y mapa", value=True, key="include_territory")
-        programs_label = (f"{len(selected_programs)} seleccionados" if selected_programs else f"Todos ({stats['programas']})")
-        ui.scope_chips([("Ámbito", scope_label), ("Territorio", territory_label), ("Programas", programs_label), ("Corte", period_label)])
-        options = {"title": title, "include_territory": include_territory}
-        # A fresh fingerprint prevents a previously generated download from surviving a filter change.
+        ui.chart_title("Configuración del reporte", "Producto y título")
+        product = st.segmented_control("Producto", list(PRODUCTS), format_func=lambda k: PRODUCTS[k]["label"],
+                                       default="Resumen ejecutivo", key="report_product", required=True, width="stretch")
+        spec = PRODUCTS[product]
+        st.caption(spec["note"])
+        title = st.text_input("Título", value=module.label, max_chars=80, key=f"report_title_{module.id}").strip() or module.label
+        ui.scope_chips([("Periodo", period["label"]), ("Ámbito", module.label), ("Territorio", territory_label),
+                        (module.items.capitalize(), programs_label)])
+        # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
         digest = hashlib.sha256(pd.util.hash_pandas_object(filtered, index=True).values.tobytes()
-                                + json.dumps(options, sort_keys=True).encode() + output_format.encode()).hexdigest()
-        if st.button(f"Generar {output_format}", type="primary", icon=":material/auto_awesome:", width="stretch", key="generate_report"):
-            with st.spinner("Componiendo tablas, gráficos y mapa del reporte…"):
+                                + json.dumps({"title": title, "product": product}, sort_keys=True).encode()).hexdigest()
+        name = product.lower()
+        if st.button(f"Generar {name}", type="primary", icon=":material/auto_awesome:", width="stretch", key="generate_report"):
+            with st.spinner("Preparando el documento…"):
                 try:
-                    from src.reports import build_report_context, generate_docx, generate_pdf, generate_pptx, generate_xlsx
-                    context = build_report_context(filtered, manifest, options=options)
-                    generator = {"Excel": generate_xlsx, "PDF": generate_pdf, "Word": generate_docx, "PowerPoint": generate_pptx}[output_format]
+                    from src.reports import build_report_context, generate_pdf, generate_pptx, generate_xlsx
+                    context = build_report_context(filtered, national=national, title=title, period_label=period["label"],
+                                                   territory_label=territory_label, programs_label=programs_label,
+                                                   selected_codes=selected_codes)
+                    generator = {"resumen": generate_pdf, "presentacion": generate_pptx, "datos": generate_xlsx}[spec["kind"]]
                     st.session_state.generated_report = {"digest": digest, "content": generator(context)}
                 except Exception as exc:  # noqa: BLE001 - shown to the operator with its reason
                     st.session_state.pop("generated_report", None)
-                    ui.info_note(f"No se pudo generar el archivo: {exc}", "Revisa la selección e inténtalo de nuevo", tone="warn")
+                    ui.info_note(f"No se pudo generar el documento: {exc}", "Revise la selección e intente nuevamente", tone="warn")
         generated = st.session_state.get("generated_report", {})
         if generated.get("digest") == digest:
-            ui.info_note("El archivo conserva los filtros, las definiciones y los datos no disponibles de esta selección.",
-                         f"{output_format} listo para descargar", tone="ok")
-            st.download_button(f"Descargar {output_format}", generated["content"],
-                               file_name=f'MTDH_{spec["slug"]}_{manifest["periodo"][:7]}.{spec["ext"]}', mime=spec["mime"],
+            ui.info_note("El documento conserva el periodo, el ámbito y el territorio seleccionados.", f"{product} listo", tone="ok")
+            st.download_button(f"Descargar {name}", generated["content"],
+                               file_name=f'MTDH_{spec["slug"]}_{module.id}_{period_id}.{spec["ext"]}', mime=spec["mime"],
                                icon=":material/download:", type="primary", width="stretch", key="download_report")
     with right:
-        kpis = [(card["label"], (card.get("prefix", "") + " " + ui.number(card["value"], card.get("decimals", 0)) + (" M" if card.get("suffix") == "millones" else "")).strip())
-                for card in kpi_cards()]
-        ui.report_preview(spec["kind"], title, period_label, territory_label, kpis, excel_sheets(include_territory), selected_codes, map_values)
-        ui.content_list(report_contents(spec["kind"], include_territory))
-    ui.section_heading("Cifras que se incluirán", "Totales por programa de la selección actual, idénticos a los del archivo.", "table")
-    with st.container(border=True, key="card_report_table"):
-        display_table(with_share(aggregate(filtered, ["programa"])), key="report_table")
-    st.caption("Montos en USD, con la precisión de la fuente. Guion: dato no disponible o no aplicable.")
+        kpis = []
+        for card in kpi_cards():
+            text = ui.number(card["value"], card.get("decimals", 0))
+            if card.get("prefix"):
+                text = f"{card['prefix']} {text} M"
+            kpis.append((card["label"], text, card["icon"]))
+        ui.report_preview(spec["kind"], title, period["label"], territory_label, kpis, data_sheets(), selected_codes, map_values)
+        ui.content_list(report_contents(spec["kind"]))
 
 
 if st.session_state.workspace == "Tablero":
@@ -511,4 +412,4 @@ if st.session_state.workspace == "Tablero":
 else:
     report_center()
 
-ui.footer(period_label, source_file, selection_hash)
+ui.footer(period["label"])

@@ -17,7 +17,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.data import aggregate, filter_data, load_data, load_history, load_manifest, summarize
+from src.data import aggregate, filter_data, load_data, load_history, load_periods, summarize
 from src.etl import build_dataset, join_execution, number, parse_period
 
 
@@ -79,6 +79,16 @@ class DeliveredSourceTests(unittest.TestCase):
         self.assertFalse(history.corte_documentado.any())
         with self.assertRaisesRegex(ValueError, "referencias históricas"):
             aggregate(history)
+
+    def test_periods_catalog_keeps_each_cut_apart(self):
+        data, catalog = load_periods()
+        self.assertEqual([p["id"] for p in catalog], ["2026-09", "2025", "2024"])
+        self.assertEqual([p["label"] for p in catalog], ["Septiembre 2026", "Año 2025", "Año 2024"])
+        self.assertEqual(len(data), 296 * 3)
+        with self.assertRaisesRegex(ValueError, "un solo corte"):
+            summarize(data)
+        self.assertEqual(summarize(data[data.periodo_id == "2025"])["beneficiarios"], 1557996)
+        self.assertEqual(summarize(data[data.periodo_id == "2026-09"])["beneficiarios"], 1578019)
 
     def test_prior_only_bonuses_are_retained(self):
         prior_only = filter_data(self.df, programas=["PAM", "PCD"])

@@ -52,6 +52,10 @@ _PATHS = {
     "lock": '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
     "swipe": '<path d="m18 8 4 4-4 4"/><path d="M2 12h20"/><path d="m6 8-4 4 4 4"/>',
+    "award": '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
+    "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+    "target": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    "pie": '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
 }
 
 
@@ -73,14 +77,6 @@ def number(value: object, decimals: int = 0) -> str:
     if value is None or pd.isna(value):
         return "—"
     return f"{float(value):,.{decimals}f}".replace(",", "_").replace(".", ",").replace("_", ".")
-
-
-def money(value: object, compact: bool = False) -> str:
-    if value is None or pd.isna(value):
-        return "No disponible"
-    if compact:
-        return f"{number(float(value) / 1_000_000, 1)} M"
-    return f"USD {number(value, 2)}"
 
 
 def millions(value: object, decimals: int = 1) -> str:
@@ -171,7 +167,7 @@ def animated(value: object, decimals: int = 0) -> str:
     value is shown immediately.
     """
     if value is None or pd.isna(value):
-        return '<span class="num-na">No disponible</span>'
+        return '<span class="num-na">—</span>'
     text = number(value, decimals)
     integer, _, fraction = text.partition(",")
     groups = integer.split(".")
@@ -191,7 +187,7 @@ def animated(value: object, decimals: int = 0) -> str:
 def brand_mark() -> None:
     logo = f'<img class="brand-logo" src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
     st.markdown(
-        f'<div class="brand-mark">{logo}<div class="brand-product"><strong>InfoReportes</strong><span>Estadística de protección social</span></div></div>',
+        f'<div class="brand-mark">{logo}<div class="brand-product"><strong>InfoReportes</strong><span>Indicadores estratégicos</span></div></div>',
         unsafe_allow_html=True,
     )
 
@@ -207,26 +203,25 @@ def user_chip(user_name: str) -> None:
 
 def hero_copy(period: str, headline: str, lead: str) -> None:
     st.markdown(
-        f'<div class="hero-copy"><div class="hero-period"><span class="pulse"></span>Corte {_esc(period.lower())}</div>'
+        f'<div class="hero-copy"><div class="hero-period"><span class="pulse"></span>{_esc(period)}</div>'
         f'<h1>{_esc(headline)}</h1><p class="hero-lead">{_esc(lead)}</p></div>',
         unsafe_allow_html=True,
     )
 
 
-def hero_map(values: dict[str, float], names: dict[str, str], selected: set[str], metric_label: str,
-             value_format=lambda v: number(v), zone_note: str = "") -> None:
+def hero_map(values: dict[str, float], names: dict[str, str], selected: set[str], label: str,
+             value_format=lambda v: number(v)) -> None:
     codes = [c for c in values if c != geo.NO_POLYGON]
     colors = theme.ramp([values[c] for c in codes], theme.NIGHT_SEQUENTIAL)
     fills = {c: col for c, col in zip(codes, colors) if col}
-    titles = {c: f"{names.get(c, c)}: {value_format(values[c])} {metric_label.lower()}" for c in codes}
+    titles = {c: f"{names.get(c, c)}: {value_format(values[c])}" for c in codes}
     svg = geo.svg_map(fills, titles=titles, selected=selected, stroke=theme.MORADO_900)
     steps = "".join(f'<i style="background:{c}"></i>' for c in theme.NIGHT_SEQUENTIAL)
     selected_key = '<span class="key-sel"><i></i>Territorio seleccionado</span>' if selected else ""
-    zone = f'<p class="map-zone">{_esc(zone_note)}</p>' if zone_note else ""
     st.markdown(
-        f'<figure class="hero-map">{svg}<figcaption><span class="key-label">{_esc(metric_label)} por provincia</span>'
+        f'<figure class="hero-map">{svg}<figcaption><span class="key-label">{_esc(label)} por provincia</span>'
         f'<span class="key-ramp"><small>Menor</small>{steps}<small>Mayor</small></span>{selected_key}'
-        f'<span class="key-eq"><i></i>Latitud 0°</span></figcaption>{zone}</figure>',
+        f'<span class="key-eq"><i></i>Latitud 0°</span></figcaption></figure>',
         unsafe_allow_html=True,
     )
 
@@ -262,41 +257,8 @@ def chart_title(title: str, subtitle: str = "", badge: str = "") -> None:
     st.markdown(f'<div class="card-title"><div><h3>{_esc(title)}</h3><p>{_esc(subtitle)}</p></div>{badge_html}</div>', unsafe_allow_html=True)
 
 
-def info_note(text: str, label: str = "Cómo leer estas cifras", tone: str = "info") -> None:
+def info_note(text: str, label: str, tone: str = "info") -> None:
     st.markdown(f'<div class="note note-{tone}"><span class="note-icon">{icon("info", 18)}</span><div><strong>{_esc(label)}</strong><span>{_esc(text)}</span></div></div>', unsafe_allow_html=True)
-
-
-def budget_strip(items: list[tuple[str, str, str, str, bool]]) -> None:
-    """items: (label, value, unit, note, available)."""
-    blocks = []
-    for i, (label, value, unit, note, available) in enumerate(items):
-        state = "" if available else " is-na"
-        unit_html = f"<small>{_esc(unit)}</small>" if unit and available else ""
-        blocks.append(f'<div class="budget-item{state}" style="--i:{i}"><span class="budget-label">{_esc(label)}</span>'
-                      f'<strong>{_esc(value)}{unit_html}</strong><p>{_esc(note)}</p></div>')
-    st.markdown(f'<div class="budget-strip">{"".join(blocks)}</div>', unsafe_allow_html=True)
-
-
-def share_list(rows: list[tuple[str, float, str, str]]) -> None:
-    """rows: (label, share %, formatted amount, color)."""
-    items = []
-    for label, share, amount, color in rows:
-        items.append(f'<li><span class="sw" style="background:{color}"></span><span class="lbl">{_esc(label)}</span>'
-                     f'<span class="amt">{_esc(amount)}</span><strong>{_esc(pct(share))}</strong>'
-                     f'<span class="meter"><i style="--w:{max(0, min(100, share)):.2f}%;background:{color}"></i></span></li>')
-    st.markdown(f'<ul class="share-list">{"".join(items)}</ul>', unsafe_allow_html=True)
-
-
-def definition_grid(items: list[tuple[str, str, str]]) -> None:
-    """items: (icon, title, text)."""
-    cards = "".join(f'<div class="def-card"><span class="def-icon">{icon(sym, 20)}</span><h4>{_esc(t)}</h4><p>{_esc(x)}</p></div>' for sym, t, x in items)
-    st.markdown(f'<div class="def-grid">{cards}</div>', unsafe_allow_html=True)
-
-
-def quality_badges(items: list[tuple[str, str, bool]]) -> None:
-    """items: (label, value, ok)."""
-    chips = "".join(f'<li class="{"ok" if ok else "warn"}">{icon("check" if ok else "info", 16)}<span>{_esc(label)}</span><strong>{_esc(value)}</strong></li>' for label, value, ok in items)
-    st.markdown(f'<ul class="quality">{chips}</ul>', unsafe_allow_html=True)
 
 
 def scope_chips(items: list[tuple[str, str]]) -> None:
@@ -331,7 +293,7 @@ def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | 
     ``columns`` maps a field to ``(label, kind[, width[, help[, phone label]]])`` with kind text, int, pct, money or
     share.  Values stay numeric, so sorting is exact; the styled text only changes how they read.  Missing values show
     a dash.  ``bar`` names a 0–100 column that gets a label-free bar right after its figure.  Short tables show every
-    row.  On phones label columns narrow, headers may use their shorter form and a line explains the sideways scroll.
+    row.  On phones label columns narrow and headers may use their shorter form.
     """
     order, config, formats = [], {}, {}
     view = frame.copy()
@@ -347,9 +309,9 @@ def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | 
         if kind == "text":
             if compact and isinstance(width, int):
                 width = max(120, int(width * 0.55))
-            # A single label column stays pinned, so phones scroll the figures sideways and keep the name in view.
+            # On phones a single label column stays pinned, so the figures scroll sideways and the name stays in view.
             config[field] = st.column_config.TextColumn(label, width=width or "medium", help=help_text,
-                                                        pinned=True if len(labels) == 1 else None)
+                                                        pinned=True if compact and len(labels) == 1 else None)
             continue
         view[field] = pd.to_numeric(view[field], errors="coerce").astype(float)
         formats[field] = _cell_format(*_TABLE_KINDS[kind])
@@ -364,9 +326,6 @@ def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | 
         height = 35 * (max(1, len(view)) + 1) + 3
     st.dataframe(view.style.format(formats), hide_index=True, width="stretch", height=height, key=key,
                  placeholder="—", column_config=config)
-    if compact and len(order) > 2:
-        st.markdown(f'<p class="table-hint">{icon("swipe", 16)}Desliza la tabla hacia la izquierda para ver todas las columnas.</p>',
-                    unsafe_allow_html=True)
 
 
 # --- Report previews -------------------------------------------------------------
@@ -379,36 +338,46 @@ def _mini_map(selected: set[str], values: dict[str, float]) -> str:
                        equator=None, frame_color="rgba(81,47,141,.35)", label_color="rgba(81,47,141,.6)", css_class="ec-map mini")
 
 
-def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tuple[str, str]],
+def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tuple[str, str, str]],
                    sheets: list[str], selected: set[str], values: dict[str, float]) -> None:
+    """Miniature of the product: a one-page summary, three slides or the data workbook.
+
+    ``kpis`` items are (label, value, icon).
+    """
     logo = f'<img src="{logo_data()}" alt=""/>' if logo_data() else ""
-    kpi_html = "".join(f'<div><strong>{_esc(v)}</strong><span>{_esc(k)}</span></div>' for k, v in kpis[:4])
     mini = _mini_map(selected, values)
-    if kind == "excel":
+    tiles = "".join(f'<div><span class="mi">{icon(sym, 13)}</span><strong>{_esc(v)}</strong><span>{_esc(k)}</span></div>'
+                    for k, v, sym in kpis[:4])
+    if kind == "datos":
+        plain = "".join(f'<div><strong>{_esc(v)}</strong><span>{_esc(k)}</span></div>' for k, v, _sym in kpis[:4])
         tabs = "".join(f'<span class="{"on" if i == 0 else ""}">{_esc(s)}</span>' for i, s in enumerate(sheets))
         cols = "".join(f"<i>{c}</i>" for c in "ABCDEFGHIJ")
         body = (f'<div class="xl-window"><div class="xl-chrome"><span class="dots"><i></i><i></i><i></i></span><span class="file">{_esc(title)}</span><span class="ext">XLSX</span></div>'
                 f'<div class="xl-formula"><span>A1</span><em>fx</em><b>{_esc(title)}</b></div><div class="xl-cols"><span></span>{cols}</div>'
-                f'<div class="xl-sheet"><div class="xl-band">{logo}<div class="xl-title"><small>Reporte estadístico institucional</small><strong>{_esc(title)}</strong><span>{_esc(period)} · {_esc(scope)}</span></div>{mini}</div>'
-                f'<div class="xl-rule"></div><div class="xl-kpis">{kpi_html}</div><div class="xl-rows"><i></i><i></i><i></i><i></i></div></div>'
+                f'<div class="xl-sheet"><div class="xl-band">{logo}<div class="xl-title"><small>Libro de datos</small><strong>{_esc(title)}</strong><span>{_esc(period)} · {_esc(scope)}</span></div>{mini}</div>'
+                f'<div class="xl-rule"></div><div class="xl-kpis">{plain}</div><div class="xl-rows"><i></i><i></i><i></i><i></i></div></div>'
                 f'<div class="xl-tabs">{tabs}</div></div>')
-    elif kind == "ppt":
-        body = (f'<div class="slide-mock"><div class="slide-left">{logo}<small>Presentación institucional</small><strong>{_esc(title)}</strong><span>{_esc(period)}</span></div>'
-                f'<div class="slide-right">{mini}<div class="slide-kpis">{kpi_html}</div></div></div>')
+    elif kind == "presentacion":
+        bars = "".join(f'<i style="--w:{w}%"></i>' for w in (92, 70, 54, 41, 30))
+        body = (f'<div class="deck"><div class="slide-mock"><div class="slide-left">{logo}<small>{_esc(period)}</small><strong>{_esc(title)}</strong>'
+                f'<span>{_esc(scope)}</span></div><div class="slide-right"><div class="slide-kpis">{tiles}</div></div></div>'
+                f'<div class="deck-row"><div class="mini-slide"><b>Resultados por provincia</b><div class="ms-body">{mini}<div class="ms-bars">{bars}</div></div></div>'
+                f'<div class="mini-slide"><b>Resultados por programa</b><div class="ms-body"><div class="ms-bars">{bars}</div>'
+                f'<div class="ms-notes"><i>{icon("award", 11)}</i><i>{icon("pin", 11)}</i><i>{icon("trending-up", 11)}</i></div></div></div></div></div>')
     else:
-        label = "Boletín PDF" if kind == "pdf" else "Documento Word editable"
-        body = (f'<div class="page-mock"><div class="page-band">{logo}<span>{_esc(period)}</span></div><div class="page-body"><small>{_esc(label)}</small>'
-                f'<strong>{_esc(title)}</strong><span class="page-scope">{_esc(scope)}</span><div class="page-kpis">{kpi_html}</div>'
-                f'<div class="page-map">{mini}<div class="page-lines"><i></i><i></i><i></i><i></i><i></i></div></div></div></div>')
+        bars = "".join(f'<i style="--w:{w}%"></i>' for w in (94, 66, 52, 38, 27, 18))
+        notes = "".join(f'<li><span class="mi">{icon(sym, 12)}</span><i></i></li>' for sym in ("award", "pin", "trending-up"))
+        body = (f'<div class="page-mock"><div class="page-band">{logo}<div><small>Resumen ejecutivo</small><strong>{_esc(title)}</strong>'
+                f'<span>{_esc(period)} · {_esc(scope)}</span></div></div><div class="page-rule"></div><div class="page-body">'
+                f'<div class="page-kpis">{tiles}</div><div class="page-map">{mini}<div class="ms-bars">{bars}</div></div>'
+                f'<div class="page-foot"><div class="ms-bars">{bars}</div><ul class="page-notes">{notes}</ul></div></div></div>')
     st.markdown(f'<div class="preview preview-{_esc(kind)}">{body}</div>', unsafe_allow_html=True)
 
 
-def footer(period: str, source: str, selection: str = "") -> None:
+def footer(period: str) -> None:
     logo = f'<img src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
-    sel = f"<span>Selección {_esc(selection)}</span>" if selection else ""
     st.markdown(
-        f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>InfoReportes · Estadística institucional</strong>'
-        f'<span>Fuente: {_esc(source)}</span><span>Corte: {_esc(period)}</span>{sel}</div>'
-        f'<p>Cifras agregadas por programa y provincia. Una misma persona puede constar en más de un programa.</p></footer>',
+        f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>InfoReportes · Indicadores estratégicos</strong>'
+        f'<span>Fuente: Ministerio de Trabajo y Desarrollo Humano</span><span>Periodo: {_esc(period)}</span></div></footer>',
         unsafe_allow_html=True,
     )

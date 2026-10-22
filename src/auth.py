@@ -67,17 +67,16 @@ def _login_layout():
         left, right = st.columns([1.25, 1], gap="large", vertical_alignment="center")
         with left:
             st.markdown(
-                f'<div class="login-copy">{logo}<h1>Protección social, provincia por provincia.</h1>'
-                '<p>Consulta la cobertura de bonos, pensiones y servicios de protección integral, ubica cada cifra en el mapa '
-                'y genera reportes institucionales con los mismos filtros.</p>'
+                f'<div class="login-copy">{logo}<h1>Información estratégica para la toma de decisiones.</h1>'
+                '<p>Indicadores institucionales por periodo, ámbito y territorio, con reportes listos para compartir.</p>'
                 f'<div class="login-map">{_login_map()}</div></div>',
                 unsafe_allow_html=True,
             )
         card = right.container(key="login_card")
         with card:
             st.markdown(
-                f'<div class="login-head"><span class="lock">{icon("lock", 24)}</span><h2>Ingresa a InfoReportes</h2>'
-                '<p>Usa la cuenta autorizada por la Dirección responsable de la información estadística.</p></div>',
+                f'<div class="login-head"><span class="lock">{icon("lock", 24)}</span><h2>Acceso a InfoReportes</h2>'
+                '<p>Ingrese con la cuenta autorizada por la dirección responsable de la información.</p></div>',
                 unsafe_allow_html=True,
             )
     return card
@@ -104,22 +103,22 @@ def require_login() -> dict:
     card = _login_layout()
     with card:
         if not users:
-            st.info("Configura la cuenta de acceso para comenzar.")
-            st.markdown("Ejecuta **`python scripts/configure_auth.py`** en tu equipo. En Streamlit Cloud, copia el archivo generado en "
+            st.info("Configure la cuenta de acceso para comenzar.")
+            st.markdown("Ejecute **`python scripts/configure_auth.py`** en su equipo. En Streamlit Cloud, copie el archivo generado en "
                         "**Settings → Secrets**. La guía está en el README del proyecto.")
             st.caption("El acceso permanece cerrado hasta configurar una cuenta.")
             st.stop()
         with st.form("login_form", clear_on_submit=True, border=False):
-            username = st.text_input("Usuario", placeholder="Tu usuario", max_chars=80, autocomplete="username",
+            username = st.text_input("Usuario", placeholder="Usuario", max_chars=80, autocomplete="username",
                                      icon=":material/person:").strip().casefold()
-            password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", max_chars=256,
+            password = st.text_input("Contraseña", type="password", placeholder="Contraseña", max_chars=256,
                                      autocomplete="current-password", icon=":material/lock:")
             submitted = st.form_submit_button("Ingresar al sistema", type="primary", width="stretch", icon=":material/login:")
         if submitted:
             throttle = _throttle()
             remaining = throttle.remaining(username)
             if remaining:
-                st.error(f"Demasiados intentos. Vuelve a intentarlo en {remaining} segundos.")
+                st.error(f"Demasiados intentos. Intente nuevamente en {remaining} segundos.")
             else:
                 record = dict(users.get(username, {}))
                 encoded = record.get("password_hash", _dummy_hash())

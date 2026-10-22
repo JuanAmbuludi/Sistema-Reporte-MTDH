@@ -6,8 +6,8 @@ La aplicación utiliza la hoja **provincial** de `Acumulado VIS-VIE.xlsx`. El ar
 
 | Archivo | Contenido | Uso |
 |---|---|---|
-| `indicadores.parquet` | 296 registros del corte provincial vigente | Dashboard y reportes |
-| `historico_referencia.parquet` | 592 registros de las hojas de referencia 2024 y 2025 | Consulta separada; mes de corte no documentado |
+| `indicadores.parquet` | 296 registros del corte provincial vigente | Tablero y reportes (periodo «Septiembre 2026») |
+| `historico_referencia.parquet` | 592 registros de las hojas de referencia 2024 y 2025 | Periodos «Año 2024» y «Año 2025», consultados por separado; sin mes de corte |
 | `auxiliar_cantonal.parquet` | 746 registros de la hoja `calculos dic` | Archivo auxiliar de trazabilidad; no se incorpora al corte vigente |
 | `manifest.json` | Fuente, huellas SHA-256, corte, controles, definiciones y advertencias | Reproducibilidad y revisión |
 
@@ -27,7 +27,7 @@ Los archivos usan compresión Zstandard. El esquema vigente almacena conteos ent
 
 La cobertura nacional tiene **24 provincias**. `Zona en estudio` se conserva bajo el código interno **90** y se incluye en los totales, pero no se cuenta como una provincia número 25. No se excluye Galápagos: la fuente provincial lo incluye.
 
-No se suman beneficiarios de bonos y usuarios de servicios para presentarlos como personas únicas. Tampoco se suman cortes diferentes ni se presentan las referencias anteriores como una serie mensual. Un dato ausente se muestra como no disponible; un cero explícito se mantiene como cero.
+No se suman beneficiarios de bonos y usuarios de servicios para presentarlos como personas únicas. Tampoco se suman cortes diferentes ni se presentan las referencias anteriores como una serie mensual. Un dato ausente se muestra con un guion; un cero explícito se mantiene como cero. Transferencias y servicios se consultan y exportan por separado.
 
 ## Conciliación del corte entregado
 

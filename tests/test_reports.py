@@ -1,126 +1,153 @@
-"""Report scope and semantic checks, including the no-deduplication boundary."""
+"""Exports: one-page summary, three slides and the data workbook, all built from the on-screen selection."""
 from io import BytesIO
-from pathlib import Path
 import zipfile
 
-import pandas as pd
+import pymupdf
 import pytest
-from lxml import etree
+from openpyxl import load_workbook
+from pptx import Presentation
 
-from src.data import load_data, load_manifest, filter_data
-from src.reports import build_report_context, generate_pdf, generate_docx, generate_pptx, generate_xlsx
+from src.data import filter_data, load_periods
+from src.reports import build_report_context, generate_pdf, generate_pptx, generate_xlsx
 
-
-def test_reports_use_exact_filtered_dashboard_selection():
-    frame = load_data()
-    chosen = filter_data(frame, provincias=["Guayas"], programas=["BDH"])
-    assert len(chosen) > 0
-    context = build_report_context(chosen, load_manifest())
-    assert context["provinces"] == ["Guayas"]
-    assert len(context["sections"]) == 1
-    section = context["sections"][0]
-    assert section["id"] == "bonos_pensiones"
-    assert len(section["rows"]) == 1
-    assert section["people"] == chosen.usuarios.sum()
-    assert section["fiscal"] == pytest.approx(chosen.monto_fiscal.sum())
-    assert section["government"] == pytest.approx(chosen.monto_gobierno.sum())
-    assert section["units"] is None
-    assert context["executed_total"] is None
-    assert "únicas" in " ".join(context["notes"])
+BANNED = ["N/D", "No aplica", "no disponible", "No disponible", "Excel", "fuente_", "jecutad", "no certifica",
+          "no documentado", "registros", "Selección "]
 
 
-def test_report_preserves_prior_only_pension_balances():
-    context = build_report_context(load_data(), load_manifest())
-    bonuses = next(s for s in context["sections"] if s["id"] == "bonos_pensiones")
-    assert len(bonuses["rows"]) == 8
-    prior = [r for r in bonuses["rows"] if r["id"] in {"PAM", "PCD"}]
-    assert len(prior) == 2
-    assert all(r["people"] == 0 and r["fiscal"] == 0 and r["government"] > 0 for r in prior)
-    assert context["fiscal_total"] == pytest.approx(1_180_002_196.4343)
-    assert context["government_total"] == pytest.approx(4_512_402_557.1319)
+@pytest.fixture(scope="module")
+def periods():
+    data, catalog = load_periods()
+    return data, catalog
 
 
-def test_empty_and_multi_period_reports_are_rejected():
-    frame = load_data()
-    with pytest.raises(ValueError, match="No hay datos"):
-        build_report_context(frame.iloc[:0])
-    mixed = frame.iloc[:2].copy()
-    mixed.loc[mixed.index[1], "periodo"] = pd.Timestamp("2026-08-01")
-    with pytest.raises(ValueError, match="único corte"):
-        build_report_context(mixed)
+def _period(data, period_id):
+    return data.loc[data.periodo_id.eq(period_id)]
 
 
-def test_partial_execution_is_not_presented_as_complete():
-    frame = load_data().iloc[:2].copy()
-    frame["presupuesto_ejecutado"] = [1234.0, None]
-    context = build_report_context(frame)
-    assert context["executed_total"] is None
-    frame["presupuesto_ejecutado"] = [1234.0, 100.0]
-    assert build_report_context(frame)["executed_total"] == 1334
+def _strings(context: dict) -> list[str]:
+    texts = [context["title"], context["period_label"], context["territory_label"], context["programs_label"]]
+    texts += [i["text"] for i in context["insights"]]
+    texts += [k["label"] for k in context["kpis"]] + [str(k.get("note", "")) for k in context["kpis"]]
+    texts += [v for v in context["labels"].values() if isinstance(v, str)]
+    return texts
 
 
-def test_exported_office_files_are_complete_and_scoped():
-    frame = filter_data(load_data(), provincias=["Guayas"], programas=["BDH"])
-    context = build_report_context(frame, load_manifest(), {"include_territory": False})
-    docx = generate_docx(context)
-    with zipfile.ZipFile(BytesIO(docx)) as archive:
-        root = etree.fromstring(archive.read("word/document.xml"))
-        text = " ".join(root.itertext())
-        assert "Guayas" in text
-        assert "Bono de Desarrollo Humano" in text
-        assert "Pensión Mis Mejores Años" not in text
-        assert "N/D" in text
-    pptx = generate_pptx(context)
-    with zipfile.ZipFile(BytesIO(pptx)) as archive:
-        slides = [p for p in archive.namelist() if p.startswith("ppt/slides/slide") and p.endswith(".xml")]
-        assert len(slides) >= 3
-        text = " ".join(archive.read(p).decode() for p in slides)
-        assert "Guayas" in text
-        assert "Pensión Mis Mejores Años" not in text
-        assert "{{" not in text
-        assert "N/D" in text
+def test_context_follows_module_and_period(periods):
+    data, _ = periods
+    current = build_report_context(filter_data(_period(data, "2026-09"), secciones=["bonos_pensiones"]))
+    assert current["module_label"] == "Transferencias monetarias" and current["period_label"] == "Septiembre 2026"
+    assert current["totals"]["people"] == 1578019
+    assert [k["label"] for k in current["kpis"]] == ["Beneficiarios", "Programas con beneficiarios", "Presupuesto 2026",
+                                                     "Presupuesto acumulado 2023–2026"]
+    annual = build_report_context(filter_data(_period(data, "2025"), secciones=["proteccion_integral"]))
+    assert annual["period_label"] == "Año 2025" and annual["labels"]["fiscal"] == "Presupuesto 2025"
+    assert annual["totals"]["people"] == 443903 and annual["totals"]["units"] == 10906
 
 
-def test_pdf_is_real_pdf_and_does_not_require_external_renderer():
-    frame = filter_data(load_data(), provincias=["Guayas"], programas=["DII"])
-    context = build_report_context(frame, load_manifest())
-    content = generate_pdf(context)
-    assert content.startswith(b"%PDF-")
-    assert len(content) > 30_000
+def test_transfers_and_services_are_never_mixed(periods):
+    data, _ = periods
+    with pytest.raises(ValueError, match="ámbitos distintos"):
+        build_report_context(_period(data, "2026-09"))
 
 
-def test_excel_workbook_is_institutional_scoped_and_numeric():
-    import openpyxl
-    frame = filter_data(load_data(), provincias=["Guayas"], programas=["BDH"])
-    context = build_report_context(frame, load_manifest(), {"include_territory": True})
+def test_selected_province_keeps_its_national_place(periods):
+    data, _ = periods
+    services = filter_data(_period(data, "2026-09"), secciones=["proteccion_integral"])
+    context = build_report_context(filter_data(services, provincias=["09"]), national=services, selected_codes={"09"})
+    assert context["territory_label"] == "Guayas"
+    assert context["totals"]["people"] == 87943
+    assert all(k["share"] is not None for k in context["kpis"])
+    assert "primer lugar" in context["insights"][1]["text"]
+    guayas = next(p for p in context["provinces"] if p["code"] == "09")
+    assert guayas["selected"] and guayas["position"] == 1
+
+
+def test_documents_use_formal_wording_without_technical_notes(periods):
+    data, catalog = periods
+    for period in catalog:
+        for section in ["bonos_pensiones", "proteccion_integral"]:
+            context = build_report_context(filter_data(_period(data, period["id"]), secciones=[section]))
+            for text in _strings(context):
+                for banned in BANNED:
+                    assert banned not in text, f"{banned!r} en {text!r}"
+
+
+def test_empty_and_multi_period_selections_are_rejected(periods):
+    data, _ = periods
+    with pytest.raises(ValueError, match="No hay información"):
+        build_report_context(data.iloc[0:0])
+    both = filter_data(data.loc[data.periodo_id.isin(["2026-09", "2025"])], secciones=["bonos_pensiones"])
+    with pytest.raises(ValueError, match="único periodo"):
+        build_report_context(both)
+
+
+def test_executive_summary_is_one_page(periods):
+    data, _ = periods
+    context = build_report_context(filter_data(_period(data, "2026-09"), secciones=["bonos_pensiones"]))
+    pdf = generate_pdf(context)
+    document = pymupdf.open(stream=pdf, filetype="pdf")
+    assert document.page_count == 1
+    text = document[0].get_text()
+    for expected in ["Transferencias monetarias", "Beneficiarios por programa", "Principales provincias", "Aspectos destacados",
+                     "1.578.019"]:
+        assert expected in text
+    for banned in BANNED:
+        assert banned not in text
+
+
+def test_presentation_has_three_slides_with_icons_and_a_native_chart(periods):
+    data, _ = periods
+    services = filter_data(_period(data, "2026-09"), secciones=["proteccion_integral"])
+    context = build_report_context(filter_data(services, provincias=["17"]), national=services, selected_codes={"17"})
+    deck = Presentation(BytesIO(generate_pptx(context)))
+    assert len(deck.slides) == 3
+    texts = ["".join(run.text for p in shape.text_frame.paragraphs for run in p.runs)
+             for slide in deck.slides for shape in slide.shapes if shape.has_text_frame]
+    assert "Cifras clave" in texts and "Resultados por provincia" in texts and "Resultados por servicio" in texts
+    pictures = [shape for slide in deck.slides for shape in slide.shapes if shape.shape_type == 13]
+    assert len(pictures) >= 10, "Iconos, logo y mapas"
+    charts = [shape for shape in deck.slides[2].shapes if shape.has_chart]
+    assert len(charts) == 1 and len(charts[0].chart.plots[0].categories) == 4
+    for text in texts:
+        for banned in BANNED:
+            assert banned not in text
+
+
+def test_data_workbook_is_institutional_numeric_and_formula_driven(periods):
+    data, _ = periods
+    transfers = filter_data(_period(data, "2026-09"), secciones=["bonos_pensiones"])
+    context = build_report_context(filter_data(transfers, provincias=["09"]), national=transfers, selected_codes={"09"})
     content = generate_xlsx(context)
+    book = load_workbook(BytesIO(content))
+    assert book.sheetnames == ["Resumen", "Programas", "Provincias", "Detalle", "Ficha técnica"]
+    values = [cell.value for sheet in book.worksheets for row in sheet.iter_rows() for cell in row if cell.value is not None]
+    strings = [v for v in values if isinstance(v, str)]
+    assert any(v.startswith("=SUBTOTAL(109,") for v in strings)
+    assert 312265 in values
+    for banned in BANNED:
+        assert not any(banned in v for v in strings if not v.startswith("=")), banned
+    detail = book["Detalle"]
+    assert detail.auto_filter.ref and detail.freeze_panes
+    provinces = book["Provincias"]
+    guayas = [row for row in provinces.iter_rows(values_only=True) if "Guayas" in row]
+    assert guayas and 1 in guayas[0]
     with zipfile.ZipFile(BytesIO(content)) as archive:
-        theme = archive.read("xl/theme/theme1.xml").decode()
-        assert 'name="MTDH Institucional"' in theme and "512F8D" in theme
-        for name in archive.namelist():
-            if name.endswith(".xml"):
-                etree.fromstring(archive.read(name))
-    book = openpyxl.load_workbook(BytesIO(content))
-    assert book.sheetnames == ["Portada", "Resumen", "Bonos y pensiones", "Territorio", "Detalle", "Notas"]
-    detail = book["Detalle"]
-    header = next(r for r in range(1, 20) if detail.cell(r, 2).value == "Ámbito")
-    rows = [r for r in range(header + 1, detail.max_row + 1) if detail.cell(r, 2).value]
-    assert len(rows) == len(frame) == 1
-    people = detail.cell(rows[0], 8).value
-    assert isinstance(people, (int, float)) and people == int(frame.usuarios.sum())
-    texts = " ".join(str(c.value) for sheet in book for row in sheet.iter_rows() for c in row if c.value is not None)
-    assert "Guayas" in texts and "Pensión Mis Mejores Años" not in texts
-    assert "N/D" in texts
+        assert 'name="MTDH Institucional"' in archive.read("xl/theme/theme1.xml").decode()
 
 
-def test_excel_national_workbook_covers_every_row_and_section():
-    import openpyxl
-    frame = load_data()
-    book = openpyxl.load_workbook(BytesIO(generate_xlsx(build_report_context(frame, load_manifest()))))
-    assert {"Bonos y pensiones", "Protección integral", "Territorio"} <= set(book.sheetnames)
-    detail = book["Detalle"]
-    header = next(r for r in range(1, 20) if detail.cell(r, 2).value == "Ámbito")
-    data_rows = sum(1 for r in range(header + 1, detail.max_row + 1) if detail.cell(r, 2).value)
-    assert data_rows == len(frame) == 296
-    totals = next(r for r in range(1, header) if str(detail.cell(r, 8).value or "").startswith("=SUBTOTAL"))
-    assert detail.cell(totals, 8).value.startswith("=SUBTOTAL(109")
+def test_services_workbook_names_its_sheet_after_services(periods):
+    data, _ = periods
+    context = build_report_context(filter_data(_period(data, "2024"), secciones=["proteccion_integral"]))
+    book = load_workbook(BytesIO(generate_xlsx(context)))
+    assert book.sheetnames[1] == "Servicios"
+    headers = [cell.value for row in book["Servicios"].iter_rows(max_row=12) for cell in row if isinstance(cell.value, str)]
+    assert "Presupuesto 2024" in headers and "Unidades de atención" in headers
+
+
+def test_reports_accept_rows_loaded_without_period_catalog():
+    from src.data import load_data
+    frame = filter_data(load_data(), secciones=["bonos_pensiones"], programas=["BDH"])
+    context = build_report_context(frame)
+    assert context["period_label"] == "Septiembre 2026"
+    assert context["insights"][0]["text"].startswith("Bono de Desarrollo Humano registra")
+    assert sum(context["map_values"].values()) == 619073

@@ -1,15 +1,14 @@
-"""Publication charts and maps rendered with matplotlib for every report format.
+"""Publication maps rendered with matplotlib for every report format.
 
-Charts use the same report context as the tables, the institutional palette
-and the bundled Montserrat / Public Sans fonts, so Excel, PDF, Word and
-PowerPoint show identical figures without depending on installed fonts.
+Maps use the institutional palette and the bundled Montserrat / Public Sans
+fonts, so the one-page summary, the slides and the data workbook show identical
+figures without depending on installed fonts.
 """
 from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
 from threading import RLock
-from textwrap import fill
 
 import matplotlib
 matplotlib.use("Agg")
@@ -20,16 +19,12 @@ from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 from matplotlib.patches import FancyBboxPatch, PathPatch, Rectangle
 from matplotlib.path import Path as MPath
-from matplotlib.ticker import FuncFormatter
 
 from src import geo, theme
 from .context import number
 
 ROOT = Path(__file__).resolve().parents[2]
 FONTS = ROOT / "assets" / "fonts"
-PURPLE = theme.SERIE_BONOS
-FUCSIA = theme.SERIE_SERVICIOS
-LAVENDER = theme.LILA_200
 INK = theme.TINTA
 MUTED = "#6E6880"
 _LOCK = RLock()
@@ -55,54 +50,6 @@ def _compact(value: float) -> str:
     if value >= 10_000:
         return f"{number(value / 1000, 0)} mil"
     return number(value)
-
-
-def bar_chart(rows, field="people", label="Registros reportados", limit=8, width=8.0, height=3.1, color=PURPLE,
-              money: bool = False) -> bytes:
-    """Horizontal ranking; the leader keeps the series colour, the rest a lighter step.
-
-    Zero is shown, missing values are omitted (and stay visible in the tables).
-    """
-    chosen = [r for r in rows if r.get(field) is not None][:limit]
-    with _LOCK:
-        fig = Figure(figsize=(width, height), dpi=200, facecolor="#FFFFFF")
-        FigureCanvasAgg(fig)
-        ax = fig.add_subplot(111)
-        if not chosen:
-            ax.text(.5, .5, "Información no disponible", ha="center", va="center", transform=ax.transAxes,
-                    color=INK, fontproperties=font("SemiBold", size=11))
-            ax.set_axis_off()
-        else:
-            labels = [fill(str(r.get("chart_label") or theme.PROGRAM_SHORT.get(r.get("id"), r["label"])), 30 if width > 6 else 20)
-                      for r in chosen][::-1]
-            values = [float(r[field]) / (1e6 if money else 1) for r in chosen][::-1]
-            soft = theme.mix(color, "#FFFFFF", 0.55)
-            colors = [soft] * len(values)
-            colors[-1] = color
-            bars = ax.barh(range(len(values)), values, color=colors, height=.58, zorder=3)
-            for bar in bars:
-                bar.set_capstyle("round")
-            vmax = max(values) or 1
-            ax.set_xlim(0, vmax * 1.24)
-            ax.set_yticks(range(len(values)), labels)
-            for tick in ax.get_yticklabels():
-                tick.set_fontproperties(font("Medium", size=8.6))
-                tick.set_color(INK)
-            for index, value in enumerate(values):
-                text = (number(value, 1) + " M") if money else number(value)
-                ax.text(value + vmax * .016, index, text, va="center", ha="left", color=INK, fontproperties=font("SemiBold", size=8.4))
-            ax.tick_params(axis="y", length=0, pad=8)
-            ax.tick_params(axis="x", length=0, pad=6, labelcolor=MUTED)
-            for tick in ax.get_xticklabels():
-                tick.set_fontproperties(font(size=7.6))
-            ax.xaxis.set_major_formatter(FuncFormatter(lambda n, pos: number(n, 0) if money else _compact(n)))
-            ax.xaxis.grid(True, color="#EEEAF4", zorder=0, linewidth=.7)
-            ax.set_xlabel(("Millones de USD" if money else label), fontproperties=font("Medium", size=8), color=MUTED, labelpad=8)
-            for spine in ax.spines.values():
-                spine.set_visible(False)
-            ax.set_axisbelow(True)
-        fig.tight_layout(pad=1.2)
-        return _png(fig)
 
 
 def _path_for(feature) -> MPath:

@@ -1,238 +1,221 @@
-"""One immutable report snapshot shared by Word, PDF and PowerPoint.
+"""One immutable report snapshot shared by the one-page summary, the slides and the data workbook.
 
-All values come from the already-filtered dashboard dataframe.  No exporter
-reopens the full source or changes the scope behind the user's selection.
+All values come from the rows already filtered on screen: one period and one thematic module.  No exporter
+reopens the source or changes the scope behind the reader's selection, and transfers are never mixed with
+services.
 """
 from __future__ import annotations
 
 from datetime import datetime
-from hashlib import sha256
 from zoneinfo import ZoneInfo
-import json
-import math
 
 import pandas as pd
 
 from src import theme
+from src.indicators import module_for_sections
 
-SECTION_NAMES = {
-    "bonos_pensiones": "Bonos y pensiones",
-    "proteccion_integral": "Servicios de protección integral",
-}
-REGIONS = {
-    "01": "Sierra", "02": "Sierra", "03": "Sierra", "04": "Sierra", "05": "Sierra", "06": "Sierra",
-    "07": "Costa", "08": "Costa", "09": "Costa", "10": "Sierra", "11": "Sierra", "12": "Costa",
-    "13": "Costa", "14": "Amazonía", "15": "Amazonía", "16": "Amazonía", "17": "Sierra", "18": "Sierra",
-    "19": "Amazonía", "20": "Insular", "21": "Amazonía", "22": "Amazonía", "23": "Costa", "24": "Costa",
-    "90": "Sin delimitar",
-}
-MONTHS = ("", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
+REGIONS = theme.REGIONS
+NO_POLYGON = "90"
+MONTHS = ("", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+          "noviembre", "diciembre")
+INSTITUTION = "Ministerio de Trabajo y Desarrollo Humano"
 
 
 def number(value, decimals=0):
-    """Spanish display conventions, keeping a missing value distinct from zero."""
+    """Ecuadorian figures: 1.578.019 · 55.867.299,38.  A missing value reads as a dash."""
     if value is None or pd.isna(value):
-        return "N/D"
+        return "—"
     return f"{value:,.{decimals}f}".replace(",", "~").replace(".", ",").replace("~", ".")
 
 
-def money(value, millions=False):
-    if value is None or pd.isna(value):
-        return "N/D"
-    return number(value / (1_000_000 if millions else 1), 2)
+def millions(value, decimals=1):
+    return "—" if value is None or pd.isna(value) else number(float(value) / 1_000_000, decimals)
 
 
-def _sum(df, name, integer=False, require_complete=False):
+def _sum(df, name, integer=False):
     if name not in df or df.empty:
         return None
     values = pd.to_numeric(df[name], errors="coerce")
-    if values.notna().sum() == 0 or (require_complete and values.isna().any()):
+    if values.notna().sum() == 0:
         return None
-    out = float(values.sum(min_count=1))
-    return int(round(out)) if integer else out
+    total = float(values.sum(min_count=1))
+    return int(round(total)) if integer else total
 
 
-def _record(df, label, id_=None):
-    result = {
-        "label": str(label),
+def _period(frame: pd.DataFrame) -> tuple[str, str, int]:
+    """Period id, label and year of the rows; more than one period is rejected."""
+    if "periodo_id" in frame:
+        if frame["periodo_id"].nunique() != 1:
+            raise ValueError("El reporte requiere un único periodo. Las cifras no se suman entre periodos.")
+        period_id = str(frame["periodo_id"].iloc[0])
+        year, month = int(frame["periodo_anio"].iloc[0]), int(frame["periodo_mes"].iloc[0]) or None
+    else:
+        periods = pd.to_datetime(frame["periodo"]).dt.to_period("M").unique()
+        if len(periods) != 1:
+            raise ValueError("El reporte requiere un único periodo. Las cifras no se suman entre periodos.")
+        moment = periods[0].to_timestamp()
+        period_id, year, month = moment.strftime("%Y-%m"), moment.year, moment.month
+    label = f"{MONTHS[month].capitalize()} {year}" if month else f"Año {year}"
+    return period_id, label, year
+
+
+def _figures(df: pd.DataFrame) -> dict:
+    return {
         "people": _sum(df, "usuarios", integer=True),
         "units": _sum(df, "unidades", integer=True),
         "fiscal": _sum(df, "monto_fiscal"),
         "previous": _sum(df, "monto_anterior"),
         "government": _sum(df, "monto_gobierno"),
-        "executed": _sum(df, "presupuesto_ejecutado", require_complete=True),
+        "executed": _sum(df, "presupuesto_ejecutado") if df["presupuesto_ejecutado"].notna().all() else None,
     }
-    if id_ is not None:
-        result["id"] = str(id_)
-    return result
 
 
-def _group_records(df, field, id_field=None):
-    rows = []
-    for value, group in df.groupby(field, sort=False, dropna=False):
-        record = _record(group, value, group[id_field].iloc[0] if id_field else None)
-        if "provincia_codigo" in group and field == "provincia":
-            record["code"] = str(group["provincia_codigo"].iloc[0])
-        if "seccion" in group and id_field == "programa_id":
-            record["section"] = str(group["seccion"].iloc[0])
-        rows.append(record)
-    return sorted(rows, key=lambda r: (-(r["people"] or 0), r["label"]))
+def _share(part, whole):
+    return part / whole * 100 if part is not None and whole else None
 
 
-def _territory(frame):
-    """One row per province with each section kept apart (no unique people)."""
-    rows = []
-    for (code, name), group in frame.groupby(["provincia_codigo", "provincia"], sort=False, dropna=False):
-        bonos = group.loc[group["seccion"] == "bonos_pensiones"]
-        servicios = group.loc[group["seccion"] == "proteccion_integral"]
-        rows.append({
-            "code": str(code), "label": str(name), "region": REGIONS.get(str(code), ""),
-            "people": _sum(group, "usuarios", integer=True),
-            "beneficiaries": _sum(bonos, "usuarios", integer=True) if len(bonos) else None,
-            "service_users": _sum(servicios, "usuarios", integer=True) if len(servicios) else None,
-            "units": _sum(servicios, "unidades", integer=True) if len(servicios) else None,
-            "fiscal": _sum(group, "monto_fiscal"), "previous": _sum(group, "monto_anterior"),
-            "government": _sum(group, "monto_gobierno"),
-            "executed": _sum(group, "presupuesto_ejecutado", require_complete=True),
-        })
-    return sorted(rows, key=lambda r: (-(r["people"] or 0), r["label"]))
+ORDINALS = ("primer", "segundo", "tercer", "cuarto", "quinto", "sexto", "séptimo", "octavo", "noveno", "décimo")
 
 
-def _detail(frame):
-    rows = []
-    ordered = frame.sort_values(["seccion", "programa", "provincia_codigo"])
-    for row in ordered.itertuples(index=False):
-        executed = getattr(row, "presupuesto_ejecutado", None)
-        units = getattr(row, "unidades", None)
-        rows.append({
-            "section": SECTION_NAMES.get(row.seccion, row.seccion), "section_id": row.seccion,
-            "program_id": str(row.programa_id), "program": str(row.programa),
-            "code": str(row.provincia_codigo), "province": str(row.provincia), "region": REGIONS.get(str(row.provincia_codigo), ""),
+def _place(position: int) -> str:
+    return f"{ORDINALS[position - 1]} lugar" if 1 <= position <= len(ORDINALS) else f"puesto {position}"
+
+
+def _join(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " y " + names[-1]
+
+
+def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None = None, title: str | None = None,
+                         period_label: str | None = None, territory_label: str | None = None,
+                         programs_label: str | None = None, selected_codes=None) -> dict:
+    """Serializable snapshot of the selection.
+
+    ``national`` is the same period, module and programs for every province; it gives the selection its place
+    in the country.  Labels arrive from the interface so documents name things exactly as the screen does.
+    """
+    if frame.empty:
+        raise ValueError("No hay información en la selección. Ajuste los filtros antes de generar el documento.")
+    for column in ["monto_anterior", "presupuesto_ejecutado"]:
+        if column not in frame:
+            frame = frame.assign(**{column: float("nan")})
+    module = module_for_sections(frame["seccion"].unique())
+    national = frame if national is None else national
+    for column in ["monto_anterior", "presupuesto_ejecutado"]:
+        if column not in national:
+            national = national.assign(**{column: float("nan")})
+    period_id, default_label, year = _period(frame)
+    period_label = period_label or default_label
+    money = module.money(year)
+    selected = {str(c) for c in (selected_codes or [])}
+    people_label = module.people
+    people_lower = people_label.lower()
+    has_units = bool(module.extra)
+
+    totals = _figures(frame)
+    nation = _figures(national)
+    labels = {"people": people_label, "units": module.extra[0].label if has_units else None,
+              "fiscal": money["fiscal"].label, "previous": money["previous"].label, "government": money["government"].label,
+              "fiscal_short": money["fiscal"].compact, "previous_short": money["previous"].compact,
+              "government_short": money["government"].compact, "item": module.item, "items": module.items}
+
+    # Programs or services of the selection, largest first.
+    programs = []
+    for (pid, name), group in frame.groupby(["programa_id", "programa"], sort=False):
+        figures = _figures(group)
+        programs.append({"id": str(pid), "label": str(name), "short": theme.program_label(pid, name), **figures,
+                         "share": _share(figures["people"], totals["people"])})
+    programs.sort(key=lambda r: (-(r["people"] or 0), r["label"]))
+    active_programs = sum(1 for p in programs if (p["people"] or 0) > 0)
+
+    # Every province in the national context, with its place among provinces and whether it was chosen.
+    provinces = []
+    for (code, name), group in national.groupby(["provincia_codigo", "provincia"], sort=False):
+        figures = _figures(group)
+        provinces.append({"code": str(code), "name": str(name), "region": REGIONS.get(str(code), ""), **figures,
+                          "share": _share(figures["people"], nation["people"]), "selected": str(code) in selected})
+    provinces.sort(key=lambda r: (-(r["people"] or 0), r["name"]))
+    place = 0
+    for row in provinces:
+        if row["code"] != NO_POLYGON:
+            place += 1
+            row["position"] = place
+        else:
+            row["position"] = None
+    province_count = place
+
+    detail = []
+    for row in frame.sort_values(["programa", "provincia"]).itertuples(index=False):
+        detail.append({
+            "program_id": str(row.programa_id), "program": str(row.programa), "code": str(row.provincia_codigo),
+            "province": str(row.provincia), "region": REGIONS.get(str(row.provincia_codigo), ""),
             "people": None if pd.isna(row.usuarios) else int(row.usuarios),
-            "units": None if units is None or pd.isna(units) else int(units),
+            "units": None if pd.isna(row.unidades) else int(row.unidades),
             "fiscal": None if pd.isna(row.monto_fiscal) else float(row.monto_fiscal),
             "previous": None if pd.isna(row.monto_anterior) else float(row.monto_anterior),
             "government": None if pd.isna(row.monto_gobierno) else float(row.monto_gobierno),
-            "executed": None if executed is None or pd.isna(executed) else float(executed),
         })
-    return rows
 
-
-def build_report_context(filtered_df: pd.DataFrame, manifest: dict | None = None, options: dict | None = None) -> dict:
-    """Create a serializable, auditable report from the active dashboard filters.
-
-    ``options`` accepts title, include_territory, author and scope_label.  It
-    cannot override numbers. Empty selections are rejected explicitly.
-    """
-    manifest, options = manifest or {}, options or {}
-    if filtered_df.empty:
-        raise ValueError("No hay datos en la selección. Cambie los filtros antes de generar el informe.")
-    required = {"periodo", "seccion", "programa", "programa_id", "provincia", "usuarios", "unidades", "monto_fiscal", "monto_gobierno"}
-    if "provincia_codigo" not in filtered_df.columns:
-        filtered_df = filtered_df.assign(provincia_codigo=filtered_df["provincia"].astype(str))
-    if "monto_anterior" not in filtered_df.columns:
-        filtered_df = filtered_df.assign(monto_anterior=pd.to_numeric(filtered_df["monto_gobierno"], errors="coerce")
-                                         - pd.to_numeric(filtered_df["monto_fiscal"], errors="coerce"))
-    if "presupuesto_ejecutado" not in filtered_df.columns:
-        filtered_df = filtered_df.assign(presupuesto_ejecutado=float("nan"))
-    absent = required - set(filtered_df.columns)
-    if absent:
-        raise ValueError("Faltan campos del modelo de reporte: " + ", ".join(sorted(absent)))
-    frame = filtered_df.copy()
-    periods = pd.to_datetime(frame["periodo"]).dt.to_period("M").unique()
-    if len(periods) != 1:
-        raise ValueError("El boletín requiere un único corte mensual. No se suman personas entre meses.")
-    period = periods[0].to_timestamp()
-    period_label = f"{MONTHS[period.month].capitalize()} {period.year}"
-    provinces = sorted(frame["provincia"].dropna().astype(str).unique())
-    programs = sorted(frame["programa"].dropna().astype(str).unique())
-    real_provinces = [p for p in provinces if p.casefold() != "zona en estudio"]
-    scope_label = options.get("scope_label") or (
-        "Nacional - 24 provincias" + (" y zona en estudio" if len(provinces) > 24 else "")
-        if len(real_provinces) == 24 else (
-            ", ".join(provinces) if len(provinces) <= 3 else f"{len(real_provinces)} provincias seleccionadas" + (" y zona en estudio" if len(real_provinces) < len(provinces) else "")
-        )
-    )
-    notes = [
-        "Beneficiarios y usuarios corresponden a conteos reportados en una base agregada. La fuente no permite comprobar personas únicas ni eliminar coincidencias entre programas.",
-        f"El monto fiscal corresponde a la columna Presupuesto {period.year} de la fuente. El acumulado de gobierno incluye el monto fiscal y los períodos anteriores. No deben sumarse entre sí.",
-        "Los montos no representan transferencias del mes. La fuente no certifica por sí sola el presupuesto ejecutado, que se presenta como N/D cuando no existe una validación adicional.",
-        "Las unidades corresponden a servicios de protección integral. En bonos y pensiones este indicador no aplica. N/D distingue información no disponible de un cero reportado.",
-    ]
-    period_origin = manifest.get("periodo_origen", "")
-    if period_origin:
-        notes.append(f"Identificación del corte: {str(period_origin).rstrip('.')}.")
-    sections = []
-    for id_, title in SECTION_NAMES.items():
-        part = frame.loc[frame["seccion"] == id_]
-        if part.empty:
-            continue
-        metrics = _record(part, title, id_)
-        rows = _group_records(part, "programa", "programa_id")
-        territories = _group_records(part, "provincia")
-        for record in territories:
-            record.setdefault("region", REGIONS.get(record.get("code", ""), ""))
-        people_label = "Beneficiarios reportados" if id_ == "bonos_pensiones" else "Usuarios reportados"
-        lead = rows[0]
-        share = ((lead["people"] or 0) / metrics["people"] * 100) if metrics["people"] else 0
-        noun = ("programa" if len(rows) == 1 else "programas") if id_ == "bonos_pensiones" else ("servicio" if len(rows) == 1 else "servicios")
-        insights = [
-            f"La selección reúne {number(metrics['people'])} {people_label.lower()} en {len(rows)} {noun}.",
-            (f"{lead['label']} concentra el {number(share, 1)} % del total seleccionado, con {number(lead['people'])} registros reportados."
-             if len(rows) > 1 else f"{lead['label']} reporta {number(lead['people'])} registros en la selección."),
-        ]
-        if territories and metrics["people"]:
-            places = [r for r in territories if r.get("code") != "90"] or territories
-            top3 = places[:3]
-            share3 = sum(r["people"] or 0 for r in top3) / metrics["people"] * 100
-            names = [r["label"] for r in top3]
-            if len(names) == 1:
-                insights.append(f"{names[0]} aporta el {number(share3, 1)} % de la cobertura seleccionada en este ámbito.")
-            else:
-                joined = ", ".join(names[:-1]) + " y " + names[-1]
-                insights.append(f"{joined} concentran el {number(share3, 1)} % de la cobertura seleccionada en este ámbito.")
-        if id_ == "proteccion_integral" and metrics["units"]:
-            insights.append(f"Los servicios reportan {number(metrics['units'])} unidades de atención en la selección.")
-        sections.append({**metrics, "title": title, "people_label": people_label,
-                         "rows": rows, "territories": territories, "insights": insights,
-                         "notes": [notes[0], notes[1]]})
-    if not sections:
-        raise ValueError("La selección no contiene los apartados admitidos por el boletín.")
-    source = manifest.get("fuente", {})
-    if isinstance(source, dict):
-        source_label = source.get("archivo", "Acumulado VIS-VIE.xlsx")
-        source_sha = source.get("sha256", "")
+    share_national = _share(totals["people"], nation["people"]) if selected else None
+    kpis = [{"key": "people", "label": people_label, "value": totals["people"], "kind": "count", "icon": module.people_icon,
+             "share": share_national}]
+    if has_units:
+        kpis.append({"key": "units", "label": labels["units"], "value": totals["units"], "kind": "count", "icon": "building",
+                     "share": _share(totals["units"], nation["units"]) if selected else None})
     else:
-        source_label, source_sha = str(source), ""
-    identity = frame.sort_values(["seccion", "programa_id", "provincia"]).to_json(orient="records", date_format="iso")
+        kpis.append({"key": "programs", "label": f"{module.items.capitalize()} con {people_lower}", "value": active_programs,
+                     "kind": "count", "icon": "layers", "share": None, "note": f"De {len(programs)} {module.items}"})
+    kpis.append({"key": "fiscal", "label": labels["fiscal"], "short": labels["fiscal_short"], "value": totals["fiscal"], "kind": "money", "icon": "banknote",
+                 "share": _share(totals["fiscal"], nation["fiscal"]) if selected else None})
+    kpis.append({"key": "government", "label": labels["government"], "short": labels["government_short"], "value": totals["government"], "kind": "money",
+                 "icon": "landmark", "share": _share(totals["government"], nation["government"]) if selected else None})
+
+    # Three findings written for an authority: leading program, territory and resources.
+    insights = []
+    leader = programs[0]
+    if len(programs) > 1 and totals["people"]:
+        insights.append({"icon": "award", "text": f"{leader['label']} concentra el {number(leader['share'], 1)} % de los "
+                                                  f"{people_lower}, con {number(leader['people'])} personas."})
+    else:
+        insights.append({"icon": "award", "text": f"{leader['label']} registra {number(leader['people'])} {people_lower} en el periodo."})
+    chosen = [p for p in provinces if p["selected"]]
+    if len(chosen) == 1 and chosen[0]["position"]:
+        row = chosen[0]
+        insights.append({"icon": "pin", "text": f"{row['name']} ocupa el {_place(row['position'])} entre las {province_count} provincias "
+                                                f"y reúne el {number(row['share'], 1)} % de los {people_lower} del país."})
+    elif chosen:
+        insights.append({"icon": "pin", "text": f"Las {len(chosen)} provincias seleccionadas reúnen el {number(share_national, 1)} % de los "
+                                                f"{people_lower} del país; {chosen[0]['name']} registra el mayor número."})
+    else:
+        leaders = [p for p in provinces if p["position"]][:3]
+        share3 = sum(p["share"] or 0 for p in leaders)
+        insights.append({"icon": "pin", "text": f"{_join([p['name'] for p in leaders])} reúnen el {number(share3, 1)} % de los "
+                                                f"{people_lower} del país."})
+    if has_units:
+        insights.append({"icon": "trending-up", "text": f"Los servicios operan con {number(totals['units'])} unidades de atención y un "
+                                                        f"presupuesto {year} de USD {millions(totals['fiscal'])} millones."})
+    else:
+        insights.append({"icon": "trending-up", "text": f"El presupuesto {year} asciende a USD {millions(totals['fiscal'])} millones y el "
+                                                        f"presupuesto acumulado 2023–{year} alcanza USD {millions(totals['government'])} millones."})
+
+    budget_leader = max(programs, key=lambda r: r["fiscal"] or 0)
+    if len(programs) > 1 and totals["fiscal"]:
+        insights.append({"icon": "banknote", "text": f"{budget_leader['label']} recibe el "
+                                                     f"{number(budget_leader['fiscal'] / totals['fiscal'] * 100, 1)} % del presupuesto {year}, "
+                                                     f"con USD {millions(budget_leader['fiscal'])} millones."})
+
+    if territory_label is None:
+        names = [p["name"] for p in provinces if p["selected"]]
+        territory_label = names[0] if len(names) == 1 else (f"{len(names)} provincias" if names else "Nacional")
+    moment = datetime.now(ZoneInfo("America/Guayaquil"))
     return {
-        "title": str(options.get("title") or "Boletín estadístico institucional")[:100],
-        "period": period.strftime("%Y-%m-%d"), "period_label": period_label,
-        "year": period.year, "scope_label": scope_label,
-        "source_label": source_label, "source_sha256": source_sha,
-        "generated_at": datetime.now(ZoneInfo("America/Guayaquil")).isoformat(timespec="seconds"),
-        "author": str(options.get("author") or "Ministerio de Trabajo y Desarrollo Humano"),
-        "include_territory": bool(options.get("include_territory", True)),
-        "people_total": _sum(frame, "usuarios", integer=True),
-        "units_total": _sum(frame, "unidades", integer=True),
-        "fiscal_total": _sum(frame, "monto_fiscal"),
-        "previous_total": _sum(frame, "monto_anterior"),
-        "government_total": _sum(frame, "monto_gobierno"),
-        "executed_total": _sum(frame, "presupuesto_ejecutado", require_complete=True),
-        "executed_coverage_pct": float(pd.to_numeric(frame["presupuesto_ejecutado"], errors="coerce").notna().mean() * 100),
-        "territory": _territory(frame),
-        "detail": _detail(frame),
-        "program_rows": _group_records(frame, "programa", "programa_id"),
-        "previous_label": f"Acumulado 2023–{period.year - 1}",
-        "source_period": str(manifest.get("periodo_origen", "")),
-        # Plain-language wording for every key the manifest documents, in the manifest's order.
-        "definitions": ({key: theme.definitions(period.year).get(key, text) for key, text in (manifest.get("definiciones") or {}).items()}
-                        or theme.definitions(period.year)),
-        "quality": dict(manifest.get("control_calidad", {})),
-        "rows_in_source": manifest.get("filas"),
-        "fiscal_label": f"Acumulado fiscal {period.year} (USD)",
-        "government_label": "Acumulado de gobierno (USD)",
-        "provinces": provinces, "programs": programs,
-        "selection_hash": sha256(identity.encode()).hexdigest()[:12],
-        "sections": sections, "notes": notes,
+        "title": str(title or module.label)[:100],
+        "module_id": module.id, "module_label": module.label, "module_description": module.description,
+        "period_id": period_id, "period_label": period_label, "year": year,
+        "territory_label": territory_label, "programs_label": programs_label or f"Todos los {module.items}",
+        "labels": labels, "kpis": kpis, "totals": totals, "national": nation,
+        "programs": programs, "provinces": provinces, "province_count": province_count, "detail": detail,
+        "selected_codes": sorted(selected), "map_values": {p["code"]: p["people"] for p in provinces},
+        "insights": insights, "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",
+        "generated_at": moment.isoformat(timespec="seconds"),
+        "generated_label": f"{moment.day} de {MONTHS[moment.month]} de {moment.year}",
     }

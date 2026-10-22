@@ -43,8 +43,6 @@ ORO_100 = "#FDF5DB"
 # separation, normal-vision floor and 3:1 contrast on white).
 SERIE_BONOS = "#5A369A"
 SERIE_SERVICIOS = FUCSIA
-SECTION_COLORS = {"bonos_pensiones": SERIE_BONOS, "proteccion_integral": SERIE_SERVICIOS}
-SECTION_TINTS = {"bonos_pensiones": LILA_50, "proteccion_integral": FUCSIA_100}
 ACUMULADO_PREVIO = LILA_200
 # Sequential magnitude: one hue, light to dark (exactly ten steps for Streamlit).
 SEQUENTIAL = ["#F7F6FD", "#EAE7F9", "#D8D0F4", "#C1B4EC", "#A995E0",
@@ -86,29 +84,6 @@ SECTIONS = {
     "bonos_pensiones": "Bonos y pensiones",
     "proteccion_integral": "Servicios de protección integral",
 }
-SECTION_PEOPLE = {
-    "bonos_pensiones": ("Beneficiarios", "beneficiarios"),
-    "proteccion_integral": ("Usuarios", "usuarios"),
-}
-
-def definitions(year: int) -> dict[str, str]:
-    """Plain-language definitions for the interface and every report (the manifest keeps the technical ones)."""
-    return {
-        "periodo": "Mes de corte informado para la base. No es la fecha de cada transacción.",
-        "usuarios": ("Conteo agregado que reporta cada programa: beneficiarios en bonos y pensiones, usuarios en los servicios. "
-                     "No equivale a personas únicas."),
-        "unidades": "Unidades de atención reportadas por los servicios de protección integral. No aplica a bonos y pensiones.",
-        "monto_fiscal": (f"Columna Presupuesto {year} de la fuente, en USD. La fuente no certifica si corresponde a devengado, "
-                         "pagado u otra fase."),
-        "monto_anterior": f"Acumulado 2023–{year - 1} reportado por la fuente, en USD.",
-        "monto_gobierno": f"Acumulado 2023–{year - 1} más el monto fiscal {year}, en USD. No se suma otra vez con sus componentes.",
-        "presupuesto_ejecutado": ("Ejecución verificada con un archivo complementario. Si falta, figura como no disponible, "
-                                  "nunca como cero."),
-        "provincia_codigo": ("Código provincial de dos dígitos. La zona en estudio usa el código interno 90 y no cuenta "
-                             "como provincia."),
-        "fuente_hoja / fuente_fila": "Hoja y fila del Excel original de las que proviene cada registro.",
-    }
-
 
 # Natural regions used to group provinces in tables and maps.
 REGIONS = {

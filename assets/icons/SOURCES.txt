@@ -1,3 +1,7 @@
-Lucide hand-coins and shield-check. https://github.com/lucide-icons/lucide/tree/main/icons
-ISC license: LICENSE in this folder.
-PNG files render the original icons in institutional purple #512F8D.
+Lucide icons (https://lucide.dev), ISC license: LICENSE in this folder.
+hand-coins.svg / shield-check.svg and their PNG copies come from the original project.
+png/ holds the icon set of the one-page summary, the slides and the data workbook:
+users, hand-coins, building, banknote, landmark, layers, map, pin, chart, award, trending-up,
+target, pie, calendar, table, shield and document, each in white (blanco), purple #512F8D
+(morado) and gold #F8C018 (oro), 256 x 256 px with a transparent background.
+They are rendered from the same geometry the interface draws in src/ui.py.
