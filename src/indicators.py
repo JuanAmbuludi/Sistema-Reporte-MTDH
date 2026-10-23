@@ -1,8 +1,9 @@
-"""Thematic modules and their indicators: the vocabulary every view and export shares.
+"""Thematic areas and their indicators: the vocabulary every view and export shares.
 
-Each module reads only its own rows (transfers are never mixed with services).  Charts, tables and reports
-ask a module for its indicators instead of naming columns, so a new family of indicators (contingency or
-labour figures, for instance) only needs a new ``Module`` here and its rows in the data.
+Transfers and services are *territorial modules*: they read their own rows of the VIS/VIE base (never mixed) and
+can be mapped by province and parish.  Labour management and the institutional budget are national areas with
+their own bases.  Charts, tables and reports ask a module for its indicators instead of naming columns, so a new
+family of indicators (contingencies, for instance) only needs a new entry here and its rows in the data.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from dataclasses import dataclass, field
 class Indicator:
     key: str          # column in the data
     label: str        # name shown to readers ("Beneficiarios", "Presupuesto acumulado 2023–2026")
-    kind: str         # "count" or "money"
+    kind: str         # "count", "money" or "rate"
     icon: str         # icon name in src/ui.py and assets/icons/png
     unit: str = ""    # noun for counts ("beneficiarios", "unidades")
     short: str = ""   # shorter name for tight controls ("Acumulado 2023–2026")
@@ -21,6 +22,10 @@ class Indicator:
     @property
     def is_money(self) -> bool:
         return self.kind == "money"
+
+    @property
+    def is_rate(self) -> bool:
+        return self.kind == "rate"
 
     @property
     def compact(self) -> str:
@@ -38,16 +43,22 @@ class Module:
     people: str               # "Beneficiarios", "Usuarios"
     people_icon: str
     extra: tuple[Indicator, ...] = field(default_factory=tuple)
+    short_label: str = ""
 
     def money(self, year: int, *, executed: bool = False) -> dict[str, Indicator]:
         """Budget indicators whose names carry the period's year.
 
-        The government accumulation adds the budgets of this administration (from 2023) up to the period.
+        With the accrued budget of a cut (``executed``) the period's budget is the executed budget; the annual
+        references only report a budget.  The government accumulation adds this administration's budgets (from
+        2023) up to the period.
         """
         span = f"2023–{year - 1}" if year - 1 > 2023 else "2023"
         return {
-            "fiscal": Indicator("monto_fiscal", f"Presupuesto ejecutado {year}" if executed else f"Presupuesto {year}", "money", "banknote",
-                                short=f"Ejecutado {year}" if executed else f"Presupuesto {year}"),
+            "fiscal": Indicator("monto_fiscal", f"Presupuesto ejecutado {year}" if executed else f"Presupuesto {year}", "money",
+                                "banknote", short=f"Ejecutado {year}" if executed else f"Presupuesto {year}"),
+            "coded": Indicator("presupuesto_codificado", f"Presupuesto codificado {year}", "money", "wallet",
+                               short=f"Codificado {year}"),
+            "execution": Indicator("porcentaje_ejecucion", "Ejecución presupuestaria", "rate", "target", short="Ejecución"),
             "previous": Indicator("monto_anterior", f"Presupuesto acumulado {span}", "money", "landmark",
                                   short=f"Acumulado {span}"),
             "government": Indicator("monto_gobierno", f"Presupuesto acumulado 2023–{year}", "money", "landmark",
@@ -57,47 +68,86 @@ class Module:
     def people_indicator(self) -> Indicator:
         return Indicator("usuarios", self.people, "count", self.people_icon, self.people.lower())
 
-    def indicators(self, year: int, *, executed: bool = False) -> list[Indicator]:
-        """Indicators a reader can map and rank, in reading order."""
+    def indicators(self, year: int, *, executed: bool = False, parishes: bool = False) -> list[Indicator]:
+        """Indicators a reader can map and rank, in reading order.
+
+        The parish detail carries coverage and the accrued budget; the accumulated budget exists by province only.
+        """
         money = self.money(year, executed=executed)
+        if parishes:
+            return [self.people_indicator(), *self.extra, money["fiscal"]]
         return [self.people_indicator(), *self.extra, money["fiscal"], money["government"]]
 
     def definitions(self, year: int, *, executed: bool = False) -> list[tuple[str, str]]:
         """Formal definitions for the technical sheet of the data workbook."""
         money = self.money(year, executed=executed)
-        span = money["previous"].label.removeprefix("Presupuesto acumulado ").removeprefix("Presupuesto ")
+        span = money["previous"].label.removeprefix("Presupuesto acumulado ")
         rows = [(self.people, self.people_definition)]
         rows += [(extra.label, EXTRA_DEFINITIONS.get(extra.key, "")) for extra in self.extra]
+        if executed:
+            rows += [
+                (money["fiscal"].label, f"Presupuesto devengado de {year} registrado al corte, en dólares de los Estados Unidos."),
+                (money["coded"].label, f"Presupuesto codificado de {year}: la asignación vigente al corte."),
+                (money["execution"].label, "Presupuesto devengado sobre presupuesto codificado, en porcentaje."),
+            ]
+        else:
+            rows.append((money["fiscal"].label, f"Presupuesto reportado para {year}, en dólares de los Estados Unidos."))
         rows += [
-            (money["fiscal"].label, f"Devengado fiscal reportado al corte de {year}; no es exclusivamente el gasto del mes." if executed else f"Presupuesto reportado en {year}; la fuente histórica no identifica su fase presupuestaria."),
-            (money["previous"].label, f"Acumulado reportado en {span}, en dólares de los Estados Unidos."),
-            (money["government"].label, f"Acumulado anterior más el presupuesto fiscal de {year}; no sumar nuevamente sus componentes."),
+            (money["previous"].label, f"Presupuesto acumulado de {span.replace('–', ' a ')}, en dólares de los Estados Unidos."),
+            (money["government"].label, f"Presupuesto acumulado de 2023 a {year - 1} más el presupuesto de {year}."),
         ]
         return rows
 
     @property
     def people_definition(self) -> str:
         if self.people == "Beneficiarios":
-            return "Beneficiarios reportados por bono o pensión; agregados sin deduplicación entre programas."
-        return f"Usuarios reportados por {self.item}; agregados sin deduplicación entre modalidades."
+            return "Personas que reciben cada bono o pensión en el corte; el total suma los beneficiarios de cada programa."
+        return f"Personas atendidas por cada {self.item} en el corte; el total suma los usuarios de cada modalidad."
 
 
-EXTRA_DEFINITIONS = {"unidades": "Unidades reportadas en la base de cobertura; sin identificadores para deduplicarlas entre modalidades y cooperantes."}
-
+EXTRA_DEFINITIONS = {"unidades": "Unidades de atención que prestan cada servicio, propias y en convenio, en el corte."}
 
 MODULES: dict[str, Module] = {
     "transferencias": Module(
-        id="transferencias", label="Transferencias monetarias", sections=("bonos_pensiones",),
-        description="Beneficiarios y presupuesto de los bonos y pensiones, por programa y provincia.",
+        id="transferencias", label="Transferencias monetarias", short_label="Transferencias", sections=("bonos_pensiones",),
+        description="Beneficiarios y presupuesto de los bonos y pensiones, por programa, provincia y parroquia.",
         item="programa", items="programas", people="Beneficiarios", people_icon="hand-coins",
     ),
     "servicios": Module(
-        id="servicios", label="Servicios de protección integral", sections=("proteccion_integral",),
-        description="Usuarios, unidades de atención y presupuesto de los servicios de protección integral, por servicio y provincia.",
+        id="servicios", label="Servicios de protección integral", short_label="Servicios", sections=("proteccion_integral",),
+        description="Usuarios, unidades de atención y presupuesto de los servicios de protección integral, por servicio, "
+                    "provincia y parroquia.",
         item="servicio", items="servicios", people="Usuarios", people_icon="users",
         extra=(Indicator("unidades", "Unidades de atención", "count", "building", "unidades"),),
     ),
 }
+
+# Every area of the consultation, in the order of the institutional bulletin.
+AREAS: dict[str, dict] = {
+    "transferencias": {"label": "Transferencias monetarias", "short": "Transferencias", "kind": "territorial"},
+    "servicios": {"label": "Servicios de protección integral", "short": "Servicios", "kind": "territorial"},
+    "laboral": {"label": "Gestión laboral", "short": "Gestión laboral", "kind": "laboral",
+                "description": "Contratos de trabajo vigentes en el país y compensaciones jubilares pagadas a exservidores "
+                               "y extrabajadores públicos."},
+    "presupuesto": {"label": "Presupuesto institucional", "short": "Presupuesto", "kind": "presupuesto",
+                    "description": "Presupuesto codificado, devengado y ejecución del Ministerio, por programa, zona y "
+                                   "grupo de gasto."},
+}
+
+BUDGET_DEFINITIONS = [
+    ("Presupuesto codificado", "Asignación presupuestaria vigente al corte, después de las modificaciones del año."),
+    ("Presupuesto devengado", "Obligaciones de pago reconocidas al corte por bienes, servicios, obras y transferencias recibidos."),
+    ("Ejecución presupuestaria", "Presupuesto devengado sobre presupuesto codificado, en porcentaje."),
+    ("Saldo por devengar", "Presupuesto codificado menos presupuesto devengado."),
+    ("Presupuesto certificado", "Valor certificado que registra la base financiera para cada partida."),
+]
+
+LABOUR_DEFINITIONS = [
+    ("Contratos vigentes", "Contratos de trabajo en estado vigente registrados en el Sistema Único de Trabajo, a la fecha de actualización de la fuente."),
+    ("Contratos registrados en el año", "Contratos registrados cada mes del año que se mantienen vigentes a la fecha de consulta."),
+    ("Personas jubiladas compensadas", "Exservidores y extrabajadores públicos que recibieron su compensación jubilar en el año, según el balance oficial publicado."),
+    ("Recursos para compensaciones jubilares", "Monto destinado en el año al pago de compensaciones jubilares, según el balance oficial publicado."),
+]
 
 
 def module_for_sections(sections) -> Module:

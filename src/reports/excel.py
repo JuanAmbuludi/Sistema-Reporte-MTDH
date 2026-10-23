@@ -1,7 +1,8 @@
-"""Institutional Excel workbook: the data book of InfoReportes.
+"""Institutional Excel workbook: the data book of InfoReport.
 
-Built with XlsxWriter from the same report context as the one-page summary and the slides.  Five sheets:
-Resumen, results by program (or service), Provincias, Detalle and Ficha técnica.  Design rules:
+Built with XlsxWriter from the same report context as the one-page summary and the slides.  Transfers and services
+get Resumen, results by program (or service), Provincias, Parroquias (when the cut has parish detail), Detalle and
+Ficha técnica; the institutional budget and labour management get their own sheets.  Design rules:
 * every figure is a real number with a number format (no numbers as text);
 * totals are live formulas that also carry their computed value, so they read correctly in Excel,
   LibreOffice, Google Sheets and phone previews;
@@ -22,7 +23,7 @@ from xlsxwriter.utility import xl_rowcol_to_cell
 
 from src import theme
 from .charts import map_png
-from .context import number
+from .context import PRODUCT, number
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGO = ROOT / "assets" / "brand" / "mtdh_logo.png"
@@ -104,7 +105,7 @@ class Workbook:
         ws.center_horizontally()
         ws.set_header(f'&L&"{DISPLAY},Bold"&9&K512F8DMinisterio de Trabajo y Desarrollo Humano'
                       f'&R&"{TEXT},Regular"&9&K5A5765{self.ctx["period_label"]}')
-        ws.set_footer(f'&L&"{TEXT},Regular"&8&K5A5765InfoReportes · Indicadores estratégicos'
+        ws.set_footer(f'&L&"{TEXT},Regular"&8&K5A5765InfoReport · Indicadores estratégicos'
                       f'&C&"{TEXT},Regular"&8&K5A5765Página &P de &N'
                       f'&R&"{TEXT},Regular"&8&K5A5765Fuente: Ministerio de Trabajo y Desarrollo Humano')
 
@@ -329,13 +330,47 @@ class Workbook:
         chart.set_size({"width": width, "height": height})
         return chart
 
+    def column_chart(self, sheet, first, last, cat_col, val_col, title, number_format=INT, width=760, height=340):
+        chart = self.wb.add_chart({"type": "column"})
+        chart.add_series({
+            "name": title, "categories": [sheet, first, cat_col, last, cat_col], "values": [sheet, first, val_col, last, val_col],
+            "fill": {"color": theme.SERIE_BONOS}, "border": {"none": True}, "gap": 60,
+            "data_labels": {"value": True, "num_format": number_format, "position": "outside_end",
+                            "font": {"name": TEXT, "size": 9, "color": theme.TINTA}},
+        })
+        chart.set_title({"name": title, "overlay": False,
+                         "name_font": {"name": DISPLAY, "size": 11, "bold": True, "color": theme.MORADO_900}})
+        chart.set_y_axis({"num_format": number_format, "num_font": {"name": TEXT, "size": 8, "color": MUTED},
+                          "major_gridlines": {"visible": True, "line": {"color": "#EEEAF4", "width": 0.75}},
+                          "line": {"none": True}, "major_tick_mark": "none", "min": 0})
+        chart.set_x_axis({"num_font": {"name": TEXT, "size": 9, "color": theme.TINTA}, "line": {"color": theme.LILA_100},
+                          "major_tick_mark": "none"})
+        chart.set_legend({"none": True})
+        chart.set_chartarea({"border": {"color": SOFT_LINE}, "fill": {"color": WHITE}})
+        chart.set_plotarea({"border": {"none": True}, "fill": {"none": True}})
+        chart.set_size({"width": width, "height": height})
+        return chart
+
     # ------------------------------------------------------------------ data
-    def kpi_cards(self):
+    @staticmethod
+    def kpi_format(kpi: dict) -> str:
+        if kpi["kind"] == "rate":
+            return PCT
+        if kpi["kind"] == "money":
+            decimals = kpi.get("decimals", 1)
+            digits = "#,##0" + ("." + "0" * decimals if decimals else "")
+            prefix = '"Más de USD "' if kpi.get("lower_bound") else '"USD "'
+            return f'{prefix}{digits},," M"'
+        return INT
+
+    def kpi_cards(self, share_word: str = "del total nacional"):
         cards = []
         for index, kpi in enumerate(self.ctx["kpis"][:4]):
-            num_format = MILL_KPI if kpi["kind"] == "money" else INT
-            note = (f"{number(kpi['share'], 1)} % del total nacional" if kpi.get("share") is not None else kpi.get("note", ""))
-            cards.append((kpi["label"], kpi["value"], num_format, note, TONES[index]))
+            value = kpi["value"]
+            if kpi["kind"] == "rate" and value is not None:
+                value = value / 100
+            note = (f"{number(kpi['share'], 1)} % {share_word}" if kpi.get("share") is not None else kpi.get("note", ""))
+            cards.append((kpi["label"], value, self.kpi_format(kpi), note, TONES[index]))
         return cards
 
     def subtitle(self) -> str:
@@ -346,9 +381,69 @@ class Workbook:
         path = ICONS / f"{name}-{variant}.png"
         return path.read_bytes() if path.exists() else None
 
-    # ----------------------------------------------------------------- sheets
+    def findings(self, ws, row: int, items: list[dict], last: int = 12) -> int:
+        row = self.heading(ws, row, "Aspectos destacados", last=last)
+        for item in items:
+            ws.set_row(row, 34)
+            ws.write_blank(row, 1, None, self.f(bg_color=theme.LILA_50))
+            ws.merge_range(row, 2, row, last, item["text"], self.f(bg_color=theme.LILA_50, font_size=10.5, text_wrap=True, indent=1))
+            icon = self.icon_png(item["icon"])
+            if icon:
+                self.image(ws, row, 1, icon, 26, f"icono_{item['icon']}.png", x_offset=30, y_offset=10)
+            row += 1
+            ws.set_row(row, 6)
+            row += 1
+        return row
+
+    def facts_sheet(self, facts: list[tuple[str, str]], definitions: list[tuple[str, str]], contents: list[tuple[str, str]],
+                    sources: list[tuple[str, str, str]] | None = None) -> None:
+        ws = self.wb.add_worksheet("Ficha técnica")
+        self.widths(ws, [2.4, 34.0, 96.0, 2.4])
+        self.page(ws, landscape=False)
+        ws.set_tab_color(theme.PIZARRA)
+        row = self.band(ws, "Ficha técnica", self.subtitle(), last=3)
+        row = self.heading(ws, row + 1, "Identificación", last=2)
+        _f, _l, row = self.table(ws, row, [("Elemento", 0, "text", 1, 1), ("Descripción", 1, "text", 2, 1)], facts, height=22)
+        row = self.heading(ws, row + 1, "Indicadores", last=2)
+        _f, _l, row = self.table(ws, row, [("Indicador", 0, "text", 1, 1), ("Definición", 1, "text", 2, 1)], definitions, height=38)
+        if sources:
+            row = self.heading(ws, row + 1, "Fuentes oficiales", last=2)
+            line = dict(bottom=7, bottom_color=SOFT_LINE)
+            for label, origin, url in sources:
+                ws.set_row(row, 34)
+                ws.write(row, 1, label, self.f(font_size=10, bold=True, font_color=theme.MORADO_900, text_wrap=True, indent=1, **line))
+                if url:
+                    ws.write_url(row, 2, url, self.f(font_size=10, font_color=theme.MORADO, underline=1, text_wrap=True, **line),
+                                 string=origin, tip=url)
+                else:
+                    ws.write(row, 2, origin, self.f(font_size=10, font_color=theme.PIZARRA, text_wrap=True, **line))
+                row += 1
+        row = self.heading(ws, row + 1, "Contenido del libro", last=2)
+        line = dict(bottom=7, bottom_color=SOFT_LINE)
+        for name, description in contents:
+            ws.set_row(row, 22)
+            ws.write_url(row, 1, f"internal:'{name}'!A1", self.f(font_name=DISPLAY, font_size=10.5, bold=True, font_color=theme.MORADO,
+                                                                 indent=1, **line), string=name, tip=f"Ir a la hoja {name}")
+            ws.write(row, 2, description, self.f(font_size=10, font_color=theme.PIZARRA, **line))
+            row += 1
+        ws.set_zoom(95)
+
+    def generic_table(self, ws, row: int, layout: list[tuple], rows: list[dict], *, total: dict | None = None, label_index: int = 0,
+                      subtotal: bool = False, bar_key: str | None = None, height: int = 19) -> tuple[int, int, int]:
+        first, last, nxt = self.table(ws, row, layout, rows, total=total, label_index=label_index, subtotal=subtotal,
+                                      header_height=36, height=height)
+        if bar_key:
+            col = next(c for _h, key, _k, c, _s in layout if key == bar_key)
+            self.data_bar(ws, first, last, col, theme.LILA_300, maximum=1)
+        return first, last, nxt
+
+    # ------------------------------------------------------------ territorial
+    def _scope_word(self) -> str:
+        return "parroquia" if self.ctx.get("map_layer") == "parroquia" else "provincia"
+
     def summary(self):
         ctx, labels = self.ctx, self.ctx["labels"]
+        executed = ctx.get("executed_available")
         ws = self.wb.add_worksheet("Resumen")
         self.widths(ws, [2.4] + [12.6] * 12 + [2.4])
         self.page(ws, tall=1)
@@ -358,31 +453,28 @@ class Workbook:
         row = self.kpi_row(ws, row + 1, self.kpi_cards())
         top = row + 1
         self.heading(ws, top, f"Resultados por {labels['item']}", last=7)
-        ws.merge_range(top, 8, top, 12, f"{labels['people']} por provincia",
+        ws.merge_range(top, 8, top, 12, f"{labels['people']} por {self._scope_word()}",
                        self.f(font_name=DISPLAY, font_size=13, bold=True, font_color=theme.MORADO_900, bottom=2, bottom_color=theme.LILA_200))
         total_people = ctx["totals"]["people"]
-        rows = [{**p, "share": _share(p["people"], total_people)} for p in ctx["programs"]]
+        rows = [{**p, "share": _share(p["people"], total_people),
+                 "execution_f": (p["execution"] / 100) if p.get("execution") is not None else None} for p in ctx["programs"]]
         layout = [(labels["item"].capitalize(), "short", "text", 1, 3), (labels["people"], "people", "int", 4, 1),
-                  ("Participación", "share", "pct", 5, 1), (f"{labels['fiscal']} (millones de USD)", "fiscal", "mill", 6, 2)]
-        total = {"people": total_people, "share": 1.0 if total_people else None, "fiscal": ctx["totals"]["fiscal"]}
+                  ("Participación", "share", "pct", 5, 1)]
+        if executed:
+            layout += [(f"{labels['fiscal']} (millones de USD)", "fiscal", "mill", 6, 1), ("Ejecución", "execution_f", "pct", 7, 1)]
+        else:
+            layout.append((f"{labels['fiscal']} (millones de USD)", "fiscal", "mill", 6, 2))
+        total = {"people": total_people, "share": 1.0 if total_people else None, "fiscal": ctx["totals"]["fiscal"],
+                 "execution_f": (ctx["totals"]["execution"] / 100) if ctx["totals"].get("execution") is not None else None}
         first, last, nxt = self.table(ws, top + 1, layout, rows, total=total, header_height=36)
         self.data_bar(ws, first, last, 5, theme.LILA_300, maximum=1)
-        picture = map_png(ctx["map_values"], mode="light", selected=set(ctx["selected_codes"]), label=labels["people"],
-                          annotate=0, width=5.4, height=4.8, dpi=200)
+        picture = map_png(ctx["map_values"], layer=ctx.get("map_layer", "provincia"), focus=ctx.get("map_focus", []),
+                          selected=set(ctx["selected_codes"]), label=f"{labels['people']} por {self._scope_word()}",
+                          width=5.4, height=4.8, dpi=200)
         self.image(ws, top + 1, 8, picture, 440, "mapa_resumen.png", x_offset=10, y_offset=4,
-                   description=f"Mapa del Ecuador: {labels['people'].lower()} por provincia")
+                   description=f"Mapa del Ecuador: {labels['people'].lower()} por {self._scope_word()}")
         row = max(nxt, top + 1 + 18) + 1
-        row = self.heading(ws, row, "Aspectos destacados")
-        for item in ctx["insights"][:3]:
-            ws.set_row(row, 34)
-            ws.write_blank(row, 1, None, self.f(bg_color=theme.LILA_50))
-            ws.merge_range(row, 2, row, 12, item["text"], self.f(bg_color=theme.LILA_50, font_size=10.5, text_wrap=True, indent=1))
-            icon = self.icon_png(item["icon"])
-            if icon:
-                self.image(ws, row, 1, icon, 26, f"icono_{item['icon']}.png", x_offset=30, y_offset=10)
-            row += 1
-            ws.set_row(row, 6)
-            row += 1
+        row = self.findings(ws, row, ctx["insights"][:4])
         ws.print_area(0, 0, row, 13)
         ws.activate()
         ws.set_first_sheet()
@@ -390,10 +482,12 @@ class Workbook:
 
     def programs_sheet(self):
         ctx, labels = self.ctx, self.ctx["labels"]
+        executed = ctx.get("executed_available")
         name = labels["items"].capitalize()
         units = bool(labels["units"])
         ws = self.wb.add_worksheet(name)
-        columns = [2.4, 6.0, 40.0, 15.0, 13.0] + ([14.0] if units else []) + [18.0, 22.0, 22.0, 2.4]
+        columns = ([2.4, 6.0, 40.0, 15.0, 13.0] + ([14.0] if units else []) + [18.0] + ([18.0, 12.0] if executed else [])
+                   + [22.0, 22.0, 2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws, tall=1)
@@ -401,18 +495,26 @@ class Workbook:
         row = self.band(ws, f"Resultados por {labels['item']}", self.subtitle(), last=last_col)
         row = self.heading(ws, row + 1, f"{labels['people']} y presupuesto por {labels['item']}", "Montos en USD", last=last_col - 1)
         total_people = ctx["totals"]["people"]
-        rows = [{**p, "n": i + 1, "share": _share(p["people"], total_people)} for i, p in enumerate(ctx["programs"])]
+        rows = [{**p, "n": i + 1, "share": _share(p["people"], total_people),
+                 "execution_f": (p["execution"] / 100) if p.get("execution") is not None else None} for i, p in enumerate(ctx["programs"])]
         layout = [("N.º", "n", "center", 1, 1), (labels["item"].capitalize(), "label", "text", 2, 1),
                   (labels["people"], "people", "int", 3, 1), ("Participación", "share", "pct", 4, 1)]
         col = 5
         if units:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
-        layout += [(labels["fiscal"], "fiscal", "usd", col, 1), (labels["previous"], "previous", "usd", col + 1, 1),
-                   (labels["government"], "government", "usd", col + 2, 1)]
+        fiscal_col = col
+        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
+        col += 1
+        if executed:
+            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
+            col += 2
+        layout += [(labels["previous"], "previous", "usd", col, 1), (labels["government"], "government", "usd", col + 1, 1)]
         totals = ctx["totals"]
         total = {"people": totals["people"], "share": 1.0 if totals["people"] else None, "units": totals["units"],
-                 "fiscal": totals["fiscal"], "previous": totals["previous"], "government": totals["government"]}
+                 "fiscal": totals["fiscal"], "coded": totals.get("coded"),
+                 "execution_f": (totals["execution"] / 100) if totals.get("execution") is not None else None,
+                 "previous": totals["previous"], "government": totals["government"]}
         first, last, nxt = self.table(ws, row, layout, rows, total=total, label_index=1, header_height=36)
         self.data_bar(ws, first, last, 4, theme.LILA_300, maximum=1)
         ws.freeze_panes(row + 1, 0)
@@ -420,7 +522,6 @@ class Workbook:
             height = max(300, 32 * len(rows) + 80)
             ws.insert_chart(nxt + 1, 2, self.bar_chart(name, first, last, 2, 3, f"{labels['people']} por {labels['item']}", [theme.SERIE_BONOS],
                                                        width=560, height=height), {"y_offset": 10, "object_position": 3})
-            fiscal_col = 6 if units else 5
             ws.insert_chart(nxt + 1, 4, self.bar_chart(name, first, last, 2, fiscal_col, f"{labels['fiscal']} (millones de USD)",
                                                        [theme.VIOLETA_500], number_format="#,##0.0,,", width=560, height=height),
                             {"x_offset": 40, "y_offset": 10, "object_position": 3})
@@ -428,9 +529,11 @@ class Workbook:
 
     def provinces_sheet(self):
         ctx, labels = self.ctx, self.ctx["labels"]
+        executed = ctx.get("executed_available")
         units = bool(labels["units"])
         ws = self.wb.add_worksheet("Provincias")
-        columns = [2.4, 9.0, 8.0, 30.0, 12.0, 15.0, 13.0] + ([14.0] if units else []) + [18.0, 22.0, 2.4]
+        columns = ([2.4, 9.0, 8.0, 30.0, 12.0, 15.0, 13.0] + ([14.0] if units else []) + [18.0] + ([12.0] if executed else [])
+                   + [22.0, 2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
@@ -438,7 +541,8 @@ class Workbook:
         row = self.band(ws, "Resultados por provincia", f"{labels['people']} · {ctx['period_label']} · {ctx['programs_label']}", last=last_col)
         row = self.heading(ws, row + 1, f"{labels['people']} por provincia",
                            "Provincias seleccionadas en dorado" if ctx["selected_codes"] else "", last=last_col - 1)
-        picture = map_png(ctx["map_values"], mode="light", selected=set(ctx["selected_codes"]), label=labels["people"],
+        values = {p["code"]: p["people"] for p in ctx["provinces"]}
+        picture = map_png(values, layer="provincia", selected=set(ctx["selected_codes"]), label=f"{labels['people']} por provincia",
                           annotate=5, width=6.6, height=5.6, dpi=200)
         self.image(ws, row + 1, 2, picture, 600, "mapa_provincias.png", x_offset=4, y_offset=6,
                    description=f"Mapa del Ecuador: {labels['people'].lower()} por provincia")
@@ -450,9 +554,10 @@ class Workbook:
         keys = ["position", "code", "name", "region", "people", "share"]
         if units:
             headers.append(labels["units"]), kinds.append("int"), keys.append("units")
-        headers += [labels["fiscal"], labels["government"]]
-        kinds += ["usd", "usd"]
-        keys += ["fiscal", "government"]
+        headers.append(labels["fiscal"]), kinds.append("usd"), keys.append("fiscal")
+        if executed:
+            headers.append("Ejecución"), kinds.append("pct"), keys.append("execution_f")
+        headers.append(labels["government"]), kinds.append("usd"), keys.append("government")
         ws.set_row(row, 36)
         for i, header in enumerate(headers):
             align = "right" if kinds[i] in NUMERIC else ("center" if kinds[i] in ("center", "code") else "left")
@@ -466,6 +571,7 @@ class Workbook:
             chosen = province["selected"]
             fill = theme.ORO_100 if chosen else (theme.NIEBLA if r % 2 else WHITE)
             record = {**province, "share": (province["share"] or 0) / 100 if province["share"] is not None else None,
+                      "execution_f": province["execution"] / 100 if province.get("execution") is not None else None,
                       "position": province["position"] if province["position"] else "—"}
             for i, key in enumerate(keys):
                 kind = kinds[i]
@@ -488,6 +594,13 @@ class Workbook:
             if key == "share":
                 ws.write_number(total_row, col, 1.0, self.cell_format("pct", theme.LAVANDA, bold=True, **edge))
                 continue
+            if key == "execution_f":
+                value = national.get("execution")
+                if value is None:
+                    ws.write(total_row, col, "—", self.f(bg_color=theme.LAVANDA, bold=True, align="right", **edge))
+                else:
+                    ws.write_number(total_row, col, value / 100, self.cell_format("pct", theme.LAVANDA, bold=True, **edge))
+                continue
             value = national.get(key)
             if value is None:
                 ws.write(total_row, col, "—", self.f(bg_color=theme.LAVANDA, bold=True, align="right", **edge))
@@ -498,11 +611,51 @@ class Workbook:
         ws.autofilter(row, 1, last, len(keys))
         ws.set_zoom(90)
 
+    def parishes_sheet(self):
+        ctx, labels = self.ctx, self.ctx["labels"]
+        parish = ctx["parish"]
+        units = bool(labels["units"])
+        ws = self.wb.add_worksheet("Parroquias")
+        columns = [2.4, 24.0, 26.0, 30.0, 14.0, 15.0, 13.0] + ([14.0] if units else []) + [20.0, 2.4]
+        self.widths(ws, columns)
+        last_col = len(columns) - 1
+        self.page(ws)
+        ws.set_tab_color(theme.FUCSIA)
+        row = self.band(ws, "Resultados por parroquia", f"{labels['people']} · {ctx['period_label']} · {ctx['territory_label']}", last=last_col)
+        row = self.heading(ws, row + 1, f"{labels['people']} por parroquia",
+                           "Provincias seleccionadas con borde dorado" if ctx["selected_codes"] else "", last=last_col - 1)
+        picture = map_png(ctx["map_values"], layer="parroquia", focus=parish["focus"], selected=set(ctx["selected_codes"]),
+                          label=f"{labels['people']} por parroquia", width=6.6, height=5.6, dpi=200)
+        self.image(ws, row + 1, 2, picture, 600, "mapa_parroquias.png", x_offset=4, y_offset=6,
+                   description=f"Mapa del Ecuador: {labels['people'].lower()} por parroquia")
+        row += 27
+        ws.set_h_pagebreaks([row])
+        row = self.heading(ws, row, "Parroquias de la selección", "Montos en USD", last=last_col - 1)
+        layout = [("Provincia", "province", "text", 1, 1), ("Cantón", "canton", "text", 2, 1), ("Parroquia", "parish", "text", 3, 1),
+                  ("Código DPA", "code", "code", 4, 1), (labels["people"], "people", "int", 5, 1), ("Participación", "share_f", "pct", 6, 1)]
+        col = 7
+        if units:
+            layout.append((labels["units"], "units", "int", col, 1))
+            col += 1
+        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
+        rows = [{**r, "share_f": r["share"] / 100 if r["share"] is not None else None} for r in parish["rows"]]
+        totals = {"people": sum(r["people"] or 0 for r in rows), "share_f": 1.0,
+                  "units": sum(r["units"] or 0 for r in rows) if units else None,
+                  "fiscal": sum(r["fiscal"] or 0 for r in rows), "_label": "Total de las filas visibles"}
+        first, last, nxt = self.table(ws, row, layout, rows, total=totals, label_index=2, subtotal=True, header_height=36, height=18)
+        ws.autofilter(row, 1, last, col)
+        ws.freeze_panes(row + 1, 4)
+        ws.repeat_rows(row)
+        self.data_bar(ws, first, last, 6, theme.LILA_300, maximum=1)
+        ws.set_zoom(90)
+
     def detail_sheet(self):
         ctx, labels = self.ctx, self.ctx["labels"]
+        executed = ctx.get("executed_available")
         units = bool(labels["units"])
         ws = self.wb.add_worksheet("Detalle")
-        columns = [2.4, 38.0, 9.0, 28.0, 12.0, 15.0] + ([14.0] if units else []) + [18.0, 22.0, 22.0, 2.4]
+        columns = ([2.4, 38.0, 9.0, 28.0, 12.0, 15.0] + ([14.0] if units else []) + [18.0] + ([18.0, 12.0] if executed else [])
+                   + [22.0, 22.0, 2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
@@ -514,9 +667,13 @@ class Workbook:
         if units:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
-        layout += [(labels["fiscal"], "fiscal", "usd", col, 1), (labels["previous"], "previous", "usd", col + 1, 1),
-                   (labels["government"], "government", "usd", col + 2, 1)]
-        detail = ctx["detail"]
+        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
+        col += 1
+        if executed:
+            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
+            col += 2
+        layout += [(labels["previous"], "previous", "usd", col, 1), (labels["government"], "government", "usd", col + 1, 1)]
+        detail = [{**d, "execution_f": d["execution"] / 100 if d.get("execution") is not None else None} for d in ctx["detail"]]
         totals_row, header_row = row + 1, row + 3
         first, last = header_row + 1, header_row + max(1, len(detail))
         edge = dict(top=2, top_color=theme.MORADO)
@@ -524,8 +681,10 @@ class Workbook:
         ws.merge_range(totals_row, 1, totals_row, 4, "Total de las filas visibles",
                        self.f(bg_color=theme.LAVANDA, bold=True, font_color=theme.MORADO_900, indent=1, **edge))
         for _header, key, kind, column, _span in layout[4:]:
-            values = [d[key] for d in detail if d[key] is not None]
-            if values:
+            values = [d[key] for d in detail if d.get(key) is not None]
+            if kind == "pct":
+                ws.write(totals_row, column, "", self.f(bg_color=theme.LAVANDA, **edge))
+            elif values:
                 rng = f"{xl_rowcol_to_cell(first, column)}:{xl_rowcol_to_cell(last, column)}"
                 ws.write_formula(totals_row, column, f"=SUBTOTAL(109,{rng})", self.cell_format(kind, theme.LAVANDA, bold=True, **edge), sum(values))
             else:
@@ -542,49 +701,226 @@ class Workbook:
         ctx, labels = self.ctx, self.ctx["labels"]
         from src.indicators import MODULES
         module = MODULES[ctx["module_id"]]
-        ws = self.wb.add_worksheet("Ficha técnica")
-        self.widths(ws, [2.4, 34.0, 96.0, 2.4])
-        self.page(ws, landscape=False)
-        ws.set_tab_color(theme.PIZARRA)
-        row = self.band(ws, "Ficha técnica", self.subtitle(), last=3)
-        row = self.heading(ws, row + 1, "Identificación", last=2)
-        facts = [("Institución", ctx["institution"]), ("Producto", "Libro de datos de InfoReportes"),
+        facts = [("Institución", ctx["institution"]), ("Producto", f"Libro de datos de {PRODUCT}"),
                  ("Ámbito", ctx["module_label"]), ("Periodo", ctx["period_label"]), ("Territorio", ctx["territory_label"]),
                  (labels["items"].capitalize(), ctx["programs_label"]), ("Fecha de generación", ctx["generated_label"].capitalize()),
                  ("Unidad monetaria", "Dólares de los Estados Unidos (USD)")]
-        _f, _l, row = self.table(ws, row, [("Elemento", 0, "text", 1, 1), ("Descripción", 1, "text", 2, 1)], facts, height=22)
-        row = self.heading(ws, row + 1, "Indicadores", last=2)
-        _f, _l, row = self.table(ws, row, [("Indicador", 0, "text", 1, 1), ("Definición", 1, "text", 2, 1)],
-                                 module.definitions(ctx["year"], executed=ctx.get("executed_available", False)), height=38)
-        row = self.heading(ws, row + 1, "Contenido del libro", last=2)
         contents = [("Resumen", "Cifras clave, resultados por " + labels["item"] + ", mapa y aspectos destacados"),
-                    (labels["items"].capitalize(), f"{labels['people']}, participación y presupuesto por {labels['item']}"),
-                    ("Provincias", "Mapa y posición de cada provincia en el país"),
-                    ("Detalle", f"Cada {labels['item']} en cada provincia, con filtros y totales que se recalculan"),
+                    (labels["items"].capitalize(), f"{labels['people']}, participación, presupuesto y ejecución por {labels['item']}"),
+                    ("Provincias", "Mapa y posición de cada provincia en el país")]
+        if ctx.get("parish"):
+            contents.append(("Parroquias", "Mapa y cada parroquia con su cantón, cobertura y presupuesto ejecutado"))
+        contents += [("Detalle", f"Cada {labels['item']} en cada provincia, con filtros y totales que se recalculan"),
+                     ("Ficha técnica", "Identificación del producto y definiciones")]
+        self.facts_sheet(facts, module.definitions(ctx["year"], executed=ctx.get("executed_available", False)), contents)
+
+    # ------------------------------------------------------------------- budget
+    def _money_rows(self, rows: list[dict]) -> list[dict]:
+        return [{**r, "n": i + 1, "execution_f": r["execution"] / 100 if r.get("execution") is not None else None,
+                 "share_f": r["share"] / 100 if r.get("share") is not None else None} for i, r in enumerate(rows)]
+
+    def _money_total(self, rows: list[dict], label: str = "Total de la selección") -> dict:
+        coded = sum(r["coded"] for r in rows)
+        accrued = sum(r["accrued"] for r in rows)
+        certified = sum(r["certified"] or 0 for r in rows)
+        return {"coded": coded, "accrued": accrued, "balance": coded - accrued, "certified": certified, "share_f": 1.0,
+                "execution_f": accrued / coded if coded else None, "_label": label}
+
+    def budget_summary(self):
+        ctx = self.ctx
+        ws = self.wb.add_worksheet("Resumen")
+        self.widths(ws, [2.4] + [12.6] * 12 + [2.4])
+        self.page(ws, tall=1)
+        ws.set_tab_color(theme.MORADO)
+        row = self.band(ws, ctx["title"], self.subtitle(), last=13)
+        row = self.heading(ws, row + 1, "Cifras clave", ctx["period_label"])
+        row = self.kpi_row(ws, row + 1, self.kpi_cards("del total institucional"))
+        top = row + 1
+        self.heading(ws, top, "Ejecución por programa presupuestario", last=7)
+        ws.merge_range(top, 8, top, 12, "Ejecución por zona",
+                       self.f(font_name=DISPLAY, font_size=13, bold=True, font_color=theme.MORADO_900, bottom=2, bottom_color=theme.LILA_200))
+        rows = self._money_rows(ctx["programs"])
+        layout = [("Programa", "short", "text", 1, 3), ("Codificado (millones de USD)", "coded", "mill", 4, 1),
+                  ("Devengado (millones de USD)", "accrued", "mill", 5, 1), ("Ejecución", "execution_f", "pct", 6, 1),
+                  ("Participación", "share_f", "pct", 7, 1)]
+        first, last, nxt = self.table(ws, top + 1, layout, rows, total=self._money_total(ctx["programs"]), header_height=36)
+        self.data_bar(ws, first, last, 6, theme.LILA_300, maximum=1)
+        picture = map_png(ctx["map_values"], layer="zona", selected=set(ctx["selected_zones"]), rate=True,
+                          label="Ejecución presupuestaria por zona", width=5.4, height=4.8, dpi=200)
+        self.image(ws, top + 1, 8, picture, 440, "mapa_zonas.png", x_offset=10, y_offset=4,
+                   description="Mapa del Ecuador: ejecución presupuestaria por zona")
+        row = max(nxt, top + 1 + 18) + 1
+        row = self.findings(ws, row, ctx["insights"][:4])
+        ws.print_area(0, 0, row, 13)
+        ws.activate()
+        ws.set_first_sheet()
+        ws.set_zoom(90)
+
+    def _money_sheet(self, name: str, tab: str, title: str, blocks: list[tuple[str, list[dict], str, bool]], picture: bytes | None = None,
+                     tall_names: bool = False):
+        """A sheet of budget tables: (heading, rows, label header, whether the last column names the zone)."""
+        ws = self.wb.add_worksheet(name)
+        columns = [2.4, 6.0, 60.0, 18.0, 18.0, 12.0, 18.0, 17.0, 15.0, 2.4]
+        self.widths(ws, columns)
+        self.page(ws)
+        ws.set_tab_color(tab)
+        row = self.band(ws, title, self.subtitle(), last=len(columns) - 1)
+        if picture:
+            row = self.heading(ws, row + 1, "Ejecución presupuestaria por zona", "Zonas seleccionadas en dorado" if self.ctx["selected_zones"] else "",
+                               last=len(columns) - 2)
+            self.image(ws, row + 1, 2, picture, 600, "mapa_zonas_detalle.png", x_offset=4, y_offset=6,
+                       description="Mapa del Ecuador: ejecución presupuestaria por zona")
+            row += 27
+            ws.set_h_pagebreaks([row])
+        for heading, rows, label, zone in blocks:
+            row = self.heading(ws, row + 1, heading, "Montos en USD", last=len(columns) - 2)
+            layout = [("N.º", "n", "center", 1, 1), (label, "name", "text", 2, 1), ("Codificado", "coded", "usd", 3, 1),
+                      ("Devengado", "accrued", "usd", 4, 1), ("Ejecución", "execution_f", "pct", 5, 1),
+                      ("Saldo por devengar", "balance", "usd", 6, 1), ("Certificado", "certified", "usd", 7, 1)]
+            layout.append(("Zona", "zone", "code", 8, 1) if zone else ("Participación", "share_f", "pct", 8, 1))
+            first, last, nxt = self.table(ws, row, layout, self._money_rows(rows), total=self._money_total(rows), label_index=1,
+                                          header_height=36, height=30 if tall_names else 19)
+            if zone:
+                ws.autofilter(row, 1, last, 8)
+            else:
+                self.data_bar(ws, first, last, 8, theme.LILA_300, maximum=1)
+            row = nxt + 1
+        ws.set_zoom(90)
+        return ws
+
+    def budget_detail(self):
+        ctx = self.ctx
+        ws = self.wb.add_worksheet("Detalle")
+        columns = [2.4, 16.0, 40.0, 44.0, 34.0, 26.0, 16.0, 18.0, 18.0, 12.0, 18.0, 2.4]
+        self.widths(ws, columns)
+        last_col = len(columns) - 1
+        self.page(ws)
+        ws.set_tab_color(theme.LILA_300)
+        row = self.band(ws, "Detalle del presupuesto institucional", self.subtitle(), last=last_col, compact=True)
+        layout = [("Zona", "zone", "code", 1, 1), ("Unidad ejecutora", "unit", "text", 2, 1), ("Programa", "program", "text", 3, 1),
+                  ("Grupo de gasto", "group", "text", 4, 1), ("Fuente de financiamiento", "source", "text", 5, 1),
+                  ("Tipo de gasto", "kind", "code", 6, 1), ("Codificado", "coded", "usd", 7, 1), ("Devengado", "accrued", "usd", 8, 1),
+                  ("Ejecución", "execution_f", "pct", 9, 1), ("Saldo por devengar", "balance", "usd", 10, 1)]
+        detail = [{**d, "execution_f": d["execution"] / 100 if d.get("execution") is not None else None} for d in ctx["detail"]]
+        totals_row, header_row = row + 1, row + 3
+        first, last = header_row + 1, header_row + max(1, len(detail))
+        edge = dict(top=2, top_color=theme.MORADO)
+        ws.set_row(totals_row, 24)
+        ws.merge_range(totals_row, 1, totals_row, 6, "Total de las filas visibles",
+                       self.f(bg_color=theme.LAVANDA, bold=True, font_color=theme.MORADO_900, indent=1, **edge))
+        for _header, key, kind, column, _span in layout[6:]:
+            if kind == "pct":
+                ws.write(totals_row, column, "", self.f(bg_color=theme.LAVANDA, **edge))
+                continue
+            rng = f"{xl_rowcol_to_cell(first, column)}:{xl_rowcol_to_cell(last, column)}"
+            ws.write_formula(totals_row, column, f"=SUBTOTAL(109,{rng})", self.cell_format(kind, theme.LAVANDA, bold=True, **edge),
+                             sum(d[key] or 0 for d in detail))
+        ws.set_row(totals_row + 1, 6)
+        self.table(ws, header_row, layout, detail, label_index=1, header_height=36, height=18)
+        ws.autofilter(header_row, 1, last, last_col - 1)
+        ws.freeze_panes(first, 3)
+        ws.repeat_rows(header_row)
+        ws.set_zoom(90)
+
+    def budget_book(self):
+        ctx = self.ctx
+        self.budget_summary()
+        self._money_sheet("Programas", theme.VIOLETA_500, "Ejecución por programa presupuestario",
+                          [("Programas presupuestarios", ctx["programs"], "Programa presupuestario", False)], tall_names=True)
+        picture = map_png(ctx["map_values"], layer="zona", selected=set(ctx["selected_zones"]), rate=True,
+                          label="Ejecución presupuestaria por zona", annotate=0, width=6.6, height=5.6, dpi=200)
+        self._money_sheet("Zonas", theme.ORO, "Ejecución por zona y unidad ejecutora",
+                          [("Planta central y zonas", ctx["zones"], "Zona", False),
+                           ("Unidades ejecutoras", ctx["units"], "Unidad ejecutora", True)], picture=picture)
+        self._money_sheet("Grupos de gasto", theme.FUCSIA, "Ejecución por grupo y tipo de gasto",
+                          [("Grupos de gasto", ctx["groups"], "Grupo de gasto", False),
+                           ("Tipos de gasto", ctx["kinds"], "Tipo de gasto", False),
+                           ("Fuentes de financiamiento", ctx["sources"], "Fuente de financiamiento", False)])
+        self.budget_detail()
+        facts = [("Institución", ctx["institution"]), ("Producto", f"Libro de datos de {PRODUCT}"), ("Ámbito", ctx["module_label"]),
+                 ("Periodo", ctx["period_label"]), ("Zona", ctx["territory_label"]), ("Programas", ctx["programs_label"]),
+                 ("Fecha de generación", ctx["generated_label"].capitalize()), ("Unidad monetaria", "Dólares de los Estados Unidos (USD)")]
+        contents = [("Resumen", "Cifras clave, ejecución por programa, mapa por zona y aspectos destacados"),
+                    ("Programas", "Codificado, devengado, ejecución, saldo y certificado por programa presupuestario"),
+                    ("Zonas", "Ejecución por zona y por unidad ejecutora"),
+                    ("Grupos de gasto", "Ejecución por grupo de gasto, tipo de gasto y fuente de financiamiento"),
+                    ("Detalle", "Cada unidad, programa, grupo y fuente, con filtros y totales que se recalculan"),
                     ("Ficha técnica", "Identificación del producto y definiciones")]
-        line = dict(bottom=7, bottom_color=SOFT_LINE)
-        for name, description in contents:
-            ws.set_row(row, 22)
-            ws.write_url(row, 1, f"internal:'{name}'!A1", self.f(font_name=DISPLAY, font_size=10.5, bold=True, font_color=theme.MORADO,
-                                                                 indent=1, **line), string=name, tip=f"Ir a la hoja {name}")
-            ws.write(row, 2, description, self.f(font_size=10, font_color=theme.PIZARRA, **line))
-            row += 1
+        self.facts_sheet(facts, ctx["definitions"], contents)
+
+    # ------------------------------------------------------------------- labour
+    def labour_book(self):
+        ctx = self.ctx
+        info = ctx["info"]
+        ws = self.wb.add_worksheet("Resumen")
+        self.widths(ws, [2.4] + [12.6] * 12 + [2.4])
+        self.page(ws, tall=1)
+        ws.set_tab_color(theme.MORADO)
+        row = self.band(ws, ctx["title"], self.subtitle(), last=13)
+        row = self.heading(ws, row + 1, "Cifras clave", ctx["period_label"])
+        row = self.kpi_row(ws, row + 1, self.kpi_cards())
+        top = row + 1
+        self.heading(ws, top, f"Contratos registrados por mes en {ctx['year']}", last=4)
+        rows = [{**m, "share_f": m["share"] / 100 if m["share"] is not None else None} for m in ctx["months"]]
+        layout = [("Mes", "label", "text", 1, 2), ("Contratos", "value", "int", 3, 1), ("Participación", "share_f", "pct", 4, 1)]
+        first, last, nxt = self.table(ws, top + 1, layout, rows, total={"value": info["cohorts"], "share_f": 1.0, "_label": "Total del año"},
+                                      header_height=30)
+        ws.insert_chart(top + 1, 6, self.column_chart("Resumen", first, last, 1, 3, "Contratos registrados que siguen vigentes",
+                                                      width=600, height=330), {"x_offset": 6, "y_offset": 4, "object_position": 3})
+        row = max(nxt, top + 18) + 1
+        row = self.findings(ws, row, ctx["insights"])
+        ws.print_area(0, 0, row, 13)
+        ws.activate()
+        ws.set_first_sheet()
+        ws.set_zoom(90)
+
+        ws = self.wb.add_worksheet("Contratos por mes")
+        columns = [2.4, 28.0, 26.0, 24.0, 26.0, 2.4]
+        self.widths(ws, columns)
+        self.page(ws, landscape=False)
+        ws.set_tab_color(theme.VIOLETA_500)
+        row = self.band(ws, "Contratos registrados por mes", f"{ctx['period_label']} · Total nacional · contratos que siguen vigentes",
+                        last=len(columns) - 1)
+        row = self.heading(ws, row + 1, "Serie mensual", f"Consulta del {info['consulted_label']}", last=4)
+        layout = [("Mes", "label", "text", 1, 1), ("Contratos registrados", "value", "int", 2, 1),
+                  ("Participación en el año", "share_f", "pct", 3, 1), ("Acumulado del año", "cumulative", "int", 4, 1)]
+        first, last, nxt = self.table(ws, row, layout, rows, total={"value": info["cohorts"], "share_f": 1.0, "_label": "Total del año"},
+                                      header_height=36)
+        self.data_bar(ws, first, last, 3, theme.LILA_300, maximum=1)
+        ws.insert_chart(nxt + 1, 1, self.column_chart("Contratos por mes", first, last, 1, 2, "Contratos registrados por mes",
+                                                      width=720, height=340), {"y_offset": 10, "object_position": 3})
         ws.set_zoom(95)
+
+        facts = [("Institución", ctx["institution"]), ("Producto", f"Libro de datos de {PRODUCT}"), ("Ámbito", ctx["module_label"]),
+                 ("Periodo", f"{ctx['period_label']} (meses de {ctx['span']})"), ("Territorio", "Nacional"),
+                 ("Fecha de consulta", info["consulted_label"].capitalize()), ("Fecha de generación", ctx["generated_label"].capitalize())]
+        contents = [("Resumen", "Cifras clave, serie mensual y aspectos destacados"),
+                    ("Contratos por mes", "Contratos registrados cada mes, participación y acumulado"),
+                    ("Ficha técnica", "Identificación, definiciones y fuentes oficiales")]
+        self.facts_sheet(facts, ctx["definitions"], contents, sources=ctx["sources"])
 
     # ---------------------------------------------------------------- build
     def build(self) -> bytes:
         ctx = self.ctx
         self.wb.set_properties({
             "title": ctx["title"], "subject": f"{ctx['module_label']} · {ctx['period_label']} · {ctx['territory_label']}",
-            "author": ctx["institution"], "company": ctx["institution"], "manager": "InfoReportes",
-            "category": "Indicadores estratégicos", "keywords": "MTDH, InfoReportes, indicadores",
+            "author": ctx["institution"], "company": ctx["institution"], "manager": PRODUCT,
+            "category": "Indicadores estratégicos", "keywords": f"MTDH, {PRODUCT}, indicadores",
         })
         self.wb.set_size(1680, 1040)
-        self.summary()
-        self.programs_sheet()
-        self.provinces_sheet()
-        self.detail_sheet()
-        self.technical_sheet()
+        kind = ctx.get("kind", "territorial")
+        if kind == "presupuesto":
+            self.budget_book()
+        elif kind == "laboral":
+            self.labour_book()
+        else:
+            self.summary()
+            self.programs_sheet()
+            self.provinces_sheet()
+            if ctx.get("parish"):
+                self.parishes_sheet()
+            self.detail_sheet()
+            self.technical_sheet()
         self.wb.close()
         return _institutional_theme(self.out.getvalue())
 
@@ -616,7 +952,7 @@ def _institutional_theme(xlsx: bytes) -> bytes:
 
 
 def generate_xlsx(context: dict) -> bytes:
-    if not context.get("programs"):
+    if context.get("kind", "territorial") == "territorial" and not context.get("programs"):
         raise ValueError("El reporte no contiene información para la selección.")
     return Workbook(context).build()
 
@@ -664,7 +1000,7 @@ def table_xlsx(rows: list[dict], layout: list[tuple[str, str, str, float]], *, t
     if note:
         book.note(ws, last + 2, note, first=1, last=last_col - 1, height=34)
     book.wb.set_properties({"title": title, "subject": subtitle, "author": "Ministerio de Trabajo y Desarrollo Humano",
-                            "company": "Ministerio de Trabajo y Desarrollo Humano", "manager": "InfoReportes",
+                            "company": "Ministerio de Trabajo y Desarrollo Humano", "manager": PRODUCT,
                             "category": "Estadística institucional", "comments": f"Selección {selection}"})
     ws.set_zoom(95)
     book.wb.close()

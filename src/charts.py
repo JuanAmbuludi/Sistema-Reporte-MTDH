@@ -24,19 +24,30 @@ AXIS_TEXT = "#6E6880"
 
 
 def fmt_value(value, indicator: Indicator) -> str:
-    """Exact figure for hovers: 400.208 beneficiarios · USD 55,87 millones."""
+    """Exact figure for hovers: 400.208 beneficiarios · USD 55,87 millones · 71,0 %."""
     if value is None or pd.isna(value):
         return "—"
     if indicator.is_money:
         return f"USD {number(float(value) / 1e6, 2)} millones"
+    if indicator.is_rate:
+        return pct(value)
     return f"{number(value)} {indicator.unit}".strip()
 
 
 def short_value(value, indicator: Indicator) -> str:
-    """Bar labels: 400.208 · 55,9 M."""
+    """Bar labels: 400.208 · 55,9 M · 71,0 %."""
     if value is None or pd.isna(value):
         return "—"
+    if indicator.is_rate:
+        return pct(value)
     return f"{number(float(value) / 1e6, 1)} M" if indicator.is_money else number(value)
+
+
+def money_text(value, decimals: int = 1) -> str:
+    """USD 1.011,2 M."""
+    if value is None or pd.isna(value):
+        return "—"
+    return f"USD {number(float(value) / 1e6, decimals)} M"
 
 
 def base(fig: go.Figure, height: int = 390, margin: dict | None = None) -> go.Figure:
@@ -55,7 +66,7 @@ def base(fig: go.Figure, height: int = 390, margin: dict | None = None) -> go.Fi
     )
     fig.update_xaxes(showgrid=True, gridcolor=GRID, gridwidth=1, zeroline=False, ticks="", showline=False,
                      fixedrange=True, tickfont=dict(size=11, color=AXIS_TEXT), title_font=dict(size=11, color=AXIS_TEXT))
-    fig.update_yaxes(showgrid=False, zeroline=False, ticks="", showline=False, automargin=True,
+    fig.update_yaxes(showgrid=False, zeroline=False, ticks="", showline=False, automargin=True, ticklabelstandoff=6,
                      fixedrange=True, tickfont=dict(size=12, color=theme.TINTA))
     return fig
 
@@ -71,7 +82,10 @@ def _by_category(data: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
 def category_bars(data: pd.DataFrame, indicator: Indicator, names: dict[str, str] | None = None) -> go.Figure:
     """One indicator per program or service, largest on top, in a single colour."""
     names = names or {}
-    group = _by_category(data, [indicator.key]).sort_values(indicator.key, ascending=True, na_position="first")
+    group = _by_category(data, [indicator.key])
+    # Programs without any value (pensions that only keep a previous accumulation) would read as empty bars.
+    group = group.loc[pd.to_numeric(group[indicator.key], errors="coerce").fillna(0).gt(0)] if group[indicator.key].fillna(0).gt(0).any() else group
+    group = group.sort_values(indicator.key, ascending=True, na_position="first")
     total = group[indicator.key].sum()
     labels = [names.get(p, p) for p in group.programa]
     values = group[indicator.key] / (1e6 if indicator.is_money else 1)
@@ -203,4 +217,119 @@ def composition_matrix(data: pd.DataFrame, indicator: Indicator, names: dict[str
     base(fig, len(pivot) * 58 + head + 20 if few else max(320, len(pivot) * 25 + head + 12), dict(l=8, r=8, t=head, b=6))
     fig.update_xaxes(side="top", showgrid=False, tickangle=0, tickfont=dict(size=10.5, color=theme.TINTA))
     fig.update_yaxes(autorange="reversed", tickfont=dict(size=11.5))
+    return fig
+
+
+def execution_bullets(rows: pd.DataFrame, label: str, *, highlight=None, reference: float | None = None,
+                      reference_label: str = "Total", hover_label: str | None = None, wrap_at: int = 0,
+                      per: int = 36) -> go.Figure:
+    """Budget execution of each row as a bar on a 0–100 % track, largest coded budget on top.
+
+    ``rows`` carries ``presupuesto_codificado``, ``presupuesto_ejecutado`` and ``porcentaje_ejecucion``; ``label``
+    names the column shown on the axis and ``hover_label`` an optional longer name for the hover.  ``reference`` draws
+    the execution of the whole selection, so every row reads above or below it.  ``highlight`` holds labels drawn in
+    gold (the territory chosen on the map).
+    """
+    highlight = set(highlight or ())
+    group = rows.loc[rows.presupuesto_codificado.fillna(0) > 0].iloc[::-1]
+    labels = ["<br>".join(wrap(str(t), wrap_at, break_long_words=False)) if wrap_at else str(t) for t in group[label]]
+    rates = group.porcentaje_ejecucion.fillna(0).clip(lower=0)
+    chosen = group[label].isin(highlight).to_numpy()
+    colors = [theme.ORO if c else BAR for c in chosen]
+    full = group[hover_label] if hover_label else group[label]
+    custom = np.stack([full.astype(str).to_numpy(), [pct(v) for v in group.porcentaje_ejecucion],
+                       [fmt_money(v) for v in group.presupuesto_ejecutado], [fmt_money(v) for v in group.presupuesto_codificado]], axis=1)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=[100] * len(group), y=labels, orientation="h", marker=dict(color="#EEEAF6", cornerradius=5),
+                         hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Bar(x=rates.clip(upper=100), y=labels, orientation="h", marker=dict(color=colors, cornerradius=5),
+                         customdata=custom, showlegend=False,
+                         hovertemplate="<b>%{customdata[0]}</b><br>Ejecución: %{customdata[1]}<br>Devengado: %{customdata[2]}"
+                                       "<br>Codificado: %{customdata[3]}<extra></extra>"))
+    # The figures sit in a fixed right margin, so they never clip however narrow the plot becomes on a phone.
+    fig.add_trace(go.Scatter(x=[101] * len(group), y=labels, mode="text", text=[f" <b>{pct(v)}</b>" if c else f" {pct(v)}"
+                                                                               for v, c in zip(group.porcentaje_ejecucion, chosen)],
+                             textposition="middle right", textfont=dict(size=12, color=theme.TINTA), hoverinfo="skip",
+                             showlegend=False, cliponaxis=False))
+    base(fig, execution_height(len(group), per), dict(l=8, r=62, t=30 if reference is not None else 8, b=8))
+    fig.update_layout(barmode="overlay", bargap=0.42, showlegend=False)
+    fig.update_xaxes(range=[0, 101], showticklabels=False, showgrid=False)
+    fig.update_yaxes(categoryorder="array", categoryarray=labels, tickfont=dict(size=11.5))
+    if reference is not None and pd.notna(reference):
+        fig.add_shape(type="line", x0=reference, x1=reference, y0=-0.6, y1=len(group) - 0.4, line=dict(color=theme.ORO_700, width=1.4, dash="dot"))
+        fig.add_annotation(x=reference, y=len(group) - 0.4, yshift=4, text=f"{reference_label}: {pct(reference)}", showarrow=False,
+                           yanchor="bottom", font=dict(size=11, color=theme.ORO_700))
+    return fig
+
+
+def execution_height(rows: int, per: int = 36) -> int:
+    return max(150, rows * per + 66)
+
+
+def fmt_money(value) -> str:
+    if value is None or pd.isna(value):
+        return "—"
+    return f"USD {number(float(value) / 1e6, 2)} millones"
+
+
+def ranked_bars(labels: list[str], values: list[float], indicator: Indicator, *, hover: list[str] | None = None,
+                share_total: float | None = None, share_label: str = "del total", height: int | None = None) -> go.Figure:
+    """Leading places (parishes, units) as horizontal bars, largest on top, in the series colour."""
+    labels, values = list(labels)[::-1], list(values)[::-1]
+    hover = list(hover)[::-1] if hover else labels
+    scaled = [(v or 0) / (1e6 if indicator.is_money else 1) for v in values]
+    shares = [pct((v or 0) / share_total * 100) + " " + share_label if share_total else "" for v in values]
+    fig = go.Figure(go.Bar(
+        x=scaled, y=labels, orientation="h", marker=dict(color=BAR, cornerradius=4),
+        text=[short_value(v, indicator) for v in values], textposition="outside", cliponaxis=False,
+        textfont=dict(size=11, color=theme.TINTA),
+        customdata=np.stack([hover, [fmt_value(v, indicator) for v in values], shares], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>",
+    ))
+    base(fig, height or max(300, len(labels) * 25 + 46), dict(l=8, r=64, t=10, b=10))
+    fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
+    fig.update_yaxes(tickfont=dict(size=11.5), categoryorder="array", categoryarray=labels)
+    fig.update_layout(bargap=0.28 if not height else 0.4, showlegend=False)
+    return fig
+
+
+def monthly_columns(months: list[str], values: list[float], *, unit: str = "contratos", average: float | None = None,
+                    full_names: list[str] | None = None) -> go.Figure:
+    """A monthly series as columns with their figures; ``average`` draws the monthly mean as a reference."""
+    full_names = full_names or months
+    fig = go.Figure(go.Bar(
+        x=months, y=values, marker=dict(color=BAR, cornerradius=5), text=[number(v) for v in values], textposition="outside",
+        cliponaxis=False, textfont=dict(size=12, color=theme.TINTA),
+        customdata=np.stack([full_names, [f"{number(v)} {unit}" for v in values]], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+    ))
+    base(fig, 380, dict(l=8, r=8, t=34, b=30))
+    fig.update_layout(bargap=0.32, showlegend=False)
+    fig.update_yaxes(showticklabels=False, showgrid=False, rangemode="tozero", range=[0, max(values or [1]) * 1.18])
+    fig.update_xaxes(showgrid=False, tickfont=dict(size=12, color=theme.TINTA))
+    if average:
+        fig.add_shape(type="line", xref="paper", x0=0, x1=1, y0=average, y1=average, line=dict(color=theme.ORO_700, width=1.4, dash="dot"))
+        fig.add_annotation(xref="paper", x=1, y=average, yshift=4, text=f"Promedio mensual: {number(average)}", showarrow=False,
+                           xanchor="right", yanchor="bottom", font=dict(size=11, color=theme.ORO_700))
+    return fig
+
+
+def part_of_whole(parts: list[tuple[str, float]], *, unit: str = "contratos") -> go.Figure:
+    """One 100 % bar split in its parts, each with its share written inside."""
+    total = sum(v for _l, v in parts) or 1
+    colors = [BAR, theme.LILA_200, theme.LILA_100]
+    fig = go.Figure()
+    for index, (label, value) in enumerate(parts):
+        share = value / total * 100
+        fig.add_trace(go.Bar(
+            x=[share], y=[""], orientation="h", name=label, marker=dict(color=colors[index % len(colors)], line=dict(color="#FFFFFF", width=2)),
+            text=[f"<b>{pct(share)}</b>"], textposition="inside", insidetextanchor="middle",
+            textfont=dict(size=13, color="#FFFFFF" if index == 0 else theme.MORADO_900),
+            customdata=[[label, f"{number(value)} {unit}", pct(share)]],
+            hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]} del total<extra></extra>",
+        ))
+    base(fig, 150, dict(l=8, r=8, t=36, b=8))
+    fig.update_layout(barmode="stack", bargap=0.1, legend=dict(orientation="h", y=1.25, x=0, traceorder="normal"))
+    fig.update_xaxes(range=[0, 100], showticklabels=False, showgrid=False)
+    fig.update_yaxes(showticklabels=False)
     return fig

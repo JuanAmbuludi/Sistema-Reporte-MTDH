@@ -9,21 +9,15 @@ import base64
 from functools import lru_cache
 import html
 from pathlib import Path
-import re
 
 import pandas as pd
 import streamlit as st
 
-from src import geo, theme
+from src import names, theme
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGO = ROOT / "assets" / "brand" / "mtdh_logo.png"
-
-# Re-exported for modules that still import the palette from here.
-PURPLE = theme.MORADO
-FUCSIA = theme.FUCSIA
-NAVY = theme.MORADO_900
-SECTIONS = theme.SECTIONS
+PRODUCT = "InfoReport"
 
 # Lucide icon geometry (ISC license, see assets/icons/LICENSE).
 _PATHS = {
@@ -55,6 +49,10 @@ _PATHS = {
     "award": '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
     "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
     "target": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    "briefcase": '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+    "file-check": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/>',
+    "user-check": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>',
+    "hourglass": '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
     "pie": '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
 }
 
@@ -100,29 +98,9 @@ def is_mobile() -> bool:
     return any(token in agent for token in ("Mobi", "Android", "iPhone", "iPad"))
 
 
-def pretty_label(text: str) -> str:
-    """Province names already carry their official casing and accents."""
-    return str(text)
-
-
-_PARTICLES = {"de", "del", "la", "las", "los", "el", "y", "e", "en"}
-
-
 def place_name(text: object) -> str:
     """Readable place names from upper-case sources: SAN MIGUEL DE LOS BANCOS → San Miguel de los Bancos."""
-    if text is None or (not isinstance(text, str) and pd.isna(text)):
-        return "—"
-    raw = " ".join(str(text).split())
-    if raw != raw.upper():
-        return raw
-
-    def word(match: re.Match) -> str:
-        token, start = match.group(0), match.start()
-        if start > 0 and token in _PARTICLES and raw[start - 1] == " ":
-            return token
-        return token[:1].upper() + token[1:]
-
-    return re.sub(r"[^\W\d_]+", word, raw.lower())
+    return names.place(text, short=False)
 
 
 @lru_cache(maxsize=1)
@@ -187,7 +165,7 @@ def animated(value: object, decimals: int = 0) -> str:
 def brand_mark() -> None:
     logo = f'<img class="brand-logo" src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
     st.markdown(
-        f'<div class="brand-mark">{logo}<div class="brand-product"><strong>InfoReportes</strong><span>Indicadores estratégicos</span></div></div>',
+        f'<div class="brand-mark">{logo}<div class="brand-product"><strong>{PRODUCT}</strong><span>Indicadores estratégicos</span></div></div>',
         unsafe_allow_html=True,
     )
 
@@ -209,42 +187,97 @@ def hero_copy(period: str, headline: str, lead: str) -> None:
     )
 
 
-def hero_map(values: dict[str, float], names: dict[str, str], selected: set[str], label: str,
-             value_format=lambda v: number(v)) -> None:
-    codes = [c for c in values if c != geo.NO_POLYGON]
-    colors = theme.ramp([values[c] for c in codes], theme.NIGHT_SEQUENTIAL)
-    fills = {c: col for c, col in zip(codes, colors) if col}
-    titles = {c: f"{names.get(c, c)}: {value_format(values[c])}" for c in codes}
-    svg = geo.svg_map(fills, titles=titles, selected=selected, stroke=theme.MORADO_900)
+def map_fills(values: dict[str, float], palette=None) -> dict[str, str]:
+    """Colours of a choropleth: ordered classes of the ramp; empty or zero values keep the neutral fill."""
+    palette = palette or theme.NIGHT_SEQUENTIAL
+    codes = [c for c, v in values.items() if v is not None and v == v and v > 0]
+    colors = theme.ramp([values[c] for c in codes], palette)
+    return {c: col for c, col in zip(codes, colors) if col}
+
+
+def hero_map(svg: str, label: str, *, selected: str = "", equator: bool = True) -> None:
+    """The night map of the band with its key: what is mapped, the ramp, the selection and the equator."""
     steps = "".join(f'<i style="background:{c}"></i>' for c in theme.NIGHT_SEQUENTIAL)
-    selected_key = '<span class="key-sel"><i></i>Territorio seleccionado</span>' if selected else ""
+    selected_key = f'<span class="key-sel"><i></i>{_esc(selected)}</span>' if selected else ""
+    equator_key = '<span class="key-eq"><i></i>Latitud 0°</span>' if equator else ""
     st.markdown(
-        f'<figure class="hero-map">{svg}<figcaption><span class="key-label">{_esc(label)} por provincia</span>'
-        f'<span class="key-ramp"><small>Menor</small>{steps}<small>Mayor</small></span>{selected_key}'
-        f'<span class="key-eq"><i></i>Latitud 0°</span></figcaption></figure>',
+        f'<figure class="hero-map">{svg}<figcaption><span class="key-label">{_esc(label)}</span>'
+        f'<span class="key-ramp"><small>Menor</small>{steps}<small>Mayor</small></span>{selected_key}{equator_key}'
+        f'</figcaption></figure>',
         unsafe_allow_html=True,
     )
 
 
+def svg_columns(values: list[float], labels: list[str], *, titles: list[str] | None = None, average: float | None = None,
+                width: int = 640, height: int = 360, night: bool = True, css_class: str = "ec-columns",
+                value_text=None) -> str:
+    """Column chart drawn as SVG for the purple band (or a light miniature): one column per period, its figure on
+    top, the mean as a dotted gold line."""
+    value_text = value_text or (lambda v: number(v))
+    titles = titles or [f"{l}: {value_text(v)}" for l, v in zip(labels, values)]
+    top, bottom, side = 34, 30, 8
+    peak = max(values or [1]) or 1
+    slot = (width - 2 * side) / max(1, len(values))
+    bar = slot * 0.62
+    ink = "#EFE8FA" if night else theme.MORADO_900
+    muted = "#CDBFE6" if night else "#6E6880"
+    fill = theme.NIGHT_SEQUENTIAL[-2] if night else theme.SERIE_BONOS
+    track = "rgba(255,255,255,.06)" if night else "#F1EEF6"
+    columns, captions = [], []
+    for index, (value, label, title) in enumerate(zip(values, labels, titles)):
+        h = (height - top - bottom) * (value or 0) / peak
+        x = side + index * slot + (slot - bar) / 2
+        y = height - bottom - h
+        delay = f"--d:{index * 0.06:.2f}s"
+        columns.append(
+            f'<g class="ec-col" style="{delay}"><title>{_esc(title)}</title>'
+            f'<rect x="{x:.1f}" y="{top - 6}" width="{bar:.1f}" height="{height - bottom - top + 6:.1f}" rx="7" fill="{track}"/>'
+            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar:.1f}" height="{h:.1f}" rx="7" fill="{fill}"/></g>')
+        captions.append(
+            f'<g class="ec-lab" style="{delay}">'
+            f'<text x="{x + bar / 2:.1f}" y="{y - 8:.1f}" text-anchor="middle" fill="{ink}" class="v">{_esc(value_text(value))}</text>'
+            f'<text x="{x + bar / 2:.1f}" y="{height - 8}" text-anchor="middle" fill="{muted}" class="m">{_esc(label)}</text></g>')
+    line = ""
+    if average:
+        ay = height - bottom - (height - top - bottom) * average / peak
+        line = (f'<line class="avg" x1="{side}" x2="{width - side}" y1="{ay:.1f}" y2="{ay:.1f}" stroke="{theme.ORO}" '
+                f'stroke-dasharray="2 6" stroke-linecap="round"/>')
+    # The mean runs over the columns and under their figures, so every figure stays legible where the line crosses it.
+    return (f'<svg class="{css_class}" viewBox="0 0 {width} {height}" role="img" aria-label="Serie mensual" '
+            f'preserveAspectRatio="xMidYMid meet">{"".join(columns)}{line}{"".join(captions)}</svg>')
+
+
+def hero_series(svg: str, label: str, average_label: str = "", *, narrow: str = "", narrow_note: str = "") -> None:
+    """The series of the band; ``narrow`` is a version drawn for phones (larger type, shorter figures)."""
+    average = f'<span class="key-eq"><i></i>{_esc(average_label)}</span>' if average_label else ""
+    note = f'<span class="key-note">{_esc(narrow_note)}</span>' if narrow and narrow_note else ""
+    body = f'<div class="series-wide">{svg}</div><div class="series-narrow">{narrow}</div>' if narrow else svg
+    st.markdown(f'<figure class="hero-map hero-series">{body}<figcaption><span class="key-label">{_esc(label)}</span>{note}{average}'
+                f'</figcaption></figure>', unsafe_allow_html=True)
+
+
 def kpi_grid(cards: list[dict], *, overlap: bool = True) -> None:
-    """Cards: label, value, decimals, prefix, suffix, note, icon, tone, share."""
+    """Cards: label, value, decimals, prefix, suffix, note, icon, tone, share (or bar with bar_label for rates)."""
     items = []
     for i, card in enumerate(cards):
-        share = card.get("share")
+        share = card.get("bar", card.get("share"))
         share_html = ""
-        if share is not None:
+        if share is not None and share == share:
             width = max(0.0, min(100.0, float(share)))
+            caption = card.get("bar_label") if "bar" in card else f'{pct(share)} {card.get("share_label", "del total nacional")}'
             share_html = (f'<div class="kpi-share"><div class="bar"><span style="--w:{width:.2f}%"></span></div>'
-                          f'<small>{_esc(pct(share))} {_esc(card.get("share_label", "del total nacional"))}</small></div>')
+                          f'<small>{_esc(caption)}</small></div>')
         prefix = f'<small class="pre">{_esc(card["prefix"])}</small>' if card.get("prefix") else ""
         suffix = f'<small class="suf">{_esc(card["suffix"])}</small>' if card.get("suffix") else ""
+        note = f'<p class="kpi-note">{_esc(card["note"])}</p>' if card.get("note") else ""
         items.append(
             f'<article class="kpi tone-{card.get("tone", "morado")}" style="--i:{i}"><header><span class="kpi-icon">{icon(card.get("icon", "chart"), 22)}</span>'
             f'<h3>{_esc(card["label"])}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
-            f'<p class="kpi-note">{_esc(card.get("note", ""))}</p>{share_html}</article>'
+            f'{note}{share_html}</article>'
         )
     css_class = "kpi-grid" if overlap else "kpi-grid kpi-inline"
-    st.markdown(f'<section class="{css_class}" aria-label="Indicadores principales">{"".join(items)}</section>', unsafe_allow_html=True)
+    st.markdown(f'<section class="{css_class} n{len(cards)}" aria-label="Indicadores principales">{"".join(items)}</section>',
+                unsafe_allow_html=True)
 
 
 def section_heading(title: str, subtitle: str = "", symbol: str = "chart", anchor: str = "") -> None:
@@ -331,22 +364,14 @@ def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | 
 
 # --- Report previews -------------------------------------------------------------
 
-def _mini_map(selected: set[str], values: dict[str, float]) -> str:
-    codes = [c for c in values if c != geo.NO_POLYGON]
-    colors = theme.ramp([values[c] for c in codes], theme.SEQUENTIAL[2:])
-    fills = {c: col for c, col in zip(codes, colors) if col}
-    return geo.svg_map(fills, width=300, pad=6, stroke="#FFFFFF", selected=selected, selected_fill=theme.ORO,
-                       equator=None, frame_color="rgba(81,47,141,.35)", label_color="rgba(81,47,141,.6)", css_class="ec-map mini")
-
-
 def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tuple[str, str, str]],
-                   sheets: list[str], selected: set[str], values: dict[str, float]) -> None:
+                   sheets: list[str], visual: str, slides: tuple[str, str] = ("Resultados por provincia", "Resultados por programa")) -> None:
     """Miniature of the product: a one-page summary, three slides or the data workbook.
 
-    ``kpis`` items are (label, value, icon).
+    ``kpis`` items are (label, value, icon); ``visual`` is the small SVG of the product (map or chart); ``slides``
+    names the second and third slides.
     """
     logo = f'<img src="{logo_data()}" alt=""/>' if logo_data() else ""
-    mini = _mini_map(selected, values)
     tiles = "".join(f'<div><span class="mi">{icon(sym, 13)}</span><strong>{_esc(v)}</strong><span>{_esc(k)}</span></div>'
                     for k, v, sym in kpis[:4])
     if kind == "datos":
@@ -355,22 +380,22 @@ def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tu
         cols = "".join(f"<i>{c}</i>" for c in "ABCDEFGHIJ")
         body = (f'<div class="xl-window"><div class="xl-chrome"><span class="dots"><i></i><i></i><i></i></span><span class="file">{_esc(title)}</span><span class="ext">XLSX</span></div>'
                 f'<div class="xl-formula"><span>A1</span><em>fx</em><b>{_esc(title)}</b></div><div class="xl-cols"><span></span>{cols}</div>'
-                f'<div class="xl-sheet"><div class="xl-band">{logo}<div class="xl-title"><small>Libro de datos</small><strong>{_esc(title)}</strong><span>{_esc(period)} · {_esc(scope)}</span></div>{mini}</div>'
+                f'<div class="xl-sheet"><div class="xl-band">{logo}<div class="xl-title"><small>Libro de datos</small><strong>{_esc(title)}</strong><span>{_esc(period)} · {_esc(scope)}</span></div>{visual}</div>'
                 f'<div class="xl-rule"></div><div class="xl-kpis">{plain}</div><div class="xl-rows"><i></i><i></i><i></i><i></i></div></div>'
                 f'<div class="xl-tabs">{tabs}</div></div>')
     elif kind == "presentacion":
         bars = "".join(f'<i style="--w:{w}%"></i>' for w in (92, 70, 54, 41, 30))
         body = (f'<div class="deck"><div class="slide-mock"><div class="slide-left">{logo}<small>{_esc(period)}</small><strong>{_esc(title)}</strong>'
                 f'<span>{_esc(scope)}</span></div><div class="slide-right"><div class="slide-kpis">{tiles}</div></div></div>'
-                f'<div class="deck-row"><div class="mini-slide"><b>Resultados por provincia</b><div class="ms-body">{mini}<div class="ms-bars">{bars}</div></div></div>'
-                f'<div class="mini-slide"><b>Resultados por programa</b><div class="ms-body"><div class="ms-bars">{bars}</div>'
+                f'<div class="deck-row"><div class="mini-slide"><b>{_esc(slides[0])}</b><div class="ms-body">{visual}<div class="ms-bars">{bars}</div></div></div>'
+                f'<div class="mini-slide"><b>{_esc(slides[1])}</b><div class="ms-body"><div class="ms-bars">{bars}</div>'
                 f'<div class="ms-notes"><i>{icon("award", 11)}</i><i>{icon("pin", 11)}</i><i>{icon("trending-up", 11)}</i></div></div></div></div></div>')
     else:
         bars = "".join(f'<i style="--w:{w}%"></i>' for w in (94, 66, 52, 38, 27, 18))
         notes = "".join(f'<li><span class="mi">{icon(sym, 12)}</span><i></i></li>' for sym in ("award", "pin", "trending-up"))
         body = (f'<div class="page-mock"><div class="page-band">{logo}<div><small>Resumen ejecutivo</small><strong>{_esc(title)}</strong>'
                 f'<span>{_esc(period)} · {_esc(scope)}</span></div></div><div class="page-rule"></div><div class="page-body">'
-                f'<div class="page-kpis">{tiles}</div><div class="page-map">{mini}<div class="ms-bars">{bars}</div></div>'
+                f'<div class="page-kpis">{tiles}</div><div class="page-map">{visual}<div class="ms-bars">{bars}</div></div>'
                 f'<div class="page-foot"><div class="ms-bars">{bars}</div><ul class="page-notes">{notes}</ul></div></div></div>')
     st.markdown(f'<div class="preview preview-{_esc(kind)}">{body}</div>', unsafe_allow_html=True)
 
@@ -378,7 +403,7 @@ def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tu
 def footer(period: str) -> None:
     logo = f'<img src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
     st.markdown(
-        f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>InfoReportes · Indicadores estratégicos</strong>'
+        f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>{PRODUCT} · Indicadores estratégicos</strong>'
         f'<span>Fuente: Ministerio de Trabajo y Desarrollo Humano</span><span>Periodo: {_esc(period)}</span></div></footer>',
         unsafe_allow_html=True,
     )

@@ -92,6 +92,47 @@ def load_periods(data_dir: str | Path | None = None) -> tuple[pd.DataFrame, list
     return combined, catalog
 
 
+TERRITORY_KEYS = ["periodo_id", "seccion", "programa_id", "programa", "provincia_codigo", "provincia", "canton_codigo",
+                  "canton", "parroquia_codigo", "parroquia"]
+
+
+def load_territory(data_dir: str | Path | None = None) -> pd.DataFrame:
+    """Parish detail of the cuts that have it: one row per program and parish.
+
+    Coverage rows (by modality and partner) are added up to the parish before joining the budget, which is reported
+    by program and parish; joining earlier would repeat amounts.  ``monto_fiscal`` mirrors the accrued budget, as in
+    the provincial base.  Returns an empty frame when the base has no parish detail.
+    """
+    base = Path(data_dir or DEFAULT_DATA_DIR)
+    coverage_path, budget_path = base / "cobertura_territorial.parquet", base / "presupuesto_territorial.parquet"
+    if not coverage_path.exists():
+        return pd.DataFrame(columns=TERRITORY_KEYS + METRIC_COLUMNS)
+    coverage = pd.read_parquet(coverage_path)
+    coverage["periodo_id"] = pd.to_datetime(coverage["periodo"]).dt.strftime("%Y-%m")
+    for col in TERRITORY_KEYS:
+        coverage[col] = coverage[col].astype(str)
+    coverage["usuarios"] = pd.to_numeric(coverage["usuarios"], errors="coerce")
+    coverage["unidades"] = pd.to_numeric(coverage["unidades"], errors="coerce")
+    frame = coverage.groupby(TERRITORY_KEYS, as_index=False, observed=True)[["usuarios", "unidades"]].sum(min_count=1)
+    if budget_path.exists():
+        budget = pd.read_parquet(budget_path)
+        budget["periodo_id"] = pd.to_datetime(budget["periodo"]).dt.strftime("%Y-%m")
+        keys = ["periodo_id", "programa_id", "parroquia_codigo"]
+        for col in keys:
+            budget[col] = budget[col].astype(str)
+        for col in ["presupuesto_ejecutado", "presupuesto_codificado"]:
+            budget[col] = pd.to_numeric(budget[col], errors="coerce").astype(float)
+        amounts = budget.groupby(keys, as_index=False)[["presupuesto_ejecutado", "presupuesto_codificado"]].sum(min_count=1)
+        frame = frame.merge(amounts, on=keys, how="left", validate="one_to_one")
+    for col in MONEY_COLUMNS:
+        if col not in frame:
+            frame[col] = float("nan")
+    frame["monto_fiscal"] = frame["presupuesto_ejecutado"]
+    frame["usuarios"] = frame["usuarios"].astype("Int64")
+    frame["unidades"] = frame["unidades"].astype(float)
+    return frame
+
+
 def filter_data(
     df: pd.DataFrame,
     provincias: Iterable[str] | None = None,

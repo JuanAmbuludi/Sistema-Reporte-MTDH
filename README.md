@@ -1,4 +1,4 @@
-# InfoReportes · MTDH
+# InfoReport · MTDH
 
 Sistema de indicadores estratégicos y reportes institucionales del Ministerio de Trabajo y Desarrollo Humano, construido en **Streamlit**. Reúne acceso con usuario y contraseña, un tablero con el mapa del Ecuador, consulta por **periodo (año y mes), ámbito, territorio y programa**, y un centro de reportes con tres productos generados con exactamente la misma selección: **resumen ejecutivo de una página (PDF), presentación de tres diapositivas (PowerPoint) y libro de datos (Excel)**.
 
@@ -81,7 +81,7 @@ Las exportaciones se generan en memoria. No requieren Microsoft Office, LibreOff
 - **Gráficos neutros.** Los gráficos reciben un indicador (nombre, unidad y formato) en lugar de una columna fija, así que sirven igual para beneficiarios, usuarios, unidades o presupuesto y para los indicadores que se agreguen después (ver «Agregar nuevos indicadores»).
 - **Paleta institucional en un solo lugar.** `src/theme.py` reúne el morado del logo y del boletín, la lavanda y la niebla de sus superficies, el oro del escudo y una rampa morada generada en OKLCH. La aplicación, los gráficos y los tres productos leen esos valores; el tema de Streamlit vive en `.streamlit/config.toml`. Procedencia de cada color: [assets/brand/PROCEDENCIA.md](assets/brand/PROCEDENCIA.md).
 - **Tipografías e iconos.** Montserrat para títulos y cifras y Public Sans para el texto, servidas por la propia aplicación desde `static/fonts`. Excel y PowerPoint usan Century Gothic y Calibri, instaladas con Microsoft Office. Los iconos (Lucide, licencia ISC) están en `assets/icons/png` en blanco, morado y oro.
-- **Mapas.** Se dibujan con un GeoJSON local de Natural Earth, sin teselas ni servicios externos, con Galápagos en recuadro y la línea ecuatorial. Detalles: [assets/geo/PROCEDENCIA.md](assets/geo/PROCEDENCIA.md).
+- **Mapas.** Se dibujan con la cartografía del INEC 2015 (parroquias, cantones, provincias y zonas de planificación) incluida en el proyecto, sin teselas ni servicios externos, con Galápagos en recuadro y la línea ecuatorial. Detalles: [assets/geo/PROCEDENCIA.md](assets/geo/PROCEDENCIA.md).
 - **Sin secciones desplegables.** Todo el contenido está a la vista; las opciones se eligen con controles segmentados.
 - **Teléfonos.** En el teléfono las cifras clave pasan a dos columnas, los gráficos se compactan, la matriz territorial y las tablas se deslizan de lado y la primera columna de las tablas queda fija.
 - **Movimiento con intención.** Una sola secuencia de entrada: las provincias del mapa se encienden de oeste a este y las cifras clave cuentan hasta su valor. Si el sistema pide reducir el movimiento, la aplicación lo respeta.
@@ -170,7 +170,7 @@ python -m pytest tests -q
 - [Gestión de secretos](https://docs.streamlit.io/deploy/concepts/secrets)
 - [Despliegue en Community Cloud](https://docs.streamlit.io/deploy/streamlit-community-cloud)
 - [Temas y tipografías en Streamlit](https://docs.streamlit.io/develop/concepts/configuration/theming)
-- [Natural Earth, límites de primer nivel](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-1-states-provinces/)
+- [Geoportal del INEC](https://www.ecuadorencifras.gob.ec/documentos/web-inec/Geografia_Estadistica/Micrositio_geoportal/index.html) y [ec-atlas](https://github.com/ccalobeto/ec-atlas) (límites 2015, licencia MIT)
 - [Public Sans](https://public-sans.digital.gov/) y [Montserrat](https://fonts.google.com/specimen/Montserrat)
 - [XlsxWriter](https://xlsxwriter.readthedocs.io/) y [python-pptx](https://python-pptx.readthedocs.io/)
 - [Lucide](https://lucide.dev/) (iconos, licencia ISC)

@@ -24,7 +24,7 @@ def _official(url: str, hosts: set[str]) -> str:
 def _download(url: str) -> bytes:
     import requests
     try:
-        response = requests.get(url, timeout=(15, 60), headers={"User-Agent": "InfoReportes-MTDH/1.0 public-statistics"})
+        response = requests.get(url, timeout=(15, 60), headers={"User-Agent": "InfoReport-MTDH/1.0 public-statistics"})
         response.raise_for_status()
     except requests.RequestException as exc:
         raise RuntimeError(f"No se pudo consultar la fuente oficial {url}: {exc}") from exc

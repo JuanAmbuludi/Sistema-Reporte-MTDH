@@ -53,7 +53,7 @@ def _login_map() -> str:
     screen shows no data before authentication.
     """
     from src import geo, theme
-    codes = [f["properties"]["codigo"] for f in geo.provinces()["features"]]
+    codes = [code for code in geo.features("provincia") if code != geo.NO_POLYGON]
     tones = theme.NIGHT_SEQUENTIAL[1:6]
     fills = {code: tones[i % len(tones)] for i, code in enumerate(codes)}
     return geo.svg_map(fills, stroke=theme.MORADO_900)
@@ -67,7 +67,7 @@ def _login_layout():
         left, right = st.columns([1.25, 1], gap="large", vertical_alignment="center")
         with left:
             st.markdown(
-                f'<div class="login-copy">{logo}<h1>Información estratégica para la toma de decisiones.</h1>'
+                f'<div class="login-copy">{logo}<h1>InfoReport</h1>'
                 '<p>Indicadores institucionales por periodo, ámbito y territorio, con reportes listos para compartir.</p>'
                 f'<div class="login-map">{_login_map()}</div></div>',
                 unsafe_allow_html=True,
@@ -75,7 +75,7 @@ def _login_layout():
         card = right.container(key="login_card")
         with card:
             st.markdown(
-                f'<div class="login-head"><span class="lock">{icon("lock", 24)}</span><h2>Acceso a InfoReportes</h2>'
+                f'<div class="login-head"><span class="lock">{icon("lock", 24)}</span><h2>Acceso a InfoReport</h2>'
                 '<p>Ingrese con la cuenta autorizada por la dirección responsable de la información.</p></div>',
                 unsafe_allow_html=True,
             )
