@@ -1,8 +1,9 @@
 """Institutional Excel workbook: the data book of InfoReport.
 
-Built with XlsxWriter from the same report context as the one-page summary and the slides.  Transfers and services
-get Resumen, results by program (or service), Provincias, Parroquias (when the cut has parish detail), Detalle and
-Ficha técnica; the institutional budget and labour management get their own sheets.  Design rules:
+Built with XlsxWriter from the same report context as the summary and the slides.  Transfers and services get
+Resumen, results by program (or service), one sheet for each territorial level the reader chose (Provincias,
+Cantones, Parroquias), Detalle at the finest of those levels and Ficha técnica; the institutional budget and labour
+management get their own sheets.  Design rules:
 * every figure is a real number with a number format (no numbers as text);
 * totals are live formulas that also carry their computed value, so they read correctly in Excel,
   LibreOffice, Google Sheets and phone previews;
@@ -439,7 +440,7 @@ class Workbook:
 
     # ------------------------------------------------------------ territorial
     def _scope_word(self) -> str:
-        return "parroquia" if self.ctx.get("map_layer") == "parroquia" else "provincia"
+        return {"parroquia": "parroquia", "canton": "cantón"}.get(self.ctx.get("map_layer"), "provincia")
 
     def summary(self):
         ctx, labels = self.ctx, self.ctx["labels"]
@@ -611,45 +612,72 @@ class Workbook:
         ws.autofilter(row, 1, last, len(keys))
         ws.set_zoom(90)
 
-    def parishes_sheet(self):
+    def territory_sheet(self, level: str):
+        """Cantons or parishes of the selection: their map and every territory with coverage, budget and execution."""
         ctx, labels = self.ctx, self.ctx["labels"]
-        parish = ctx["parish"]
+        executed = ctx.get("executed_available")
         units = bool(labels["units"])
-        ws = self.wb.add_worksheet("Parroquias")
-        columns = [2.4, 24.0, 26.0, 30.0, 14.0, 15.0, 13.0] + ([14.0] if units else []) + [20.0, 2.4]
+        parish = level == "parroquia"
+        word, plural = ("parroquia", "Parroquias") if parish else ("cantón", "Cantones")
+        ws = self.wb.add_worksheet(plural)
+        columns = ([2.4, 24.0, 26.0] + ([30.0] if parish else []) + [12.0, 14.0, 13.0] + ([14.0] if units else []) + [20.0]
+                   + ([20.0, 12.0] if executed else []) + [2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
-        ws.set_tab_color(theme.FUCSIA)
-        row = self.band(ws, "Resultados por parroquia", f"{labels['people']} · {ctx['period_label']} · {ctx['territory_label']}", last=last_col)
-        row = self.heading(ws, row + 1, f"{labels['people']} por parroquia",
+        ws.set_tab_color(theme.FUCSIA if parish else theme.VIOLETA_500)
+        row = self.band(ws, f"Resultados por {word}", f"{labels['people']} · {ctx['period_label']} · {ctx['territory_label']}", last=last_col)
+        row = self.heading(ws, row + 1, f"{labels['people']} por {word}",
                            "Provincias seleccionadas con borde dorado" if ctx["selected_codes"] else "", last=last_col - 1)
-        picture = map_png(ctx["map_values"], layer="parroquia", focus=parish["focus"], selected=set(ctx["selected_codes"]),
-                          label=f"{labels['people']} por parroquia", width=6.6, height=5.6, dpi=200)
-        self.image(ws, row + 1, 2, picture, 600, "mapa_parroquias.png", x_offset=4, y_offset=6,
-                   description=f"Mapa del Ecuador: {labels['people'].lower()} por parroquia")
-        row += 27
-        ws.set_h_pagebreaks([row])
-        row = self.heading(ws, row, "Parroquias de la selección", "Montos en USD", last=last_col - 1)
-        layout = [("Provincia", "province", "text", 1, 1), ("Cantón", "canton", "text", 2, 1), ("Parroquia", "parish", "text", 3, 1),
-                  ("Código DPA", "code", "code", 4, 1), (labels["people"], "people", "int", 5, 1), ("Participación", "share_f", "pct", 6, 1)]
-        col = 7
+        chosen = (ctx.get("maps") or {}).get(level)
+        if chosen:
+            picture = map_png(chosen["values"], layer=chosen["layer"], focus=chosen["focus"], selected=set(ctx["selected_codes"]),
+                              label=f"{labels['people']} por {word}", width=6.6, height=5.6, dpi=200)
+            self.image(ws, row + 1, 2, picture, 600, f"mapa_{plural.lower()}.png", x_offset=4, y_offset=6,
+                       description=f"Mapa del Ecuador: {labels['people'].lower()} por {word}")
+            row += 27
+            ws.set_h_pagebreaks([row])
+        row = self.heading(ws, row, f"{plural} de la selección", "Montos en USD", last=last_col - 1)
+        layout = [("Provincia", "province", "text", 1, 1)]
+        col = 2
+        if parish:
+            layout += [("Cantón", "canton", "text", 2, 1), ("Parroquia", "name", "text", 3, 1)]
+            col = 4
+        else:
+            layout.append(("Cantón", "name", "text", 2, 1))
+            col = 3
+        layout += [("Código DPA", "code", "code", col, 1), (labels["people"], "people", "int", col + 1, 1),
+                   ("Participación", "share_f", "pct", col + 2, 1)]
+        share_col = col + 2
+        col += 3
         if units:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
         layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
-        rows = [{**r, "share_f": r["share"] / 100 if r["share"] is not None else None} for r in parish["rows"]]
+        col += 1
+        if executed:
+            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
+            col += 2
+        territories = ctx.get("territories", {}).get(level, [])
+        rows = [{**r, "share_f": r["share"] / 100 if r.get("share") is not None else None,
+                 "execution_f": r["execution"] / 100 if r.get("execution") is not None else None} for r in territories]
         totals = {"people": sum(r["people"] or 0 for r in rows), "share_f": 1.0,
                   "units": sum(r["units"] or 0 for r in rows) if units else None,
-                  "fiscal": sum(r["fiscal"] or 0 for r in rows), "_label": "Total de las filas visibles"}
-        first, last, nxt = self.table(ws, row, layout, rows, total=totals, label_index=2, subtotal=True, header_height=36, height=18)
-        ws.autofilter(row, 1, last, col)
-        ws.freeze_panes(row + 1, 4)
+                  "fiscal": sum(r["fiscal"] or 0 for r in rows), "coded": sum(r["coded"] or 0 for r in rows),
+                  "_label": "Total de las filas visibles"}
+        label_index = 2 if parish else 1
+        first, last, nxt = self.table(ws, row, layout, rows, total=totals, label_index=label_index, subtotal=True,
+                                      header_height=36, height=18)
+        ws.autofilter(row, 1, last, col - 1)
+        ws.freeze_panes(row + 1, 3 if parish else 2)
         ws.repeat_rows(row)
-        self.data_bar(ws, first, last, 6, theme.LILA_300, maximum=1)
+        self.data_bar(ws, first, last, share_col, theme.LILA_300, maximum=1)
         ws.set_zoom(90)
 
     def detail_sheet(self):
+        if self.ctx.get("detail_level", "provincia") != "provincia":
+            self.territory_detail_sheet()
+            return
         ctx, labels = self.ctx, self.ctx["labels"]
         executed = ctx.get("executed_available")
         units = bool(labels["units"])
@@ -697,20 +725,84 @@ class Workbook:
         self.data_bar(ws, first, last, 5, theme.LILA_200)
         ws.set_zoom(90)
 
+    def territory_detail_sheet(self):
+        """Each program in each canton or parish, with filters and totals of the visible rows."""
+        ctx, labels = self.ctx, self.ctx["labels"]
+        executed = ctx.get("executed_available")
+        units = bool(labels["units"])
+        parish = ctx["detail_level"] == "parroquia"
+        ws = self.wb.add_worksheet("Detalle")
+        columns = ([2.4, 36.0, 20.0, 24.0] + ([28.0] if parish else []) + [12.0, 14.0] + ([14.0] if units else []) + [18.0]
+                   + ([18.0, 12.0] if executed else []) + [2.4])
+        self.widths(ws, columns)
+        last_col = len(columns) - 1
+        self.page(ws)
+        ws.set_tab_color(theme.LILA_300)
+        word = "parroquia" if parish else "cantón"
+        row = self.band(ws, f"Detalle por {labels['item']} y {word}", self.subtitle(), last=last_col, compact=True)
+        layout = [(labels["item"].capitalize(), "program", "text", 1, 1), ("Provincia", "province", "text", 2, 1),
+                  ("Cantón", "canton", "text", 3, 1)]
+        col = 4
+        if parish:
+            layout.append(("Parroquia", "parish", "text", 4, 1))
+            col = 5
+        layout += [("Código DPA", "code", "code", col, 1), (labels["people"], "people", "int", col + 1, 1)]
+        people_col = col + 1
+        col += 2
+        if units:
+            layout.append((labels["units"], "units", "int", col, 1))
+            col += 1
+        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
+        col += 1
+        if executed:
+            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
+            col += 2
+        detail = [{**d, "execution_f": d["execution"] / 100 if d.get("execution") is not None else None} for d in ctx["detail"]]
+        totals_row, header_row = row + 1, row + 3
+        first, last = header_row + 1, header_row + max(1, len(detail))
+        edge = dict(top=2, top_color=theme.MORADO)
+        ws.set_row(totals_row, 24)
+        label_last = 4 if parish else 3
+        ws.merge_range(totals_row, 1, totals_row, label_last + 1, "Total de las filas visibles",
+                       self.f(bg_color=theme.LAVANDA, bold=True, font_color=theme.MORADO_900, indent=1, **edge))
+        for _header, key, kind, column, _span in layout:
+            if column <= label_last + 1:
+                continue
+            values = [d[key] for d in detail if d.get(key) is not None]
+            if kind == "pct":
+                ws.write(totals_row, column, "", self.f(bg_color=theme.LAVANDA, **edge))
+            elif values:
+                rng = f"{xl_rowcol_to_cell(first, column)}:{xl_rowcol_to_cell(last, column)}"
+                ws.write_formula(totals_row, column, f"=SUBTOTAL(109,{rng})", self.cell_format(kind, theme.LAVANDA, bold=True, **edge), sum(values))
+            else:
+                ws.write(totals_row, column, "—", self.f(bg_color=theme.LAVANDA, bold=True, align="right", **edge))
+        ws.set_row(totals_row + 1, 6)
+        self.table(ws, header_row, layout, detail, label_index=0, header_height=36, height=18)
+        ws.autofilter(header_row, 1, last, last_col - 1)
+        ws.freeze_panes(first, 2)
+        ws.repeat_rows(header_row)
+        self.data_bar(ws, first, last, people_col, theme.LILA_200)
+        ws.set_zoom(90)
+
     def technical_sheet(self):
         ctx, labels = self.ctx, self.ctx["labels"]
         from src.indicators import MODULES
         module = MODULES[ctx["module_id"]]
+        levels = ctx.get("levels") or ["provincia"]
+        level_names = {"provincia": "Provincias", "canton": "Cantones", "parroquia": "Parroquias"}
         facts = [("Institución", ctx["institution"]), ("Producto", f"Libro de datos de {PRODUCT}"),
                  ("Ámbito", ctx["module_label"]), ("Periodo", ctx["period_label"]), ("Territorio", ctx["territory_label"]),
+                 ("Nivel territorial", ", ".join(level_names[level] for level in levels)),
                  (labels["items"].capitalize(), ctx["programs_label"]), ("Fecha de generación", ctx["generated_label"].capitalize()),
                  ("Unidad monetaria", "Dólares de los Estados Unidos (USD)")]
         contents = [("Resumen", "Cifras clave, resultados por " + labels["item"] + ", mapa y aspectos destacados"),
-                    (labels["items"].capitalize(), f"{labels['people']}, participación, presupuesto y ejecución por {labels['item']}"),
-                    ("Provincias", "Mapa y posición de cada provincia en el país")]
-        if ctx.get("parish"):
-            contents.append(("Parroquias", "Mapa y cada parroquia con su cantón, cobertura y presupuesto ejecutado"))
-        contents += [("Detalle", f"Cada {labels['item']} en cada provincia, con filtros y totales que se recalculan"),
+                    (labels["items"].capitalize(), f"{labels['people']}, participación, presupuesto y ejecución por {labels['item']}")]
+        descriptions = {"provincia": "Mapa y posición de cada provincia en el país",
+                        "canton": "Mapa y cada cantón con su cobertura, presupuesto y ejecución",
+                        "parroquia": "Mapa y cada parroquia con su cantón, cobertura, presupuesto y ejecución"}
+        contents += [(level_names[level], descriptions[level]) for level in levels]
+        finest = {"provincia": "provincia", "canton": "cantón", "parroquia": "parroquia"}[ctx.get("detail_level", "provincia")]
+        contents += [("Detalle", f"Cada {labels['item']} en cada {finest}, con filtros y totales que se recalculan"),
                      ("Ficha técnica", "Identificación del producto y definiciones")]
         self.facts_sheet(facts, module.definitions(ctx["year"], executed=ctx.get("executed_available", False)), contents)
 
@@ -916,9 +1008,12 @@ class Workbook:
         else:
             self.summary()
             self.programs_sheet()
-            self.provinces_sheet()
-            if ctx.get("parish"):
-                self.parishes_sheet()
+            levels = ctx.get("levels") or ["provincia"]
+            if "provincia" in levels:
+                self.provinces_sheet()
+            for level in ("canton", "parroquia"):
+                if level in levels and ctx.get("territories", {}).get(level):
+                    self.territory_sheet(level)
             self.detail_sheet()
             self.technical_sheet()
         self.wb.close()

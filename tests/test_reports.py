@@ -1,4 +1,5 @@
-"""Exports: one-page summary, three slides and the data workbook, all built from the on-screen selection."""
+"""Exports: the summary (one or two pages), the slides and the data workbook, built from the on-screen selection and
+the territorial level the reader asks for."""
 from io import BytesIO
 import zipfile
 
@@ -47,12 +48,12 @@ def _period(data, period_id):
     return data.loc[data.periodo_id.eq(period_id)]
 
 
-def _context(data, parishes, section, period_id="2026-09", provinces=None):
+def _context(data, parishes, section, period_id="2026-09", provinces=None, level="todo"):
     rows = filter_data(_period(data, period_id), secciones=[section])
     parish = parishes.loc[parishes.periodo_id.eq(period_id) & parishes.seccion.eq(section)]
     chosen = filter_data(parish, provincias=provinces) if len(parish) else parish
     return build_report_context(filter_data(rows, provincias=provinces), national=rows, selected_codes=set(provinces or []),
-                                parishes=chosen, parishes_national=parish)
+                                parishes=chosen, parishes_national=parish, level=level)
 
 
 def _strings(context: dict) -> list[str]:
@@ -63,10 +64,10 @@ def _strings(context: dict) -> list[str]:
     return texts
 
 
-def _pdf_text(content: bytes) -> str:
+def _pdf_text(content: bytes, pages: int = 2) -> str:
     document = pymupdf.open(stream=content, filetype="pdf")
-    assert document.page_count == 1
-    return document[0].get_text()
+    assert document.page_count == pages, "El resumen se mantiene en una o dos páginas"
+    return "\n".join(page.get_text() for page in document)
 
 
 def _deck_texts(content: bytes):
@@ -85,6 +86,11 @@ def test_context_follows_module_and_period(periods, parishes):
                                                      "Presupuesto acumulado 2023–2026"]
     assert round(current["totals"]["execution"], 2) == 71.02
     assert current["map_layer"] == "parroquia" and current["parish"]["count"] > 1000
+    assert current["levels"] == ["provincia", "canton", "parroquia"] and current["detail_level"] == "parroquia"
+    assert current["reach"]["provincia"] == {"count": 24, "half": 5, "total": current["reach"]["provincia"]["total"]}
+    assert current["reach"]["parroquia"]["count"] == current["parish"]["count"]
+    cantons = current["territories"]["canton"]
+    assert cantons[0]["name"] == "Guayaquil" and sum(c["people"] for c in cantons) == current["reach"]["canton"]["total"]
     annual = build_report_context(filter_data(_period(data, "2025"), secciones=["proteccion_integral"]))
     assert annual["period_label"] == "Año 2025" and annual["labels"]["fiscal"] == "Presupuesto 2025"
     assert annual["totals"]["people"] == 443903 and annual["totals"]["units"] == 10906
@@ -133,37 +139,56 @@ def test_empty_and_multi_period_selections_are_rejected(periods):
         build_report_context(both)
 
 
-def test_executive_summary_is_one_page(periods, parishes):
+def test_levels_follow_the_reader_choice(periods, parishes):
+    data, _ = periods
+    canton = _context(data, parishes, "proteccion_integral", provinces=["09"], level="canton")
+    assert canton["levels"] == ["canton"] and canton["map_layer"] == "canton" and canton["map_focus"] == ["09"]
+    assert canton["detail_level"] == "canton" and {d["province"] for d in canton["detail"]} == {"Guayas"}
+    assert canton["reach_levels"] == ["canton"] and canton["reach"]["canton"]["count"] == 25
+    province = _context(data, parishes, "bonos_pensiones", level="provincia")
+    assert province["levels"] == ["provincia"] and province["map_layer"] == "provincia" and province["detail_level"] == "provincia"
+    annual = build_report_context(filter_data(_period(data, "2025"), secciones=["bonos_pensiones"]), level="todo")
+    assert annual["levels"] == ["provincia"] and annual["level"] == "provincia"
+
+
+def test_executive_summary_keeps_to_two_pages(periods, parishes):
     data, _ = periods
     text = _pdf_text(generate_pdf(_context(data, parishes, "bonos_pensiones")))
-    for expected in ["Transferencias monetarias", "Beneficiarios por programa", "Principales provincias", "Aspectos destacados",
-                     "1.578.019", "71,0 %", "Beneficiarios por parroquia"]:
-        assert expected in text
+    for expected in ["Transferencias monetarias", "Beneficiarios por programa", "Ejecución presupuestaria por programa",
+                     "Aspectos destacados", "1.578.019", "71,0 %", "Beneficiarios por parroquia", "Detalle territorial",
+                     "Provincias con más beneficiarios", "Cantones con más beneficiarios", "Parroquias con más beneficiarios",
+                     "reúnen la mitad de los beneficiarios", "Página 2 de 2"]:
+        assert expected in text, expected
     for banned in BANNED:
         assert banned not in text
-    zoom = _pdf_text(generate_pdf(_context(data, parishes, "proteccion_integral", provinces=["09"])))
-    assert "Principales parroquias" in zoom and "Tarqui" in zoom
+    zoom = _pdf_text(generate_pdf(_context(data, parishes, "proteccion_integral", provinces=["09"], level="parroquia")))
+    assert "Parroquias con más usuarios" in zoom and "Tarqui" in zoom and "Distribución por servicio" in zoom
+    assert "Cantones con más usuarios" not in zoom, "Un solo nivel elegido: solo ese nivel"
 
 
-def test_presentation_has_three_slides_with_icons_and_a_native_chart(periods, parishes):
+def test_presentation_has_a_slide_per_level_with_icons_and_native_charts(periods, parishes):
     data, _ = periods
     deck, texts = _deck_texts(generate_pptx(_context(data, parishes, "proteccion_integral", provinces=["17"])))
-    assert len(deck.slides) == 3
-    assert "Cifras clave" in texts and "Resultados por territorio" in texts and "Resultados por servicio" in texts
+    assert len(deck.slides) == 6
+    for title in ["Cifras clave", "Resultados por provincia", "Resultados por cantón", "Resultados por parroquia",
+                  "Ejecución presupuestaria", "Resultados por servicio", "6 / 6"]:
+        assert title in texts, title
     pictures = [shape for slide in deck.slides for shape in slide.shapes if shape.shape_type == 13]
-    assert len(pictures) >= 10, "Iconos, logo y mapas"
-    charts = [shape for shape in deck.slides[2].shapes if shape.has_chart]
+    assert len(pictures) >= 14, "Iconos, logo y mapas"
+    charts = [shape for shape in deck.slides[5].shapes if shape.has_chart]
     assert len(charts) == 1 and len(charts[0].chart.plots[0].categories) == 4
     for text in texts:
         for banned in BANNED:
             assert banned not in text
+    single, texts = _deck_texts(generate_pptx(_context(data, parishes, "bonos_pensiones", level="canton")))
+    assert len(single.slides) == 4 and "Resultados por cantón" in texts and "Resultados por parroquia" not in texts
 
 
 def test_data_workbook_is_institutional_numeric_and_formula_driven(periods, parishes):
     data, _ = periods
     content = generate_xlsx(_context(data, parishes, "bonos_pensiones", provinces=["09"]))
     book = load_workbook(BytesIO(content))
-    assert book.sheetnames == ["Resumen", "Programas", "Provincias", "Parroquias", "Detalle", "Ficha técnica"]
+    assert book.sheetnames == ["Resumen", "Programas", "Provincias", "Cantones", "Parroquias", "Detalle", "Ficha técnica"]
     values = [cell.value for sheet in book.worksheets for row in sheet.iter_rows() for cell in row if cell.value is not None]
     strings = [v for v in values if isinstance(v, str)]
     assert any(v.startswith("=SUBTOTAL(109,") for v in strings)
@@ -177,6 +202,10 @@ def test_data_workbook_is_institutional_numeric_and_formula_driven(periods, pari
     assert guayas and 1 in guayas[0]
     parish_rows = [row for row in book["Parroquias"].iter_rows(values_only=True) if row[1] == "Guayas"]
     assert len(parish_rows) > 40 and book["Parroquias"].auto_filter.ref
+    canton_rows = [row for row in book["Cantones"].iter_rows(values_only=True) if row[1] == "Guayas"]
+    assert len(canton_rows) == 25 and book["Cantones"].auto_filter.ref
+    detail_headers = [c.value for row in book["Detalle"].iter_rows(max_row=12) for c in row if isinstance(c.value, str)]
+    assert "Parroquia" in detail_headers and "Cantón" in detail_headers
     with zipfile.ZipFile(BytesIO(content)) as archive:
         assert 'name="MTDH Institucional"' in archive.read("xl/theme/theme1.xml").decode()
 
@@ -185,7 +214,7 @@ def test_services_workbook_names_its_sheet_after_services(periods):
     data, _ = periods
     context = build_report_context(filter_data(_period(data, "2024"), secciones=["proteccion_integral"]))
     book = load_workbook(BytesIO(generate_xlsx(context)))
-    assert book.sheetnames[1] == "Servicios" and "Parroquias" not in book.sheetnames
+    assert book.sheetnames[1] == "Servicios" and "Parroquias" not in book.sheetnames and "Cantones" not in book.sheetnames
     headers = [cell.value for row in book["Servicios"].iter_rows(max_row=12) for cell in row if isinstance(cell.value, str)]
     assert "Presupuesto 2024" in headers and "Unidades de atención" in headers
 
@@ -196,7 +225,9 @@ def test_reports_accept_rows_loaded_without_period_catalog():
     context = build_report_context(frame)
     assert context["period_label"] == "Septiembre 2026"
     assert context["insights"][0]["text"].startswith("Bono de Desarrollo Humano registra")
-    assert sum(context["map_values"].values()) == 619073
+    assert sum(p["people"] for p in context["provinces"]) == 619073
+    # The zone in study has no polygon: it counts in the totals, not on the map.
+    assert sum(context["map_values"].values()) == sum(p["people"] for p in context["provinces"] if p["code"] != "90")
 
 
 def test_budget_exports_read_execution_by_program_and_zone(budget):
@@ -205,10 +236,12 @@ def test_budget_exports_read_execution_by_program_and_zone(budget):
     assert round(budget["stats"]["ejecucion"], 2) == 45.77 and round(budget["stats"]["devengado"], 2) == 978122861.16
     assert budget["zones"][0]["name"] == "Planta central" and set(budget["map_values"]) <= {f"Z{i}" for i in range(1, 10)}
     text = _pdf_text(generate_pdf(budget))
-    for expected in ["Presupuesto institucional", "45,8 %", "Ejecución por zona", "Ejecución por programa presupuestario"]:
-        assert expected in text
+    for expected in ["Presupuesto institucional", "45,8 %", "Ejecución por zona", "Ejecución por programa presupuestario",
+                     "Composición del gasto", "Unidades ejecutoras con mayor presupuesto codificado"]:
+        assert expected in text, expected
     deck, texts = _deck_texts(generate_pptx(budget))
-    assert len(deck.slides) == 3 and "Ejecución por zona" in texts and "Ejecución por programa" in texts
+    assert len(deck.slides) == 4 and "Ejecución por zona" in texts and "Ejecución por programa" in texts
+    assert "Composición del gasto" in texts
     book = load_workbook(BytesIO(generate_xlsx(budget)))
     assert book.sheetnames == ["Resumen", "Programas", "Zonas", "Grupos de gasto", "Detalle", "Ficha técnica"]
     names = [c.value for c in book["Programas"]["C"] if isinstance(c.value, str)]
@@ -219,7 +252,7 @@ def test_budget_exports_read_execution_by_program_and_zone(budget):
 def test_labour_exports_keep_each_figure_with_its_reference(labour):
     assert labour["info"]["stock"] == 2789419 and labour["info"]["cohorts"] == 507451
     assert labour["kpis"][3]["lower_bound"]
-    text = _pdf_text(generate_pdf(labour))
+    text = _pdf_text(generate_pdf(labour), pages=1)
     for expected in ["Gestión laboral", "2.789.419", "507.451", "Más de USD 229 M", "Fuentes de información"]:
         assert expected in text
     deck, texts = _deck_texts(generate_pptx(labour))

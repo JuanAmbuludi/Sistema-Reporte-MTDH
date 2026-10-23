@@ -221,8 +221,10 @@ class BudgetView:
 
     def products_notes(self) -> dict[str, str]:
         return {
-            "resumen": "Una página en PDF con las cifras clave, el mapa por zona, la ejecución por programa y los aspectos destacados.",
-            "presentacion": "Tres diapositivas editables en PowerPoint: cifras clave, ejecución por zona y por programa.",
+            "resumen": "Dos páginas en PDF: cifras clave, mapa por zona, ejecución por programa y aspectos destacados; composición "
+                       "del gasto y unidades ejecutoras.",
+            "presentacion": "Cuatro diapositivas editables en PowerPoint: cifras clave, ejecución por zona y por programa, y "
+                            "composición del gasto.",
             "datos": "Libro de Excel con resumen, programas, zonas y unidades, grupos de gasto, detalle con filtros y ficha técnica.",
         }
 
@@ -240,11 +242,12 @@ class BudgetView:
         if kind == "presentacion":
             return [("grid", "Cifras clave", "Portada con los indicadores principales"),
                     ("map", "Ejecución por zona", "Mapa y zonas con su ejecución"),
-                    ("chart", "Ejecución por programa", "Gráfico editable y aspectos destacados")]
+                    ("chart", "Ejecución por programa", "Gráfico editable y aspectos destacados"),
+                    ("layers", "Composición del gasto", "Grupos de gasto, fuentes de financiamiento y tipo de gasto")]
         return [("grid", "Cifras clave", "Codificado, devengado, ejecución y saldo"),
-                ("map", "Zonas", "Mapa y ejecución por zona"),
-                ("chart", "Programas", "Ejecución por programa presupuestario"),
-                ("award", "Aspectos destacados", "Conclusiones para la toma de decisiones")]
+                ("map", "Zonas y programas", "Mapa, ejecución por zona y por programa presupuestario"),
+                ("award", "Aspectos destacados", "Conclusiones para la toma de decisiones"),
+                ("layers", "Composición del gasto", "Grupos, fuentes, tipo de gasto y unidades ejecutoras")]
 
     def slide_titles(self) -> tuple[str, str]:
         return "Ejecución por zona", "Ejecución por programa"

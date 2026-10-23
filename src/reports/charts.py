@@ -75,8 +75,8 @@ def _classes(values: dict[str, float], stops: list[str]) -> dict[str, str]:
 def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=None, selected=None, mode: str = "light",
             label: str = "", money: bool = False, rate: bool = False, annotate: int = 0, width: float = 6.6,
             height: float = 5.6, dpi: int = 220, legend: bool = True, names: dict[str, str] | None = None) -> bytes:
-    """Choropleth of Ecuador: provinces, parishes or zones; the whole country (with the Galápagos inset and the
-    equator) or a zoom into ``focus`` provinces with the rest of the country as context.
+    """Choropleth of Ecuador: provinces, cantons, parishes or zones; the whole country (with the Galápagos inset and
+    the equator) or a zoom into ``focus`` provinces with the rest of the country as context.
 
     ``light`` is for white pages and carries a key (``label``) from lower to higher; ``night`` returns a transparent
     image for purple plates.  ``selected`` provinces (or zones) take the gold accent; ``annotate`` labels the leading
@@ -84,7 +84,7 @@ def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=
     """
     selected = set(selected or ())
     provinces = geo.features("provincia")
-    focus = {c for c in (focus or ()) if c in provinces} if layer == "parroquia" else set()
+    focus = {c for c in (focus or ()) if c in provinces} if layer in ("parroquia", "canton") else set()
     night = mode == "night"
     stops = theme.NIGHT_SEQUENTIAL if night else theme.SEQUENTIAL[1:]
     fills = _classes(values, stops)
@@ -125,7 +125,8 @@ def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=
             ax.plot([x0 + 0.05 * (x1 - x0), x1 - 0.02 * (x1 - x0)], [0, 0], color=gold, lw=1.0, ls=(0, (1.2, 3.2)),
                     zorder=1, solid_capstyle="round")
             ax.text(x1 - 0.02 * (x1 - x0), 0.008 * (y1 - y0), "Latitud 0°", ha="right", va="bottom",
-                    color=(gold if night else theme.ORO_700), fontproperties=font("SemiBold", size=6.8), zorder=6)
+                    color=(gold if night else theme.ORO_700), fontproperties=font("SemiBold", size=6.8), zorder=6,
+                    path_effects=[patheffects.withStroke(linewidth=2.4, foreground=(theme.MORADO_900 if night else "#FFFFFF"))])
         if focus:
             context = [_shape(geo.rings("provincia", c, level=3, inset=inset)) for c in provinces if c not in focus]
             context = [p for p in context if p is not None]
@@ -143,20 +144,24 @@ def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=
             paths.append(path)
             chosen = code in selected and layer in ("provincia", "zona")
             colors.append(gold if chosen else fills.get(code, empty))
-        fine = layer == "parroquia"
-        ax.add_collection(PathCollection(paths, facecolors=colors, edgecolors=colors if (fine and not focus) else stroke,
-                                         linewidths=(0.15 if not focus else 0.35) if fine else 0.7, zorder=2))
-        if layer in ("parroquia", "zona") and not focus:
+        if layer == "parroquia":
+            edges, width_units = (stroke, 0.35) if focus else (colors, 0.15)
+        elif layer == "canton":
+            edges, width_units = stroke, (0.7 if focus else 0.3)
+        else:
+            edges, width_units = stroke, 0.7
+        ax.add_collection(PathCollection(paths, facecolors=colors, edgecolors=edges, linewidths=width_units, zorder=2))
+        if layer in ("parroquia", "canton", "zona") and not focus:
             borders = [_shape(geo.rings("provincia", c, level=level, inset=True)) for c in provinces]
             ax.add_collection(PathCollection([b for b in borders if b is not None], facecolors="none",
                                              edgecolors=("#FFFFFF" if not night else (1, 1, 1, .55)),
-                                             linewidths=0.55 if layer == "parroquia" else 0.4, zorder=3))
-        if focus:
+                                             linewidths=0.4 if layer == "zona" else (0.75 if layer == "canton" else 0.55), zorder=3))
+        if focus and layer == "parroquia":
             cantons = [_shape(geo.rings("canton", c, level=level, inset=inset)) for c, meta in geo.features("canton").items()
                        if meta.get("province") in focus]
             ax.add_collection(PathCollection([c for c in cantons if c is not None], facecolors="none",
                                              edgecolors=((1, 1, 1, .6) if night else "#FFFFFF"), linewidths=0.6, zorder=3))
-        outline = focus or (selected if layer == "parroquia" else set())
+        outline = focus or (selected if layer in ("parroquia", "canton") else set())
         if outline:
             edges = [_shape(geo.rings("provincia", c, level=level, inset=inset)) for c in outline]
             ax.add_collection(PathCollection([e for e in edges if e is not None], facecolors="none", edgecolors=gold,
@@ -193,6 +198,52 @@ def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=
             ax.text(lx0 + lw, ly0 - lh * 0.6, "Mayor", ha="right", va="top", color=MUTED, fontproperties=font(size=7))
             ax.text(lx0, ly0 + lh * 1.6, label, ha="left", va="bottom", color=INK, fontproperties=font("SemiBold", size=7.6))
         return _png(fig, transparent=night, dpi=dpi)
+
+
+def emblem_png(selected=(), *, layer: str = "provincia", width: float = 3.4, height: float = 3.0, dpi: int = 200) -> bytes:
+    """A quiet silhouette of Ecuador for the cover plates, on a faint graticule.
+
+    It carries no figures: the maps with data live in the body of each product, so a cover never repeats them.
+    ``selected`` provinces (or zones, with ``layer="zona"``) glow in gold and locate the territory of the report.
+    """
+    selected = set(selected or ())
+    provinces = geo.features("provincia")
+    with _LOCK:
+        fig = Figure(figsize=(width, height), dpi=dpi, facecolor="none")
+        FigureCanvasAgg(fig)
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.set_axis_off()
+        x0, y0, x1, y1 = geo.bounds("provincia", inset=True)
+        gx0, gy0, gx1, gy1 = geo.galapagos_frame()
+        x0, y0, x1, y1 = min(x0, gx0) - 0.25, min(y0, gy0) - 0.25, x1 + 0.25, max(y1, gy1) + 0.25
+        aspect = width / height
+        if (x1 - x0) / (y1 - y0) < aspect:
+            extra = ((y1 - y0) * aspect - (x1 - x0)) / 2
+            x0, x1 = x0 - extra, x1 + extra
+        else:
+            extra = ((x1 - x0) / aspect - (y1 - y0)) / 2
+            y0, y1 = y0 - extra, y1 + extra
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y0, y1)
+        ax.set_aspect("equal")
+        # Meridians and parallels every degree: the language of maps, as on the band of the interface.
+        for lon in range(int(x0) - 1, int(x1) + 2):
+            ax.plot([lon, lon], [y0, y1], color=(1, 1, 1, .07), lw=0.5, zorder=0)
+        for lat in range(int(y0) - 1, int(y1) + 2):
+            ax.plot([x0, x1], [lat, lat], color=(1, 1, 1, .07), lw=0.5, zorder=0)
+        ax.plot([x0 + 0.04 * (x1 - x0), x1 - 0.02 * (x1 - x0)], [0, 0], color=theme.ORO, lw=0.9, ls=(0, (1.2, 3.2)),
+                zorder=1, solid_capstyle="round", alpha=.85)
+        shapes = [_shape(geo.rings("provincia", c, level=3, inset=True)) for c in provinces]
+        ax.add_collection(PathCollection([s for s in shapes if s is not None], facecolors=(1, 1, 1, .09),
+                                         edgecolors=(1, 1, 1, .34), linewidths=0.5, zorder=2))
+        chosen = [_shape(geo.rings(layer, c, level=3, inset=True)) for c in selected if c in geo.features(layer)]
+        chosen = [s for s in chosen if s is not None]
+        if chosen:
+            ax.add_collection(PathCollection(chosen, facecolors="none", edgecolors=(248 / 255, 192 / 255, 24 / 255, .35),
+                                             linewidths=4.0, zorder=3))
+            ax.add_collection(PathCollection(chosen, facecolors=theme.ORO, edgecolors="#FFF3C4", linewidths=0.6, zorder=4))
+        ax.add_patch(Rectangle((gx0, gy0), gx1 - gx0, gy1 - gy0, fill=False, ec=(1, 1, 1, .3), lw=0.7, ls=(0, (2, 2.5)), zorder=1))
+        return _png(fig, transparent=True, dpi=dpi)
 
 
 def columns_png(labels: list[str], values: list[float], *, mode: str = "light", width: float = 7.2, height: float = 3.0,

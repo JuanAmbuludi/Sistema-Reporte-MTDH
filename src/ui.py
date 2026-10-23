@@ -280,6 +280,26 @@ def kpi_grid(cards: list[dict], *, overlap: bool = True) -> None:
                 unsafe_allow_html=True)
 
 
+def reach_strip(tiles: list[dict]) -> None:
+    """Territorial reach: for each level, the territories with the indicator and how many gather half of it.
+
+    Tiles carry ``icon``, ``title`` (Provincias), ``count``, ``with_text`` (con beneficiarios), ``half`` and
+    ``half_text`` (reúnen la mitad de los beneficiarios).  The gold share of the bar is that half's share of the
+    territories: the shorter it is, the more concentrated the indicator.
+    """
+    items = []
+    for i, tile in enumerate(tiles):
+        count, half = tile["count"], tile["half"]
+        width = half / count * 100 if count else 0
+        items.append(
+            f'<article class="reach" style="--i:{i}"><span class="ri">{icon(tile["icon"], 20)}</span>'
+            f'<div class="rh"><h4>{_esc(tile["title"])}</h4><div class="rv">{_esc(number(count))}<small>{_esc(tile["with_text"])}</small></div></div>'
+            f'<div class="rbar" role="img" aria-label="{_esc(number(half))} de {_esc(number(count))}"><span style="--w:{width:.2f}%"></span></div>'
+            f'<p><b>{_esc(number(half))}</b> {_esc(tile["half_text"])}</p></article>')
+    st.markdown(f'<section class="reach-strip n{len(tiles)}" aria-label="Alcance territorial">{"".join(items)}</section>',
+                unsafe_allow_html=True)
+
+
 def section_heading(title: str, subtitle: str = "", symbol: str = "chart", anchor: str = "") -> None:
     sub = f"<p>{_esc(subtitle)}</p>" if subtitle else ""
     anchor_attr = f' id="{_esc(anchor)}"' if anchor else ""
@@ -365,11 +385,12 @@ def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | 
 # --- Report previews -------------------------------------------------------------
 
 def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tuple[str, str, str]],
-                   sheets: list[str], visual: str, slides: tuple[str, str] = ("Resultados por provincia", "Resultados por programa")) -> None:
-    """Miniature of the product: a one-page summary, three slides or the data workbook.
+                   sheets: list[str], visual: str, slides: tuple[str, str] = ("Resultados por provincia", "Resultados por programa"),
+                   pages: int = 1) -> None:
+    """Miniature of the product: the summary (``pages`` one or two), the slides or the data workbook.
 
     ``kpis`` items are (label, value, icon); ``visual`` is the small SVG of the product (map or chart); ``slides``
-    names the second and third slides.
+    names two of the slides after the cover.
     """
     logo = f'<img src="{logo_data()}" alt=""/>' if logo_data() else ""
     tiles = "".join(f'<div><span class="mi">{icon(sym, 13)}</span><strong>{_esc(v)}</strong><span>{_esc(k)}</span></div>'
@@ -397,6 +418,7 @@ def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tu
                 f'<span>{_esc(period)} · {_esc(scope)}</span></div></div><div class="page-rule"></div><div class="page-body">'
                 f'<div class="page-kpis">{tiles}</div><div class="page-map">{visual}<div class="ms-bars">{bars}</div></div>'
                 f'<div class="page-foot"><div class="ms-bars">{bars}</div><ul class="page-notes">{notes}</ul></div></div></div>')
+        body = f'<div class="page-stack{" two" if pages > 1 else ""}">{body}</div>'
     st.markdown(f'<div class="preview preview-{_esc(kind)}">{body}</div>', unsafe_allow_html=True)
 
 

@@ -136,6 +136,10 @@ PRODUCTS = {
 }
 
 
+# Documents of a single territorial level name it in the file; the complete set needs no suffix.
+LEVEL_SUFFIX = {"provincia": "_provincias", "canton": "_cantones", "parroquia": "_parroquias"}
+
+
 def kpi_text(card: dict) -> str:
     value = ui.number(card["value"], card.get("decimals", 0))
     if card.get("suffix") == "%":
@@ -155,6 +159,8 @@ def report_center() -> None:
         spec = PRODUCTS[product]
         st.caption(view.products_notes()[spec["kind"]])
         title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{view.id}").strip() or view.label
+        if hasattr(view, "report_options"):
+            view.report_options()
         ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
         digest = hashlib.sha256((view.digest() + json.dumps({"title": title, "product": product, "area": view.id},
@@ -173,13 +179,14 @@ def report_center() -> None:
         generated = st.session_state.get("generated_report", {})
         if generated.get("digest") == digest:
             ui.info_note("El documento conserva el periodo, el ámbito y la selección vigentes.", f"{product} listo", tone="ok")
+            level = LEVEL_SUFFIX.get(getattr(view, "report_level", ""), "") if hasattr(view, "report_options") else ""
             st.download_button(f"Descargar {name}", generated["content"],
-                               file_name=f'MTDH_{spec["slug"]}_{view.id}_{period["id"]}.{spec["ext"]}', mime=spec["mime"],
+                               file_name=f'MTDH_{spec["slug"]}_{view.id}_{period["id"]}{level}.{spec["ext"]}', mime=spec["mime"],
                                icon=":material/download:", type="primary", width="stretch", key="download_report")
     with right:
         kpis = [(card["label"], kpi_text(card), card["icon"]) for card in view.kpi_cards()]
         ui.report_preview(spec["kind"], title, period["label"], view.territory_label, kpis, view.sheets(), view.preview_visual(),
-                          view.slide_titles())
+                          view.slide_titles(), pages=1 if view.kind == "laboral" else 2)
         ui.content_list(view.report_contents(spec["kind"]))
 
 

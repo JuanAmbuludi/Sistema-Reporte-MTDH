@@ -139,7 +139,7 @@ def province_values(data: pd.DataFrame, key: str) -> pd.DataFrame:
 
 
 def province_ranking(data: pd.DataFrame, indicator: Indicator, highlight: set[str] | None = None,
-                     share_label: str = "del total nacional") -> go.Figure:
+                     share_label: str = "del total nacional", height: int | None = None) -> go.Figure:
     """Provinces ranked by an indicator.
 
     Without ``highlight`` the three leaders carry the series colour; with it, the chosen provinces turn gold
@@ -171,7 +171,7 @@ def province_ranking(data: pd.DataFrame, indicator: Indicator, highlight: set[st
         hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]} " + share_label
                        + "<br>Posición: %{customdata[3]}<extra></extra>"),
     ))
-    base(fig, max(300, len(group) * 25 + 46), dict(l=8, r=92 if highlight else 64, t=40, b=10))
+    base(fig, height or max(300, len(group) * 25 + 46), dict(l=8, r=92 if highlight else 64, t=40 if not height else 30, b=10))
     fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
     fig.update_yaxes(tickfont=dict(size=11.5), categoryorder="array", categoryarray=labels)
     fig.update_layout(bargap=0.28, showlegend=False)
@@ -183,38 +183,48 @@ def _column_label(name: str, width: int = 11) -> str:
 
 
 def composition_matrix(data: pd.DataFrame, indicator: Indicator, names: dict[str, str] | None = None,
-                       highlight: set[str] | None = None) -> go.Figure:
-    """Share of each program or service within every province, provinces in descending order."""
+                       highlight: set[str] | None = None, *, rows: tuple[str, str] = ("provincia_codigo", "provincia"),
+                       row_word: str = "la provincia", show_values: bool = False) -> go.Figure:
+    """Share of each program or service within every territory, territories in descending order.
+
+    ``rows`` names the code and label columns of the territories (provinces by default; cantons or parishes with
+    their own columns) and ``row_word`` how a hover refers to one of them.  ``show_values`` writes every share in
+    its cell (wide cards).
+    """
     names, highlight, key = names or {}, highlight or set(), indicator.key
-    grouped = data.groupby(["provincia_codigo", "provincia", "programa_id", "programa"], observed=True)[key].sum(min_count=1).reset_index()
-    pivot = grouped.pivot_table(index="provincia", columns="programa", values=key, aggfunc="sum").astype(float)
+    code_col, name_col = rows
+    grouped = data.groupby([code_col, name_col, "programa_id", "programa"], observed=True)[key].sum(min_count=1).reset_index()
+    pivot = grouped.pivot_table(index=name_col, columns="programa", values=key, aggfunc="sum").astype(float)
     order = pivot.sum(axis=1).sort_values(ascending=False).index
     pivot = pivot.reindex(order)
     # Programs without any value for this indicator would only add empty columns.
     columns = [c for c in sorted(pivot.columns, key=lambda c: -np.nansum(pivot[c].to_numpy())) if np.nansum(pivot[c].to_numpy()) > 0]
     pivot = pivot[columns]
     totals = pivot.sum(axis=1).replace(0, np.nan)
-    shares = pivot.div(totals, axis=0) * 100
+    # A program without people in a territory reads 0 % there (not a gap in the matrix).
+    shares = pivot.fillna(0).div(totals, axis=0) * 100
     text = [[fmt_value(v, indicator) for v in row] for row in pivot.to_numpy()]
     full = [list(columns) for _ in range(len(pivot))]
     custom = np.dstack([np.array(text, dtype=object), np.array(full, dtype=object)])
     finite = shares.to_numpy()[np.isfinite(shares.to_numpy())]
     zmax = min(100.0, max(10.0, np.ceil((finite.max() if finite.size else 100) / 10) * 10))
-    codes = grouped.drop_duplicates("provincia").set_index("provincia").provincia_codigo
-    rows = [f"<b>{p}</b>" if codes.get(p) in highlight else p for p in pivot.index]
+    codes = grouped.drop_duplicates(name_col).set_index(name_col)[code_col]
+    labels = [f"<b>{p}</b>" if codes.get(p) in highlight else p for p in pivot.index]
     few = len(pivot) <= 4
+    written = few or show_values
     fig = go.Figure(go.Heatmap(
-        z=shares.to_numpy(), x=[_column_label(names.get(c, c)) for c in columns], y=rows,
+        z=shares.to_numpy(), x=[_column_label(names.get(c, c)) for c in columns], y=labels,
         colorscale=[[0, "#FBFAFE"], [0.12, theme.SEQUENTIAL[2]], [0.35, theme.SEQUENTIAL[4]], [0.65, theme.SEQUENTIAL[6]], [1, theme.SEQUENTIAL[9]]],
         zmin=0, zmax=zmax, xgap=3 if few else 2, ygap=3 if few else 2, customdata=custom,
-        hovertemplate="<b>%{y}</b><br>%{customdata[1]}<br>%{customdata[0]}<br>%{z:.1f} % de la provincia<extra></extra>",
-        texttemplate="%{z:.1f} %" if few else None, textfont=dict(size=12, family=theme.WEB_FONT_STACK),
+        hovertemplate=f"<b>%{{y}}</b><br>%{{customdata[1]}}<br>%{{customdata[0]}}<br>%{{z:.1f}} % de {row_word}<extra></extra>",
+        texttemplate="%{z:.1f} %" if written else None, textfont=dict(size=12 if few else 11, family=theme.WEB_FONT_STACK),
         showscale=not few,
-        colorbar=dict(title=dict(text="% de la provincia", side="top", font=dict(size=11, color=AXIS_TEXT)), thickness=10, len=0.5,
+        colorbar=dict(title=dict(text=f"% de {row_word}", side="top", font=dict(size=11, color=AXIS_TEXT)), thickness=10, len=0.5,
                       ticksuffix=" %", outlinewidth=0, tickfont=dict(size=10, color=AXIS_TEXT)),
     ))
     head = 14 * max(len(_column_label(names.get(c, c)).split("<br>")) for c in columns) + 16 if columns else 40
-    base(fig, len(pivot) * 58 + head + 20 if few else max(320, len(pivot) * 25 + head + 12), dict(l=8, r=8, t=head, b=6))
+    per_row = 27 if show_values and not few else 25
+    base(fig, len(pivot) * 58 + head + 20 if few else max(320, len(pivot) * per_row + head + 12), dict(l=8, r=8, t=head, b=6))
     fig.update_xaxes(side="top", showgrid=False, tickangle=0, tickfont=dict(size=10.5, color=theme.TINTA))
     fig.update_yaxes(autorange="reversed", tickfont=dict(size=11.5))
     return fig
@@ -222,7 +232,7 @@ def composition_matrix(data: pd.DataFrame, indicator: Indicator, names: dict[str
 
 def execution_bullets(rows: pd.DataFrame, label: str, *, highlight=None, reference: float | None = None,
                       reference_label: str = "Total", hover_label: str | None = None, wrap_at: int = 0,
-                      per: int = 36) -> go.Figure:
+                      per: int = 36, height: int | None = None) -> go.Figure:
     """Budget execution of each row as a bar on a 0–100 % track, largest coded budget on top.
 
     ``rows`` carries ``presupuesto_codificado``, ``presupuesto_ejecutado`` and ``porcentaje_ejecucion``; ``label``
@@ -251,7 +261,7 @@ def execution_bullets(rows: pd.DataFrame, label: str, *, highlight=None, referen
                                                                                for v, c in zip(group.porcentaje_ejecucion, chosen)],
                              textposition="middle right", textfont=dict(size=12, color=theme.TINTA), hoverinfo="skip",
                              showlegend=False, cliponaxis=False))
-    base(fig, execution_height(len(group), per), dict(l=8, r=62, t=30 if reference is not None else 8, b=8))
+    base(fig, height or execution_height(len(group), per), dict(l=8, r=62, t=30 if reference is not None else 8, b=8))
     fig.update_layout(barmode="overlay", bargap=0.42, showlegend=False)
     fig.update_xaxes(range=[0, 101], showticklabels=False, showgrid=False)
     fig.update_yaxes(categoryorder="array", categoryarray=labels, tickfont=dict(size=11.5))
@@ -286,7 +296,7 @@ def ranked_bars(labels: list[str], values: list[float], indicator: Indicator, *,
         customdata=np.stack([hover, [fmt_value(v, indicator) for v in values], shares], axis=1),
         hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>",
     ))
-    base(fig, height or max(300, len(labels) * 25 + 46), dict(l=8, r=64, t=10, b=10))
+    base(fig, height or max(300, len(labels) * 25 + 46), dict(l=8, r=64, t=30 if height else 10, b=10))
     fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
     fig.update_yaxes(tickfont=dict(size=11.5), categoryorder="array", categoryarray=labels)
     fig.update_layout(bargap=0.28 if not height else 0.4, showlegend=False)

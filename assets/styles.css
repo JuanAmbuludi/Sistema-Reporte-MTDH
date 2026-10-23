@@ -95,13 +95,17 @@ html{scroll-behavior:smooth}
 .st-key-reset_filters button p{font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
 
 /* Territorial indicator switch above the hero map */
-.st-key-map_indicator [data-testid="stWidgetLabel"] p,.st-key-budget_measure [data-testid="stWidgetLabel"] p{color:#D9CFEA!important;font-family:var(--font-display)!important;font-weight:700!important;font-size:12.5px!important}
-.st-key-map_indicator [role="radiogroup"],.st-key-budget_measure [role="radiogroup"]{display:flex;width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px;gap:4px}
-.st-key-map_indicator button,.st-key-budget_measure button{flex:1 1 0;border:none!important;border-radius:999px!important;background:transparent!important;min-height:36px;padding:0 12px!important}
-.st-key-map_indicator button p,.st-key-budget_measure button p{color:#E6DDF5!important;font-weight:600;font-size:13px;white-space:nowrap}
-.st-key-map_indicator button:hover,.st-key-budget_measure button:hover{background:rgba(255,255,255,.1)!important}
-.st-key-map_indicator button[aria-checked="true"],.st-key-budget_measure button[aria-checked="true"]{background:#fff!important;box-shadow:0 4px 14px rgba(10,4,25,.25)}
-.st-key-map_indicator button[aria-checked="true"] p,.st-key-budget_measure button[aria-checked="true"] p{color:var(--morado)!important}
+.st-key-map_indicator [data-testid="stWidgetLabel"] p,.st-key-budget_measure [data-testid="stWidgetLabel"] p,.st-key-map_level [data-testid="stWidgetLabel"] p{color:#D9CFEA!important;font-family:var(--font-display)!important;font-weight:700!important;font-size:12.5px!important}
+.st-key-map_indicator [role="radiogroup"],.st-key-budget_measure [role="radiogroup"],.st-key-map_level [role="radiogroup"]{display:flex;width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px;gap:4px}
+.st-key-map_indicator button,.st-key-budget_measure button,.st-key-map_level button{flex:1 1 0;border:none!important;border-radius:999px!important;background:transparent!important;min-height:36px;padding:0 12px!important}
+.st-key-map_indicator button p,.st-key-budget_measure button p,.st-key-map_level button p{color:#E6DDF5!important;font-weight:600;font-size:13px;white-space:nowrap}
+.st-key-map_indicator button:hover,.st-key-budget_measure button:hover,.st-key-map_level button:hover{background:rgba(255,255,255,.1)!important}
+.st-key-map_indicator button[aria-checked="true"],.st-key-budget_measure button[aria-checked="true"],.st-key-map_level button[aria-checked="true"]{background:#fff!important;box-shadow:0 4px 14px rgba(10,4,25,.25)}
+.st-key-map_indicator button[aria-checked="true"] p,.st-key-budget_measure button[aria-checked="true"] p,.st-key-map_level button[aria-checked="true"] p{color:var(--morado)!important}
+.st-key-map_level button:disabled{opacity:1!important}
+.st-key-map_level button:disabled p{color:rgba(230,221,245,.42)!important}
+.st-key-map_level button[aria-checked="true"]:disabled{background:rgba(255,255,255,.8)!important;box-shadow:none}
+.st-key-map_level button[aria-checked="true"]:disabled p{color:var(--morado)!important}
 
 /* Hero map */
 .hero-map{margin:0;position:relative;animation:fade 1s .15s ease both}
@@ -215,9 +219,39 @@ html{scroll-behavior:smooth}
 [data-testid="stButtonGroup"] button[data-variant="segmented_control"]{min-height:40px}
 [data-testid="stButtonGroup"] button[data-variant="segmented_control"] p{font-weight:600}
 .st-key-detail_level [role="radiogroup"],.st-key-budget_level [role="radiogroup"]{background:#fff;border-radius:14px;box-shadow:var(--shadow-1)}
-.st-key-detail_level button[aria-checked="true"],.st-key-budget_level button[aria-checked="true"],.st-key-report_product button[aria-checked="true"]{background:var(--morado)!important;border-color:var(--morado)!important}
-.st-key-detail_level button[aria-checked="true"] p,.st-key-budget_level button[aria-checked="true"] p,.st-key-report_product button[aria-checked="true"] p,
+.st-key-detail_level button[aria-checked="true"],.st-key-budget_level button[aria-checked="true"],.st-key-report_product button[aria-checked="true"],.st-key-report_level button[aria-checked="true"]{background:var(--morado)!important;border-color:var(--morado)!important}
+.st-key-detail_level button[aria-checked="true"] p,.st-key-budget_level button[aria-checked="true"] p,.st-key-report_product button[aria-checked="true"] p,.st-key-report_level button[aria-checked="true"] p,
 .st-key-report_product button[aria-checked="true"] [data-testid="stIconMaterial"]{color:#fff!important}
+
+/* Territorial level on top of each chart: Provincia · Cantón · Parroquia */
+[class*="st-key-lvl_"]{display:flex;justify-content:flex-end;margin-left:auto}
+[class*="st-key-lvl_"] [role="radiogroup"]{display:inline-flex;background:var(--lila-50);border:1px solid #E4DEEE;border-radius:999px;padding:3px;gap:2px}
+[class*="st-key-lvl_"] button{border:none!important;border-radius:999px!important;background:transparent!important;min-height:32px!important;padding:0 14px!important}
+[class*="st-key-lvl_"] button p{font-size:12.5px!important;font-weight:600;color:var(--morado-800)!important;white-space:nowrap}
+[class*="st-key-lvl_"] button:hover{background:rgba(81,47,141,.08)!important}
+[class*="st-key-lvl_"] button[aria-checked="true"]{background:var(--morado)!important;box-shadow:0 4px 12px rgba(81,47,141,.28)}
+[class*="st-key-lvl_"] button[aria-checked="true"] p{color:#fff!important}
+[class*="st-key-lvl_"] button:disabled{opacity:1!important}
+[class*="st-key-lvl_"] button:disabled p{color:#A59CB6!important}
+[class*="st-key-lvl_"] button[aria-checked="true"]:disabled{background:var(--lila-300)!important;box-shadow:none}
+[class*="st-key-lvl_"] button[aria-checked="true"]:disabled p{color:#fff!important}
+.st-key-report_level button:disabled{opacity:1!important}
+.st-key-report_level button:disabled p{color:#A59CB6!important}
+.st-key-report_level button[aria-checked="true"]:disabled{background:var(--lila-300)!important;border-color:var(--lila-300)!important}
+
+/* Territorial reach: territories with the indicator and how many gather half of it */
+.reach-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:2px 0 6px}
+.reach-strip.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.reach{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 14px;background:#fff;border:1px solid var(--linea);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-1);padding:16px 20px 16px;animation:rise .6s calc(var(--i,0)*.06s) var(--ease) both}
+.reach .ri{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--lila-50);color:var(--morado)}
+.reach h4{margin:0!important;padding:0!important;font-family:var(--font-text)!important;font-size:12.5px!important;font-weight:700!important;color:var(--pizarra)!important}
+.reach .rv{font-family:var(--font-display);font-weight:800;font-size:26px;line-height:1.1;color:var(--morado-900);font-variant-numeric:tabular-nums}
+.reach .rv small{font-family:var(--font-text);font-weight:600;font-size:12.5px;color:var(--pizarra);margin-left:7px}
+.reach .rbar{grid-column:1/-1;height:7px;border-radius:7px;background:#EFECF5;overflow:hidden;margin-top:6px}
+.reach .rbar span{display:block;height:100%;width:var(--w);min-width:5px;border-radius:7px;background:var(--oro);transform-origin:left;animation:grow 1s .25s var(--ease) both}
+.stApp .reach p{grid-column:1/-1;margin:0;font-size:12.5px;line-height:1.4;color:var(--morado-800)}
+.reach p b{font-weight:800;color:var(--morado-900)}
 
 /* Buttons */
 [data-testid="stBaseButton-primary"],[data-testid="stBaseButton-primaryFormSubmit"]{background:linear-gradient(120deg,var(--morado) 0%,var(--violeta-500) 100%)!important;border:none!important;box-shadow:0 10px 24px rgba(81,47,141,.28);min-height:48px;transition:transform .2s var(--ease),box-shadow .2s var(--ease),filter .2s}
@@ -284,6 +318,11 @@ html{scroll-behavior:smooth}
 .xl-tabs span{font-size:11px;padding:7px 10px;color:#6E6880;border-bottom:3px solid transparent}
 .xl-tabs span.on{background:#fff;color:var(--morado);font-weight:700;border-bottom-color:var(--morado)}
 .page-mock{max-width:380px;margin:0 auto;background:#fff;border-radius:10px;box-shadow:var(--shadow-2);overflow:hidden;border:1px solid #E4DEEE;aspect-ratio:210/297;display:flex;flex-direction:column}
+.page-stack{position:relative;max-width:380px;margin:0 auto}
+.page-stack.two{padding:0 16px 16px 0}
+.page-stack.two::before{content:"";position:absolute;inset:16px 0 0 16px;background:#fff;border:1px solid #E4DEEE;border-radius:10px;box-shadow:var(--shadow-1);
+  background-image:linear-gradient(118deg,#1E0F3B,#512F8D);background-size:100% 15%;background-repeat:no-repeat}
+.page-stack .page-mock{position:relative}
 .page-band{display:flex;flex-direction:column;gap:10px;background:linear-gradient(118deg,#1E0F3B,#512F8D);padding:14px 16px 12px;color:#fff}
 .page-band img{height:20px;width:auto;align-self:flex-start}
 .page-band small{display:block;font-size:9.5px;color:#FFE7A3;font-weight:600}
@@ -380,9 +419,9 @@ html{scroll-behavior:smooth}
   .st-key-consulta{padding:16px 14px 14px}
   .st-key-consulta [data-testid="stButtonGroup"] button p{font-size:12.5px}
   .st-key-module [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;gap:0}
-  .st-key-map_indicator [role="radiogroup"],.st-key-budget_measure [role="radiogroup"]{border-radius:18px}
-  .st-key-map_indicator button,.st-key-budget_measure button{min-height:44px;padding:0 6px!important;border-radius:14px!important}
-  .st-key-map_indicator button p,.st-key-budget_measure button p{font-size:11.5px;white-space:normal;line-height:1.15}
+  .st-key-map_indicator [role="radiogroup"],.st-key-budget_measure [role="radiogroup"],.st-key-map_level [role="radiogroup"]{border-radius:18px}
+  .st-key-map_indicator button,.st-key-budget_measure button,.st-key-map_level button{min-height:44px;padding:0 6px!important;border-radius:14px!important}
+  .st-key-map_indicator button p,.st-key-budget_measure button p,.st-key-map_level button p{font-size:11.5px;white-space:normal;line-height:1.15}
   .hero-map .ec-map{max-height:340px}
   .hero-series .ec-columns{max-height:260px}
   .kpi-grid{gap:10px;margin-top:-74px}
@@ -398,11 +437,19 @@ html{scroll-behavior:smooth}
   .section-icon{width:40px;height:40px;border-radius:13px}
   [class*="st-key-card_"]{padding:16px 14px 8px!important;border-radius:18px!important}
   .st-key-report_product [role="radiogroup"]{grid-template-columns:1fr}
+  .st-key-report_level [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;width:100%}
   .content-list{grid-template-columns:1fr}
   .st-key-detail_level [role="radiogroup"],.st-key-budget_level [role="radiogroup"]{display:grid;grid-template-columns:repeat(3,1fr);width:100%}
   .st-key-detail_level button,.st-key-budget_level button{white-space:normal!important;line-height:1.15;min-height:46px}
   .st-key-detail_level button p,.st-key-budget_level button p{font-size:12.5px}
   .modebar-container{display:none!important}
+  .reach-strip,.reach-strip.n2{grid-template-columns:1fr;gap:10px}
+  .reach{padding:13px 15px 14px;border-radius:18px}
+  .reach .ri{width:36px;height:36px;border-radius:11px}
+  .reach .rv{font-size:22px}
+  [class*="st-key-lvl_"]{justify-content:stretch}
+  [class*="st-key-lvl_"] [role="radiogroup"]{display:flex;width:100%}
+  [class*="st-key-lvl_"] button{flex:1 1 0}
   .st-key-band [data-testid="stHorizontalBlock"]{gap:6px!important}
   .st-key-card_matrix{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .st-key-card_matrix [data-testid="stElementContainer"]:has([data-testid="stPlotlyChart"]){width:760px!important;min-width:760px!important;max-width:none!important;flex:0 0 auto!important}

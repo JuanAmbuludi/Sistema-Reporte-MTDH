@@ -1,9 +1,12 @@
-"""Three-slide institutional presentation built with python-pptx.
+"""Institutional presentation built with python-pptx.
 
-Transfers and services: 1. cover and key figures (night map); 2. results by territory (map, leading provinces or
-parishes and a finding); 3. results by program (native chart and findings).
-Institutional budget: 1. cover; 2. execution by zone; 3. execution by program.
-Labour management: 1. cover (monthly series); 2. contracts registered by month; 3. retirement compensation.
+Transfers and services: 1. cover and key figures; one slide of results for each territorial level the reader chose
+(map, leading territories and a finding); budget execution by program and by territory; results by program
+(native chart and findings).
+Institutional budget: 1. cover; 2. execution by zone; 3. execution by program; 4. composition of spending.
+Labour management: 1. cover; 2. contracts registered by month; 3. retirement compensation.
+The cover carries a figure-free silhouette of the country (the territory of the report in gold), so no slide
+repeats another's chart.
 
 Every shape is native PowerPoint (text, shapes, editable charts), so the presenter can retitle or restyle anything.
 Fonts are Century Gothic and Calibri, installed with Microsoft Office.
@@ -23,8 +26,8 @@ from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
 from src import theme
-from .charts import columns_png, map_png
-from .context import PRODUCT, millions, number
+from .charts import emblem_png, map_png
+from .context import NO_POLYGON, PRODUCT, millions, number
 from .pdf import value_text
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -112,13 +115,13 @@ def _header(slide, title: str, subtitle: str):
         _picture(slide, LOGO, 10.25, 0.28, h=0.62)
 
 
-def _footer(slide, ctx: dict, page: int, left: float = 0.55):
+def _footer(slide, ctx: dict, page: int, total: int, left: float = 0.55):
     color = "#7A748B"
     _text(slide, left, 7.08, 11.2 - left, 0.25, f"{ctx['source']} · {ctx['generated_label'].capitalize()}", size=9.5, color=color)
-    _text(slide, 11.8, 7.08, 1.0, 0.25, f"{page} / 3", size=9.5, color=color, align=PP_ALIGN.RIGHT)
+    _text(slide, 11.8, 7.08, 1.0, 0.25, f"{page} / {total}", size=9.5, color=color, align=PP_ALIGN.RIGHT)
 
 
-def _cover(prs, ctx: dict, picture: bytes, picture_width: float = 4.15, share_word: str = "del total nacional"):
+def _cover(prs, ctx: dict, picture: bytes, total: int, picture_width: float = 4.15, share_word: str = "del total nacional"):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     panel = _box(slide, 0, 0, 5.35, 7.5, theme.MORADO_900)
     _gradient(panel, [(0, "#1E0F3B"), (1, theme.MORADO)], 300)
@@ -149,7 +152,7 @@ def _cover(prs, ctx: dict, picture: bytes, picture_width: float = 4.15, share_wo
         note = (f"{number(kpi['share'], 1)} % {share_word}" if kpi.get("share") is not None else kpi.get("note", ""))
         if note:
             _text(slide, x + 0.36, y + 1.85, width - 0.5, 0.3, note, size=12, color=theme.MORADO, bold=True)
-    _footer(slide, ctx, 1, left=5.85)
+    _footer(slide, ctx, 1, total, left=5.85)
     slide.notes_slide.notes_text_frame.text = " ".join(f"{k['label']}: {value_text(k)}." for k in ctx["kpis"]) + " " + ctx["insights"][0]["text"]
 
 
@@ -218,61 +221,116 @@ def _bar_chart(slide, categories: list[str], values: list[float], name: str, *, 
 
 
 # ------------------------------------------------------------------------------------- transfers and services
-def _territorial(prs, ctx: dict):
-    layer, focus = ctx.get("map_layer", "provincia"), ctx.get("map_focus", [])
-    selected = set(ctx["selected_codes"])
-    night = map_png(ctx["map_values"], layer=layer, focus=focus, selected=selected, mode="night", legend=False,
-                    width=4.2, height=3.7, dpi=220)
-    _cover(prs, ctx, night)
+LEVEL_LABELS = {"provincia": "Provincia", "canton": "Cantón", "parroquia": "Parroquia"}
+LEVEL_PLURALS = {"provincia": "Provincias", "canton": "Cantones", "parroquia": "Parroquias"}
 
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    people = ctx["labels"]["people"]
-    _header(slide, "Resultados por territorio", f"{people} · {ctx['period_label']} · {ctx['territory_label']}")
-    scope = "parroquia" if layer == "parroquia" else "provincia"
-    picture = map_png(ctx["map_values"], layer=layer, focus=focus, selected=selected, mode="light", label=f"{people} por {scope}",
-                      width=6.0, height=5.4, dpi=220)
-    _picture(slide, picture, 0.45, 1.42, h=5.55)
-    parish = ctx.get("parish")
-    if parish and len(focus) == 1:
-        title = "Principales parroquias"
-        top = parish["top"][:7]
-        peak = max((r["people"] or 0) for r in top) or 1
-        rows = [{"name": r["label"], "text": number(r["people"]), "fraction": (r["people"] or 0) / peak} for r in top]
-    else:
-        title = "Principales provincias"
+
+def _people_rows(ctx: dict, level: str, limit: int = 7) -> list[dict]:
+    """Leading territories of a level by people; provinces keep their national place and the selection in gold."""
+    if level == "provincia":
         ranked = [p for p in ctx["provinces"] if p["position"]]
-        chosen_rows = ranked[:7]
-        chosen = [p for p in ranked if p["selected"] and p not in chosen_rows]
+        rows = ranked[:limit]
+        chosen = [p for p in ranked if p["selected"] and p not in rows]
         if chosen:
-            chosen_rows = chosen_rows[:max(1, 7 - len(chosen))] + chosen[:6]
-        peak = max((p["people"] or 0) for p in chosen_rows) or 1
-        rows = [{"name": f"{p['position']}. {p['name']}", "text": number(p["people"]), "fraction": (p["people"] or 0) / peak,
-                 "selected": p["selected"]} for p in chosen_rows]
-    _text(slide, 7.05, 1.45, 5.7, 0.4, title, size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
-    _ranked(slide, rows, 7.05, 2.0, 5.7)
-    finding = next((i for i in ctx["insights"] if i["icon"] == "map"), ctx["insights"][1]) if parish and len(focus) == 1 else ctx["insights"][1]
-    _finding(slide, finding, 7.05, 5.82, 5.7, 1.02)
-    _footer(slide, ctx, 2)
-    slide.notes_slide.notes_text_frame.text = finding["text"]
+            rows = rows[:max(1, limit - len(chosen))] + chosen[:limit - 1]
+        named = [{"name": f"{p['position']}. {p['name']}", "value": p["people"], "selected": p["selected"]} for p in rows]
+    else:
+        named = [{"name": f"{r['position']}. {r['label']}", "value": r["people"]} for r in ctx["territories"].get(level, [])[:limit]]
+    peak = max([(r["value"] or 0) for r in named] or [1]) or 1
+    return [{**r, "text": number(r["value"]), "fraction": (r["value"] or 0) / peak} for r in named]
 
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+
+def _execution_rows(ctx: dict, level: str, limit: int = 7) -> list[dict]:
+    """Territories of a level with the largest coded budget and their execution."""
+    if level == "provincia":
+        pool = [p for p in ctx["provinces"] if p["position"] and p.get("coded")]
+        pool.sort(key=lambda p: -(p["coded"] or 0))
+        rows = pool[:limit]
+        chosen = [p for p in pool if p["selected"] and p not in rows]
+        if chosen:
+            rows = rows[:max(1, limit - len(chosen))] + chosen[:limit - 1]
+        named = [{"name": p["name"], "execution": p["execution"], "selected": p["selected"]} for p in rows]
+    else:
+        pool = sorted([r for r in ctx["territories"].get(level, []) if r.get("coded")], key=lambda r: -(r["coded"] or 0))
+        named = [{"name": r["label"], "execution": r["execution"]} for r in pool[:limit]]
+    return [{**r, "text": f"{number(r['execution'], 1)} %" if r["execution"] is not None else "—",
+             "fraction": (r["execution"] or 0) / 100} for r in named]
+
+
+def _level_finding(ctx: dict, level: str) -> dict:
+    """The finding that reads a level: the place of the selection among provinces, or where coverage concentrates."""
+    if level == "provincia":
+        return ctx["insights"][1]
+    found = (ctx.get("level_findings") or {}).get(level)
+    return found or next((i for i in ctx["insights"] if i["icon"] == "map"), ctx["insights"][1])
+
+
+def _territorial(prs, ctx: dict):
+    levels = ctx.get("levels") or ["provincia"]
+    selected = set(ctx["selected_codes"])
+    executed = ctx.get("executed_available")
+    total = 2 + len(levels) + (1 if executed else 0)
+    _cover(prs, ctx, emblem_png(selected - {NO_POLYGON}, width=4.2, height=3.7, dpi=220), total)
     labels = ctx["labels"]
+    people = labels["people"]
+    page = 1
+    for level in levels:
+        page += 1
+        word = LEVEL_LABELS[level].lower()
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        _header(slide, f"Resultados por {word}", f"{people} · {ctx['period_label']} · {ctx['territory_label']}")
+        chosen = (ctx.get("maps") or {}).get(level) or {"layer": ctx["map_layer"], "values": ctx["map_values"], "focus": ctx["map_focus"]}
+        picture = map_png(chosen["values"], layer=chosen["layer"], focus=chosen["focus"], selected=selected, mode="light",
+                          label=f"{people} por {word}", width=6.0, height=5.4, dpi=220)
+        _picture(slide, picture, 0.45, 1.42, h=5.55)
+        _text(slide, 7.05, 1.45, 5.7, 0.4, f"Principales {LEVEL_PLURALS[level].lower()}", size=18, color=theme.MORADO_900,
+              font=DISPLAY, bold=True)
+        _ranked(slide, _people_rows(ctx, level), 7.05, 2.0, 5.7)
+        finding = _level_finding(ctx, level)
+        _finding(slide, finding, 7.05, 5.82, 5.7, 1.02)
+        _footer(slide, ctx, page, total)
+        slide.notes_slide.notes_text_frame.text = finding["text"]
+
+    if executed:
+        page += 1
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        _header(slide, "Ejecución presupuestaria", f"Devengado sobre codificado · {ctx['period_label']} · {ctx['territory_label']}")
+        funded = sorted([p for p in ctx["programs"] if p.get("coded")], key=lambda p: -(p["coded"] or 0))
+        rows = list(reversed(funded))
+        chart = _bar_chart(slide, [r["short"] for r in rows], [(r["execution"] or 0) / 100 for r in rows], "Ejecución presupuestaria",
+                           number_format="0.0%", maximum=1.0, y=1.95, h=4.95)
+        chart.plots[0].gap_width = 70
+        _text(slide, 0.55, 1.45, 6.8, 0.4, f"Por {labels['item']}", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
+        focus = ctx.get("map_focus") or []
+        level = levels[1] if len(focus) == 1 and len(levels) > 1 else levels[0]
+        _text(slide, 7.75, 1.45, 5.0, 0.4, f"Por {LEVEL_LABELS[level].lower()}", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
+        _ranked(slide, _execution_rows(ctx, level), 7.75, 2.0, 5.0, step=0.5)
+        finding = next((i for i in ctx["insights"] if i["icon"] == "trending-up"), ctx["insights"][0])
+        _finding(slide, finding, 7.75, 5.75, 5.0, 1.1)
+        _footer(slide, ctx, page, total)
+        slide.notes_slide.notes_text_frame.text = finding["text"]
+
+    page += 1
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
     _header(slide, f"Resultados por {labels['item']}", f"{labels['people']} · {ctx['period_label']} · {ctx['territory_label']}")
     programs = [p for p in ctx["programs"] if (p["people"] or 0) > 0] or ctx["programs"]
     rows = list(reversed(programs))  # bar charts draw the first category at the bottom
     _bar_chart(slide, [r["short"] for r in rows], [r["people"] or 0 for r in rows], labels["people"])
     _text(slide, 7.75, 1.45, 5.0, 0.4, "Aspectos destacados", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
-    findings = [i for i in ctx["insights"] if i["icon"] in ("award", "trending-up", "banknote")][:3]
+    findings = [i for i in ctx["insights"] if i["icon"] in ("award", "banknote", "landmark")][:3]
+    if len(findings) < 3 and not executed:
+        # Without an execution slide, the reading of the budget closes the presentation.
+        findings += [i for i in ctx["insights"] if i["icon"] == "trending-up"][:3 - len(findings)]
     _findings_column(slide, findings)
-    _footer(slide, ctx, 3)
+    _footer(slide, ctx, page, total)
     slide.notes_slide.notes_text_frame.text = " ".join(f["text"] for f in findings)
 
 
 # -------------------------------------------------------------------------------------- institutional budget
 def _budget(prs, ctx: dict):
     selected = set(ctx["selected_zones"])
-    night = map_png(ctx["map_values"], layer="zona", selected=selected, mode="night", legend=False, width=4.2, height=3.7, dpi=220)
-    _cover(prs, ctx, night, share_word="del total institucional")
+    total = 4
+    _cover(prs, ctx, emblem_png(selected, layer="zona", width=4.2, height=3.7, dpi=220), total, share_word="del total institucional")
 
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _header(slide, "Ejecución por zona", f"Devengado sobre codificado · {ctx['period_label']} · {ctx['territory_label']}")
@@ -285,7 +343,7 @@ def _budget(prs, ctx: dict):
     _ranked(slide, rows, 7.05, 1.98, 5.7, step=0.42)
     finding = next((i for i in ctx["insights"] if i["icon"] == "map"), ctx["insights"][0])
     _finding(slide, finding, 7.05, 5.95, 5.7, 0.95)
-    _footer(slide, ctx, 2)
+    _footer(slide, ctx, 2, total)
     slide.notes_slide.notes_text_frame.text = finding["text"]
 
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -295,19 +353,38 @@ def _budget(prs, ctx: dict):
                        number_format="0.0%", maximum=1.0)
     chart.plots[0].gap_width = 70
     _text(slide, 7.75, 1.45, 5.0, 0.4, "Aspectos destacados", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
-    findings = [i for i in ctx["insights"] if i["icon"] != "map"][:3]
+    findings = [i for i in ctx["insights"] if i["icon"] in ("target", "award", "trending-up")][:3]
     _findings_column(slide, findings)
-    _footer(slide, ctx, 3)
+    _footer(slide, ctx, 3, total)
     slide.notes_slide.notes_text_frame.text = " ".join(f["text"] for f in findings)
+
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _header(slide, "Composición del gasto", f"Codificado y ejecución · {ctx['period_label']} · {ctx['territory_label']}")
+
+    def money_rows(items, limit):
+        peak = max([(r["coded"] or 0) for r in items[:limit]] or [1]) or 1
+        return [{"name": r["name"], "text": f"USD {millions(r['coded'])} M · ejecución {number(r['execution'], 1)} %"
+                 if r["execution"] is not None else f"USD {millions(r['coded'])} M", "fraction": (r["coded"] or 0) / peak}
+                for r in items[:limit]]
+
+    _text(slide, 0.55, 1.45, 6.0, 0.4, "Por grupo de gasto", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
+    _ranked(slide, money_rows(ctx["groups"], 7), 0.55, 2.0, 6.0, step=0.56)
+    _text(slide, 7.05, 1.45, 5.7, 0.4, "Por fuente de financiamiento", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
+    _ranked(slide, money_rows(ctx["sources"], 4), 7.05, 2.0, 5.7, step=0.52)
+    _text(slide, 7.05, 4.25, 5.7, 0.4, "Por tipo de gasto", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
+    _ranked(slide, money_rows(ctx["kinds"], 3), 7.05, 4.8, 5.7, step=0.52)
+    finding = next((i for i in ctx["insights"] if i["icon"] == "layers"), ctx["insights"][0])
+    _finding(slide, finding, 0.55, 6.02, 6.0, 0.9)
+    _footer(slide, ctx, 4, total)
+    slide.notes_slide.notes_text_frame.text = finding["text"]
 
 
 # ---------------------------------------------------------------------------------------- labour management
 def _labour(prs, ctx: dict):
     months, info = ctx["months"], ctx["info"]
-    labels, values = [m["short"] for m in months], [m["value"] for m in months]
-    night = columns_png(labels, values, mode="night", width=4.4, height=2.9, dpi=220, average=info["average"],
-                        value_text=lambda v: f"{number(v / 1000, 1)} mil")
-    _cover(prs, ctx, night, picture_width=4.3)
+    values = [m["value"] for m in months]
+    total = 3
+    _cover(prs, ctx, emblem_png(width=4.2, height=3.7, dpi=220), total)
 
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _header(slide, "Contratación laboral", f"Contratos registrados de {ctx['span']} de {ctx['year']} que siguen vigentes · Total nacional")
@@ -323,7 +400,7 @@ def _labour(prs, ctx: dict):
           size=12.5, color=theme.MORADO, bold=True)
     finding = ctx["insights"][1]
     _finding(slide, finding, 8.95, 4.55, 3.9, 2.25)
-    _footer(slide, ctx, 2)
+    _footer(slide, ctx, 2, total)
     slide.notes_slide.notes_text_frame.text = finding["text"]
 
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -343,12 +420,12 @@ def _labour(prs, ctx: dict):
     _text(slide, 7.75, 1.45, 5.0, 0.4, "Aspectos destacados", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
     findings = [ctx["insights"][2], ctx["insights"][0], ctx["insights"][3]]
     _findings_column(slide, findings)
-    _footer(slide, ctx, 3)
+    _footer(slide, ctx, 3, total)
     slide.notes_slide.notes_text_frame.text = " ".join(f["text"] for f in findings)
 
 
 def generate_pptx(context: dict) -> bytes:
-    """Three slides for the area of the selection."""
+    """The presentation of the area of the selection."""
     prs = Presentation()
     prs.slide_width, prs.slide_height = SLIDE_W, SLIDE_H
     props = prs.core_properties

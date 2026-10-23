@@ -1,20 +1,27 @@
-"""Transfers and services: coverage, budget and its execution by program, province and parish.
+"""Transfers and services: coverage, budget and its execution by program, province, canton and parish.
 
-Each module reads only its own rows (transfers are never mixed with services).  The map, the rankings and the
-tables use the parish detail when the cut has it, and the provinces otherwise.
+Each module reads only its own rows (transfers are never mixed with services).  When the cut has parish detail the
+map and every territorial chart offer the three levels (Provincia · Cantón · Parroquia) with a selector on top of
+the chart; cuts without it keep the provinces and show the selector disabled.
 """
 from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
 
-from src import charts, geo, territory, theme, ui
+from src import charts, geo, names as place_names, territory, theme, ui
 from src.data import aggregate, filter_data, summarize
 from src.indicators import MODULES
+from src.territory import LEVEL_GENDER, LEVEL_LABELS, LEVEL_PLURALS, LEVELS
 from src.views.common import compact, download_table, fingerprint, show_chart, show_wide_chart
 
+# Territories in a canton or parish chart: as many rows as provinces, so every level reads alike.
+TOP = 25
+LEVEL_ICONS = {"provincia": "map", "canton": "landmark", "parroquia": "pin"}
+REPORT_LEVELS = {"provincia": "Provincia", "canton": "Cantón", "parroquia": "Parroquia", "todo": "Todo"}
 
-@st.cache_data(show_spinner=False, max_entries=48)
+
+@st.cache_data(show_spinner=False, max_entries=64)
 def _svg(layer: str, values: dict, titles: dict, regions: dict, focus: tuple, selected: tuple, night: bool = True,
          width: int = 640) -> str:
     if night:
@@ -28,11 +35,20 @@ def _svg(layer: str, values: dict, titles: dict, regions: dict, focus: tuple, se
                        frame_color="rgba(81,47,141,.35)", label_color="rgba(81,47,141,.6)", css_class="ec-map mini")
 
 
-def parish_title(indicator) -> str:
-    """``Parroquias con más beneficiarios`` · ``Parroquias con mayor presupuesto ejecutado 2026``."""
-    if indicator.is_money:
-        return f"Parroquias con mayor {indicator.label[:1].lower()}{indicator.label[1:]}"
-    return f"Parroquias con más {indicator.label.lower()}"
+def phrase(level: str, shown: int, total: int, where: str) -> str:
+    """«Los 25 primeros cantones del país» · «Las 71 parroquias de Guayas» · «El cantón de Galápagos»."""
+    masculine = LEVEL_GENDER[level] == "m"
+    if total == 1:
+        return f"{'El' if masculine else 'La'} {LEVEL_LABELS[level].lower()} {where}"
+    article, plural = ("Los" if masculine else "Las"), LEVEL_PLURALS[level].lower()
+    if shown >= total:
+        return f"{article} {ui.number(total)} {plural} {where}"
+    return f"{article} {shown} {'primeros' if masculine else 'primeras'} {plural} {where}"
+
+
+def report_levels(level: str) -> list[str]:
+    """Levels a document covers: one, or the three when the reader asks for everything."""
+    return list(LEVELS) if level == "todo" else [level]
 
 
 class TerritorialView:
@@ -46,6 +62,7 @@ class TerritorialView:
         # Chart-length program names; official names stay in tables, except on phones where the label column is narrow.
         self.short_programs = {row.programa: theme.program_label(row.programa_id, row.programa)
                                for row in data.drop_duplicates("programa_id").itertuples()}
+        self.report_level = "todo"
 
     def catalog(self) -> list[dict]:
         return self._catalog
@@ -109,6 +126,11 @@ class TerritorialView:
         self.programs_label = (self.program_lookup[self.programs[0]] if len(self.programs) == 1 else
                                f"{len(self.programs)} {module.items}" if self.programs else f"Todos los {module.items}")
         self.context_label = f"{period['label']} · {self.territory_label}"
+        self.indicator = self.people
+        self.map_level = "parroquia" if self.has_parishes else "provincia"
+        # The level of the documents is read early: the report form describes the products before its selector.
+        level = st.session_state.get("report_level", "todo")
+        self.report_level = (level if level in REPORT_LEVELS else "todo") if self.has_parishes else "provincia"
         return True
 
     def hero_copy(self) -> tuple[str, str, str]:
@@ -117,14 +139,37 @@ class TerritorialView:
         headline = f"{self.module.label} en {self.territory_label}" if self.provinces else self.module.label
         return chip, headline, self.module.description
 
+    def _where(self) -> str:
+        """«del país» · «de Guayas» · «de la selección»."""
+        if not self.provinces:
+            return "del país"
+        return f"de {self.territory_label}" if len(self.provinces) == 1 else "de la selección"
+
+    def level_control(self, key: str, label: str = "Nivel territorial", *, default: str = "provincia",
+                      show_label: bool = False) -> str:
+        """Provincia · Cantón · Parroquia; cuts without parish detail keep the province with the selector disabled."""
+        options = list(LEVELS)
+        if not self.has_parishes:
+            st.session_state[key] = "provincia"
+        elif st.session_state.get(key) not in options:
+            st.session_state[key] = default
+        chosen = st.segmented_control(label, options, format_func=LEVEL_LABELS.get, key=key, required=True,
+                                      disabled=not self.has_parishes, width="stretch" if show_label or compact() else "content",
+                                      label_visibility="visible" if show_label else "collapsed")
+        return chosen if chosen in options and self.has_parishes else "provincia"
+
     # ------------------------------------------------------------------------------------------------- map
     def hero_visual(self) -> None:
         indicators = self.module.indicators(self.period["year"], executed=self.executed, parishes=self.has_parishes)
         by_key = {indicator.key: indicator for indicator in indicators}
         if st.session_state.get("map_indicator") not in by_key:
             st.session_state["map_indicator"] = indicators[0].key
-        key = st.segmented_control("Indicador territorial", list(by_key), format_func=lambda k: by_key[k].compact,
-                                   key="map_indicator", required=True, width="stretch")
+        measure, level = st.columns([1.35, 1], gap="small")
+        with measure:
+            key = st.segmented_control("Indicador territorial", list(by_key), format_func=lambda k: by_key[k].compact,
+                                       key="map_indicator", required=True, width="stretch")
+        with level:
+            self.map_level = self.level_control("map_level", default="parroquia", show_label=True)
         self.indicator = by_key[key]
         svg, label, selected_key, equator = self.map_svg(night=True)
         ui.hero_map(svg, label, selected=selected_key, equator=equator)
@@ -132,18 +177,18 @@ class TerritorialView:
     def _focus(self) -> set[str]:
         return {c for c in self.selected if c != geo.NO_POLYGON}
 
-    def map_svg(self, night: bool = True, width: int = 640, indicator=None) -> tuple[str, str, str, bool]:
-        """The map of the selection: its SVG, the key label, the selection key and whether the equator shows."""
+    def map_svg(self, night: bool = True, width: int = 640, indicator=None, level: str | None = None) -> tuple[str, str, str, bool]:
+        """The map of the selection at a level: its SVG, the key label, the selection key and whether the equator shows."""
         indicator = indicator or self.indicator
+        level = (level or self.map_level) if self.has_parishes else "provincia"
         key = indicator.key
         value_text = lambda v: charts.fmt_value(v, indicator)  # noqa: E731
-        focus = self._focus() if night else set()
+        focus = self._focus() if night and level != "provincia" else set()
         names = self.province_names
-        province_values = charts.province_values(self.national, key).set_index("provincia_codigo")[key].astype(float).to_dict()
-        if self.has_parishes:
+        titles, regions = {}, {}
+        if level == "parroquia":
             source = self.parish_filtered if focus else self.parish_national
             values, members = territory.polygon_values(source, key)
-            titles, regions = {}, {}
             if focus:
                 parishes, cantons = geo.features("parroquia"), geo.features("canton")
                 for polygon, codes in members.items():
@@ -153,15 +198,26 @@ class TerritorialView:
                     extra = f"\nIncluye {len(codes)} parroquias" if len(codes) > 1 else ""
                     titles[polygon] = f"{place}\n{value_text(values.get(polygon))}{extra}"
             else:
+                province_values = charts.province_values(self.national, key).set_index("provincia_codigo")[key].astype(float).to_dict()
                 regions = {code: f"{names.get(code, code)}\n{value_text(value)}" for code, value in province_values.items()
                            if code != geo.NO_POLYGON}
-            svg = _svg("parroquia", values, titles, regions, tuple(sorted(focus)), tuple(sorted(self.selected)), night, width)
-            label = f"{indicator.label} por parroquia"
+        elif level == "canton":
+            source = self.parish_filtered if focus else self.parish_national
+            values, members = territory.canton_values(source, key)
+            cantons = geo.features("canton")
+            unique = source.drop_duplicates("canton_codigo")
+            data_names = {str(c): place_names.place(n) for c, n in zip(unique.canton_codigo, unique.canton)}
+            for code, value in values.items():
+                meta = cantons.get(code, {})
+                others = [data_names.get(c, c) for c in members.get(code, []) if c != code]
+                extra = f"\nIncluye {', '.join(others)}" if others else ""
+                titles[code] = f"{meta.get('name', code)} · {names.get(meta.get('province'), '')}\n{value_text(value)}{extra}"
         else:
+            province_values = charts.province_values(self.national, key).set_index("provincia_codigo")[key].astype(float).to_dict()
             values = {c: v for c, v in province_values.items() if c != geo.NO_POLYGON}
             titles = {c: f"{names.get(c, c)}: {value_text(v)}" for c, v in values.items()}
-            svg = _svg("provincia", values, titles, {}, (), tuple(sorted(self.selected)), night, width)
-            label = f"{indicator.label} por provincia"
+        svg = _svg(level, values, titles, regions, tuple(sorted(focus)), tuple(sorted(self.selected)), night, width)
+        label = f"{indicator.label} por {LEVEL_LABELS[level].lower()}"
         selected_key = ("Provincia seleccionada" if len(self.selected) == 1 else "Provincias seleccionadas") if self.selected else ""
         equator = True
         if focus:
@@ -239,54 +295,128 @@ class TerritorialView:
         self._territory_section()
         self._table_section()
 
+    def territories(self, level: str, keys: list[str], *, positive: bool = True) -> pd.DataFrame:
+        """Cantons or parishes of the selection (delimited territories only), largest first by ``keys[0]``."""
+        table = territory.level_table(self.parish_filtered, level, keys)
+        table = table.loc[table.provincia_codigo.astype(str).ne(geo.NO_POLYGON)]
+        if positive:
+            table = table.loc[pd.to_numeric(table[keys[0]], errors="coerce").fillna(0) > 0]
+        return table.reset_index(drop=True)
+
+    def _reach_words(self, indicator, half: int) -> tuple[str, str]:
+        verb = "reúne" if half == 1 else "reúnen"
+        if indicator.is_money:
+            return "con presupuesto ejecutado", f"{verb} la mitad del {indicator.label[:1].lower()}{indicator.label[1:]}"
+        if indicator.key == "unidades":
+            return "con unidades de atención", f"{verb} la mitad de las unidades de atención"
+        return f"con {indicator.unit}", f"{verb} la mitad de los {indicator.unit}"
+
+    def reach_tiles(self, indicator) -> list[dict]:
+        """Territories with the indicator at each level and how many of them gather half of it."""
+        levels = ["canton", "parroquia"] if len(self._focus()) == 1 else list(LEVELS)
+        reach = territory.reach(self.parish_filtered, indicator.key, levels)
+        tiles = []
+        for level in levels:
+            item = reach[level]
+            if not item["count"]:
+                continue
+            with_text, half_text = self._reach_words(indicator, item["half"])
+            tiles.append({"level": level, "icon": LEVEL_ICONS[level], "title": LEVEL_PLURALS[level], "count": item["count"],
+                          "with_text": with_text, "half": item["half"], "half_text": half_text})
+        return tiles
+
+    def _card_head(self, key: str):
+        """Title slot and the level selector on top of a chart (stacked on phones)."""
+        head, toggle = st.columns([1.55, 1], gap="small", vertical_alignment="center")
+        with toggle:
+            level = self.level_control(key)
+        return level, head
+
     def _territory_section(self) -> None:
-        module, indicator = self.module, self.indicator
-        ui.section_heading("Resultados por territorio", f"{indicator.label} · {self.period['label']}", "map")
-        share_label = "del total nacional"
-        ranking = ("card_rank", f"{indicator.label} por provincia",
-                   "Provincias seleccionadas en dorado" if self.selected else "Provincias ordenadas de mayor a menor",
-                   lambda: show_chart(charts.province_ranking(self.national, indicator, highlight=self.selected,
-                                                              share_label=share_label), "province_ranking"))
-        matrix = ("card_matrix", f"Distribución por {module.item}", f"Participación de cada {module.item} en la provincia",
-                  lambda: show_wide_chart(charts.composition_matrix(self.national, indicator, self.short_programs,
-                                                                    highlight=self.selected), "province_matrix"))
-        layout = [(ranking, matrix)]
+        indicator = self.indicator
+        ui.section_heading("Resultados por territorio", f"{indicator.label} · {self.context_label}", "map")
         if self.has_parishes:
-            scope = self.parish_filtered
-            table = territory.parish_table(scope, [indicator.key]).head(20)
-            where = self.territory_label if self.provinces else "el país"
-            rows = None
-            if self.executed:
-                rows = aggregate(self.national, ["provincia_codigo", "provincia"])
-                rows = rows.loc[rows.provincia_codigo.ne(geo.NO_POLYGON)].sort_values("presupuesto_codificado", ascending=False)
-            height = charts.execution_height(len(rows), 30) if rows is not None else None
-            parish = ("card_parish", parish_title(indicator), f"Las {len(table)} primeras de {where}",
-                      lambda: show_chart(charts.ranked_bars([territory.parish_label(r) for _i, r in table.iterrows()],
-                                                            list(table[indicator.key]), indicator, height=height,
-                                                            hover=[f"{r.parroquia_nombre}, {r.canton_nombre} · {r.provincia}" for r in table.itertuples()],
-                                                            share_total=float(pd.to_numeric(scope[indicator.key], errors="coerce").sum()),
-                                                            share_label="de la selección"), "parish_ranking"))
-            second = [parish]
-            if rows is not None:
-                highlight = {self.province_names[c] for c in self.selected if c in self.province_names}
-                second.append(("card_province_execution", "Ejecución presupuestaria por provincia",
-                               "Devengado sobre codificado · la línea dorada marca el total nacional",
-                               lambda: show_chart(charts.execution_bullets(rows, "provincia", highlight=highlight, per=30,
-                                                                           reference=self.national_stats["porcentaje_ejecucion"],
-                                                                           reference_label="Nacional"), "province_execution")))
-            layout.append(tuple(second))
+            tiles = self.reach_tiles(indicator)
+            if tiles:
+                ui.reach_strip(tiles)
+        if self.executed:
+            layout = [[("card_rank", self._ranking_card), ("card_territory_execution", self._execution_card)],
+                      [("card_matrix", self._matrix_card)]]
+        else:
+            layout = [[("card_rank", self._ranking_card), ("card_matrix", self._matrix_card)]]
         for row in layout:
-            columns = st.columns([1, 1.15] if len(row) == 2 else [1], gap="medium")
-            for column, (key, title, subtitle, draw) in zip(columns, row):
+            columns = st.columns(2, gap="medium") if len(row) == 2 else [st.container()]
+            for column, (key, draw) in zip(columns, row):
                 with column, st.container(border=True, key=key):
-                    ui.chart_title(title, subtitle)
-                    draw()
+                    draw(wide=len(row) == 1)
+
+    def _ranking_card(self, wide: bool = False) -> None:
+        indicator = self.indicator
+        level, head = self._card_head("lvl_rank")
+        if level == "provincia":
+            rows = len(charts.province_values(self.national, indicator.key))
+            subtitle = "Provincias seleccionadas en dorado" if self.selected else "Provincias ordenadas de mayor a menor"
+            figure = charts.province_ranking(self.national, indicator, highlight=self.selected, share_label="del total nacional",
+                                             height=charts.execution_height(rows, 30))
+        else:
+            table = self.territories(level, [indicator.key])
+            top = table.head(TOP)
+            subtitle = phrase(level, len(top), len(table), self._where())
+            total = float(pd.to_numeric(table[indicator.key], errors="coerce").sum())
+            figure = charts.ranked_bars(list(top.etiqueta), list(top[indicator.key]), indicator, hover=list(top.detalle),
+                                        share_total=total, share_label="de la selección" if self.provinces else "del total nacional",
+                                        height=charts.execution_height(len(top), 30))
+        with head:
+            ui.chart_title(f"{indicator.label} por {LEVEL_LABELS[level].lower()}", subtitle)
+        show_chart(figure, "territory_ranking")
+
+    def _execution_card(self, wide: bool = False) -> None:
+        level, head = self._card_head("lvl_execution")
+        if level == "provincia":
+            rows = aggregate(self.national, ["provincia_codigo", "provincia"])
+            rows = rows.loc[rows.provincia_codigo.ne(geo.NO_POLYGON)].sort_values("presupuesto_codificado", ascending=False)
+            highlight = {self.province_names[c] for c in self.selected if c in self.province_names}
+            figure = charts.execution_bullets(rows, "provincia", highlight=highlight, per=30,
+                                              reference=self.national_stats["porcentaje_ejecucion"], reference_label="Nacional")
+            subtitle = "Devengado sobre codificado · la línea dorada marca el total nacional"
+            if highlight:
+                subtitle += " · selección en dorado"
+        else:
+            table = self.territories(level, ["presupuesto_codificado", "presupuesto_ejecutado"])
+            top = table.head(TOP)
+            reference_label = "Nacional" if not self.provinces else (self.territory_label if len(self.provinces) == 1 else "Selección")
+            figure = charts.execution_bullets(top, "etiqueta", hover_label="detalle", per=30, reference=self.stats["porcentaje_ejecucion"],
+                                              reference_label=reference_label)
+            subtitle = f"{phrase(level, len(top), len(table), self._where())} por presupuesto codificado · la línea dorada marca el total"
+        with head:
+            ui.chart_title(f"Ejecución presupuestaria por {LEVEL_LABELS[level].lower()}", subtitle)
+        show_chart(figure, "territory_execution")
+
+    def _matrix_card(self, wide: bool = False) -> None:
+        module, indicator = self.module, self.indicator
+        level, head = self._card_head("lvl_matrix")
+        if level == "provincia":
+            figure = charts.composition_matrix(self.national, indicator, self.short_programs, highlight=self.selected,
+                                               show_values=wide)
+            subtitle = f"Participación de cada {module.item} en la provincia"
+        else:
+            table = self.territories(level, [indicator.key])
+            top = table.head(TOP)
+            frame = territory.level_programs(self.parish_filtered, level, indicator.key, top)
+            figure = charts.composition_matrix(frame, indicator, self.short_programs, rows=("fila_codigo", "fila"),
+                                               row_word="el cantón" if level == "canton" else "la parroquia", show_values=wide)
+            where = phrase(level, len(top), len(table), self._where())
+            subtitle = f"Participación de cada {module.item} en {where[:1].lower()}{where[1:]}"
+        with head:
+            ui.chart_title(f"Distribución por {module.item}", subtitle)
+        show_wide_chart(figure, "territory_matrix")
 
     def _levels(self) -> dict[str, str]:
         item = self.module.item
-        levels = {f"Por {item}": "programa", "Por provincia": "provincia", f"Por provincia y {item}": "provincia_programa"}
+        levels = {f"Por {item}": "programa", "Por provincia": "provincia"}
         if self.has_parishes:
             levels.update({"Por cantón": "canton", "Por parroquia": "parroquia"})
+        levels[f"Por provincia y {item}"] = "provincia_programa"
         return levels
 
     def detail(self, level: str) -> tuple[pd.DataFrame, dict, list[tuple]]:
@@ -294,11 +424,13 @@ class TerritorialView:
         module, money, people = self.module, self.money, self.people
         extras = [extra for extra in module.extra]
         if level in ("canton", "parroquia"):
-            keys = ["usuarios", *[e.key for e in extras], "presupuesto_ejecutado"]
+            keys = ["usuarios", *[e.key for e in extras], "presupuesto_ejecutado", "presupuesto_codificado"]
             frame = (territory.canton_table(self.parish_filtered, keys) if level == "canton"
                      else territory.parish_table(self.parish_filtered, keys))
             total = pd.to_numeric(frame.usuarios, errors="coerce").sum()
             frame["participacion"] = pd.to_numeric(frame.usuarios, errors="coerce") / total * 100 if total else 0.0
+            coded = pd.to_numeric(frame.presupuesto_codificado, errors="coerce")
+            frame["porcentaje_ejecucion"] = pd.to_numeric(frame.presupuesto_ejecutado, errors="coerce") / coded.where(coded > 0) * 100
             columns = {"provincia": ("Provincia", "text", 170), "canton_nombre": ("Cantón", "text", 190)}
             layout = [("Provincia", "provincia", "text", 24.0), ("Cantón", "canton_nombre", "text", 26.0)]
             if level == "parroquia":
@@ -313,6 +445,11 @@ class TerritorialView:
                 layout.append((extra.label, extra.key, "int", 13.0))
             columns["presupuesto_ejecutado"] = (f"{money['fiscal'].label} (USD)", "money")
             layout.append((f"{money['fiscal'].label} (USD)", "presupuesto_ejecutado", "usd", 20.0))
+            if self.executed:
+                columns["presupuesto_codificado"] = (f"{money['coded'].label} (USD)", "money")
+                columns["porcentaje_ejecucion"] = ("Ejecución (%)", "pct")
+                layout += [(f"{money['coded'].label} (USD)", "presupuesto_codificado", "usd", 19.0),
+                           ("Ejecución", "porcentaje_ejecucion", "pct", 12.0)]
             return frame.sort_values("usuarios", ascending=False), columns, layout
         groups = {"programa": ["programa"], "provincia": ["provincia"], "provincia_programa": ["provincia", "programa"]}[level]
         frame = aggregate(self.filtered, groups)
@@ -359,57 +496,79 @@ class TerritorialView:
                            share_fields=("participacion", "porcentaje_ejecucion"))
 
     # --------------------------------------------------------------------------------------------- reports
+    def report_options(self) -> None:
+        """Territorial level of the documents: one level or everything (cuts without parishes keep the provinces)."""
+        options = list(REPORT_LEVELS)
+        if not self.has_parishes:
+            st.session_state["report_level"] = "provincia"
+        elif st.session_state.get("report_level") not in options:
+            st.session_state["report_level"] = "todo"
+        chosen = st.segmented_control("Nivel territorial", options, format_func=REPORT_LEVELS.get, key="report_level",
+                                      required=True, disabled=not self.has_parishes, width="stretch")
+        self.report_level = chosen if chosen in options and self.has_parishes else "provincia"
+
+    def _report_word(self) -> str:
+        """«provincias, cantones y parroquias» · «cantones»."""
+        plurals = [LEVEL_PLURALS[level].lower() for level in report_levels(self.report_level)]
+        return plurals[0] if len(plurals) == 1 else ", ".join(plurals[:-1]) + " y " + plurals[-1]
+
     def scope_items(self) -> list[tuple[str, str]]:
         return [("Periodo", self.period["label"]), ("Ámbito", self.module.label), ("Territorio", self.territory_label),
-                (self.module.items.capitalize(), self.programs_label)]
+                (self.module.items.capitalize(), self.programs_label), ("Nivel territorial", REPORT_LEVELS[self.report_level])]
 
     def products_notes(self) -> dict[str, str]:
-        item, territory_word = self.module.item, "parroquia" if self.has_parishes else "provincia"
+        item, word = self.module.item, self._report_word()
+        slides = 3 + len(report_levels(self.report_level)) + (1 if self.executed else 0) - 1
         return {
-            "resumen": f"Una página en PDF con las cifras clave, el mapa por {territory_word}, los resultados por {item} y los aspectos destacados.",
-            "presentacion": f"Tres diapositivas editables en PowerPoint: cifras clave, resultados por territorio y por {item}.",
-            "datos": f"Libro de Excel con resumen, resultados por {item}, provincias{', parroquias' if self.has_parishes else ''}, detalle con filtros y ficha técnica.",
+            "resumen": f"Dos páginas en PDF: cifras clave, mapa, resultados por {item} y aspectos destacados; detalle de {word}.",
+            "presentacion": f"{slides} diapositivas editables en PowerPoint: cifras clave, resultados de {word}"
+                            f"{', ejecución presupuestaria' if self.executed else ''} y resultados por {item}.",
+            "datos": f"Libro de Excel con resumen, resultados por {item}, {word}, detalle con filtros y ficha técnica.",
         }
 
     def sheets(self) -> list[str]:
-        sheets = ["Resumen", self.module.items.capitalize(), "Provincias"]
-        if self.has_parishes:
-            sheets.append("Parroquias")
+        sheets = ["Resumen", self.module.items.capitalize()]
+        sheets += [LEVEL_PLURALS[level] for level in report_levels(self.report_level)]
         return sheets + ["Detalle", "Ficha técnica"]
 
     def report_contents(self, kind: str) -> list[tuple[str, str, str]]:
         module, people = self.module, self.people
+        levels = report_levels(self.report_level)
         if kind == "datos":
             items = [("grid", "Resumen", "Cifras clave, mapa y aspectos destacados"),
-                     ("chart", module.items.capitalize(), f"{people.label}, participación, presupuesto y ejecución por {module.item}"),
-                     ("map", "Provincias", "Posición de cada provincia en el país")]
-            if self.has_parishes:
-                items.append(("pin", "Parroquias", "Cada parroquia con su cantón, cobertura y presupuesto ejecutado"))
-            return items + [("table", "Detalle", f"Cada {module.item} en cada provincia, con filtros y totales"),
+                     ("chart", module.items.capitalize(), f"{people.label}, participación, presupuesto y ejecución por {module.item}")]
+            for level in levels:
+                items.append((LEVEL_ICONS[level], LEVEL_PLURALS[level],
+                              f"Mapa y cada {LEVEL_LABELS[level].lower()} con su cobertura, presupuesto y ejecución"))
+            return items + [("table", "Detalle", f"Cada {module.item} en cada {LEVEL_LABELS[levels[-1]].lower()}, con filtros y totales"),
                             ("shield", "Ficha técnica", "Periodo, ámbito, territorio e indicadores")]
         if kind == "presentacion":
-            return [("grid", "Cifras clave", "Portada con los indicadores principales"),
-                    ("map", "Resultados por territorio", "Mapa y territorios con mayor cobertura"),
-                    ("chart", f"Resultados por {module.item}", "Gráfico editable y aspectos destacados")]
+            items = [("grid", "Cifras clave", "Portada con los indicadores principales")]
+            items += [(LEVEL_ICONS[level], f"Resultados por {LEVEL_LABELS[level].lower()}", "Mapa y territorios con mayor cobertura")
+                      for level in levels]
+            if self.executed:
+                items.append(("target", "Ejecución presupuestaria", f"Por {module.item} y por territorio"))
+            return items + [("chart", f"Resultados por {module.item}", "Gráfico editable y aspectos destacados")]
         return [("grid", "Cifras clave", "Indicadores principales del periodo"),
-                ("map", "Territorio", "Mapa y territorios con mayor cobertura"),
-                ("chart", f"Resultados por {module.item}", f"{people.label} por {module.item}"),
-                ("award", "Aspectos destacados", "Conclusiones para la toma de decisiones")]
+                ("map", "Territorio", f"Mapa y principales {self._report_word()}"),
+                ("chart", f"Resultados por {module.item}", f"{people.label} por {module.item} y aspectos destacados"),
+                ("layers", "Detalle territorial", "Alcance, ranking, ejecución y distribución por territorio")]
 
     def slide_titles(self) -> tuple[str, str]:
-        return "Resultados por territorio", f"Resultados por {self.module.item}"
+        level = report_levels(self.report_level)[0]
+        return f"Resultados por {LEVEL_LABELS[level].lower()}", f"Resultados por {self.module.item}"
 
     def preview_visual(self) -> str:
-        values = charts.province_values(self.national, "usuarios").set_index("provincia_codigo")["usuarios"].astype(float).to_dict()
-        values = {c: v for c, v in values.items() if c != geo.NO_POLYGON}
-        return _svg("provincia", values, {}, {}, (), tuple(sorted(self.selected)), False, 300)
+        level = report_levels(self.report_level)[-1] if self.has_parishes else "provincia"
+        svg, *_rest = self.map_svg(night=False, width=300, indicator=self.people, level=level)
+        return svg
 
     def digest(self) -> str:
-        return fingerprint(self.filtered, self.parish_filtered)
+        return fingerprint(self.filtered, self.parish_filtered, self.report_level)
 
     def report_context(self, title: str) -> dict:
         from src.reports import build_report_context
         return build_report_context(self.filtered, national=self.national, title=title, period_label=self.period["label"],
                                     territory_label=self.territory_label, programs_label=self.programs_label,
                                     selected_codes=self.selected, parishes=self.parish_filtered,
-                                    parishes_national=self.parish_national)
+                                    parishes_national=self.parish_national, level=self.report_level)

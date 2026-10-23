@@ -338,16 +338,17 @@ def svg_map(fills: dict[str, str], *, layer: str = "provincia", titles: dict[str
     ``fills`` maps feature codes of ``layer`` to colours and ``titles`` gives their native tooltips.
 
     * Provinces or zones: one shape per unit; ``selected`` units take the gold accent.
+    * Cantons, whole country: one shape per canton with its tooltip, under the province borders.
     * Parishes, whole country: the colours form a mosaic (parishes of one colour are drawn as one shape) under the
       province borders, which carry the tooltips in ``regions``; ``selected`` provinces are outlined in gold.
-    * Parishes with ``focus`` (province codes): the map zooms into those provinces, every parish keeps its own
-      tooltip, cantons are outlined, the rest of the country stays as context and a locator shows the place.
+    * Cantons or parishes with ``focus`` (province codes): the map zooms into those provinces, every unit keeps its
+      own tooltip, cantons are outlined, the rest of the country stays as context and a locator shows the place.
 
     Units are grouped by province and revealed west to east by CSS through the ``--d`` custom property.
     """
     selected, titles, regions = set(selected or ()), titles or {}, regions or {}
     provinces = features("provincia")
-    focus = {c for c in (focus or ()) if c in provinces} if layer == "parroquia" else set()
+    focus = {c for c in (focus or ()) if c in provinces} if layer in ("parroquia", "canton") else set()
     inset = not focus or (GALAPAGOS in focus and len(focus) > 1)
     if focus:
         x0, y0, x1, y1 = bounds("provincia", focus, inset=inset)
@@ -419,9 +420,13 @@ def svg_map(fills: dict[str, str], *, layer: str = "provincia", titles: dict[str
         if layer == "zona":
             outline = "".join(shape("provincia", c) for c in provinces)
             layers.append(f'<path class="ec-borders thin" d="{outline}" fill="none" stroke="{border_color}" stroke-opacity=".4"/>')
-        if focus:
+        elif layer == "canton" and not focus:
+            outline = "".join(shape("provincia", c) for c in provinces)
+            layers.append(f'<path class="ec-borders" d="{outline}" fill="none" stroke="{border_color}" stroke-opacity=".7"/>')
+        if focus and layer == "parroquia":
             cantons = "".join(shape("canton", c) for c, meta in features("canton").items() if meta.get("province") in focus)
             layers.append(f'<path class="ec-borders thin" d="{cantons}" fill="none" stroke="{border_color}" stroke-opacity=".65"/>')
+        if focus:
             outline = "".join(shape("provincia", c) for c in focus)
             layers.append(f'<path class="ec-focus" d="{outline}" fill="none" stroke="{selected_fill}"/>')
     under, over = [], []

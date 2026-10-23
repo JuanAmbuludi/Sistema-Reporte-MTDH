@@ -115,19 +115,92 @@ def _parish_block(parishes: pd.DataFrame | None, national: pd.DataFrame | None, 
                      "people": people, "share": _share(people, total),
                      "units": (None if pd.isna(row.unidades) else int(row.unidades)) if has_units else None,
                      "fiscal": None if pd.isna(row.presupuesto_ejecutado) else float(row.presupuesto_ejecutado)})
+    # The zone in study counts in totals, not among parishes (as on the dashboard).
     return {"values": values, "focus": sorted(focus), "rows": rows, "top": rows[:10],
-            "count": sum(1 for r in rows if (r["people"] or 0) > 0), "total": total}
+            "count": sum(1 for r in rows if (r["people"] or 0) > 0 and r["province_code"] != NO_POLYGON), "total": total}
+
+
+def _number_or_none(value, integer: bool = False):
+    if value is None or pd.isna(value):
+        return None
+    return int(round(float(value))) if integer else float(value)
+
+
+def _level_rows(table: pd.DataFrame, has_units: bool) -> list[dict]:
+    """Rows of a :func:`src.territory.level_table`, numbered in their order, with shares of their total."""
+    total = pd.to_numeric(table["usuarios"], errors="coerce").sum() if "usuarios" in table else 0
+    rows = []
+    for position, row in enumerate(table.itertuples(), start=1):
+        people = _number_or_none(row.usuarios, integer=True)
+        coded = _number_or_none(getattr(row, "presupuesto_codificado", None))
+        fiscal = _number_or_none(getattr(row, "presupuesto_ejecutado", None))
+        rows.append({"position": position, "code": str(row.codigo), "name": str(row.nombre), "label": str(row.etiqueta),
+                     "detail": str(row.detalle), "province": str(row.provincia), "province_code": str(row.provincia_codigo),
+                     "canton": str(getattr(row, "canton_nombre", "") or ""), "people": people, "share": _share(people, total),
+                     "units": _number_or_none(getattr(row, "unidades", None), integer=True) if has_units else None,
+                     "fiscal": fiscal, "coded": coded, "execution": fiscal / coded * 100 if fiscal is not None and coded else None})
+    return rows
+
+
+def _composition(source: pd.DataFrame, level: str, programs: list[dict], limit: int = 10) -> dict | None:
+    """Share of each program in the leading territories of a level (rows in ranking order)."""
+    from src import territory
+    if source is None or source.empty:
+        return None
+    table = territory.level_table(source, level, ["usuarios"])
+    table = table.loc[table.provincia_codigo.astype(str).ne(NO_POLYGON) & pd.to_numeric(table.usuarios, errors="coerce").gt(0)]
+    table = table.head(limit)
+    rows = territory.level_programs(source, level, "usuarios", table)
+    if rows.empty:
+        return None
+    rows = rows.assign(usuarios=pd.to_numeric(rows.usuarios, errors="coerce").astype(float))
+    pivot = rows.pivot_table(index="fila", columns="programa", values="usuarios", aggfunc="sum").reindex(list(table.etiqueta))
+    pivot = pivot.astype(float).fillna(0.0)
+    order = [p for p in programs if p["label"] in pivot.columns and (p["people"] or 0) > 0]
+    totals = pivot.sum(axis=1)
+    out = []
+    for label, record in pivot.iterrows():
+        whole = float(totals.get(label, 0.0))
+        out.append({"label": str(label), "people": int(round(whole)),
+                    "shares": [float(record.get(p["label"], 0.0)) / whole * 100 if whole else None for p in order]})
+    return {"programs": [p["short"] for p in order], "rows": out}
+
+
+def _territory_detail(parishes: pd.DataFrame, level: str, has_units: bool) -> list[dict]:
+    """Each program in each canton or parish of the selection, for the detail sheet of the workbook."""
+    from src import names
+    view = parishes.loc[parishes.provincia_codigo.astype(str).ne(NO_POLYGON)] if not parishes.empty else parishes
+    keys = ["programa_id", "programa", "provincia_codigo", "provincia", "canton_codigo", "canton"]
+    if level == "parroquia":
+        keys += ["parroquia_codigo", "parroquia"]
+    metrics = ["usuarios", "unidades", "presupuesto_ejecutado", "presupuesto_codificado"]
+    grouped = view.groupby(keys, as_index=False, observed=True)[[m for m in metrics if m in view]].sum(min_count=1)
+    grouped = grouped.assign(canton_nombre=grouped.canton.map(names.place))
+    if level == "parroquia":
+        grouped = grouped.assign(parroquia_nombre=grouped.parroquia.map(names.place))
+    grouped = grouped.sort_values(["programa", "provincia", "canton_nombre"] + (["parroquia_nombre"] if level == "parroquia" else []))
+    out = []
+    for row in grouped.itertuples():
+        coded, fiscal = _number_or_none(row.presupuesto_codificado), _number_or_none(row.presupuesto_ejecutado)
+        out.append({"program": str(row.programa), "province": str(row.provincia), "canton": row.canton_nombre,
+                    "parish": getattr(row, "parroquia_nombre", ""), "code": str(row.parroquia_codigo if level == "parroquia" else row.canton_codigo),
+                    "people": _number_or_none(row.usuarios, integer=True),
+                    "units": _number_or_none(getattr(row, "unidades", None), integer=True) if has_units else None,
+                    "fiscal": fiscal, "coded": coded, "execution": fiscal / coded * 100 if fiscal is not None and coded else None})
+    return out
 
 
 def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None = None, title: str | None = None,
                          period_label: str | None = None, territory_label: str | None = None,
                          programs_label: str | None = None, selected_codes=None, parishes: pd.DataFrame | None = None,
-                         parishes_national: pd.DataFrame | None = None) -> dict:
+                         parishes_national: pd.DataFrame | None = None, level: str = "todo") -> dict:
     """Serializable snapshot of the selection.
 
     ``national`` is the same period, module and programs for every province; it gives the selection its place
     in the country.  ``parishes`` (and ``parishes_national``) carry the parish detail of the same rows when the cut
-    has it.  Labels arrive from the interface so documents name things exactly as the screen does.
+    has it.  ``level`` is the territorial level the reader asked for (``provincia``, ``canton``, ``parroquia`` or
+    ``todo``); without parish detail the documents keep the provinces.  Labels arrive from the interface so
+    documents name things exactly as the screen does.
     """
     if frame.empty:
         raise ValueError("No hay información en la selección. Ajuste los filtros antes de generar el documento.")
@@ -260,11 +333,86 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
                                                      f"{number(budget_leader['fiscal'] / totals['fiscal'] * 100, 1)} % del {money['fiscal'].label.lower()}, "
                                                      f"con USD {millions(budget_leader['fiscal'])} millones."})
 
+    # Territorial levels of the documents: the one the reader chose, or the three ("todo").
+    from src import territory
+    has_detail = parishes is not None and not parishes.empty
+    levels = (list(territory.LEVELS) if level == "todo" else [level]) if has_detail else ["provincia"]
+    levels = [lvl for lvl in levels if lvl in territory.LEVELS] or ["provincia"]
+    focus = sorted(c for c in selected if c != NO_POLYGON)
+    map_source = parishes if focus else (parishes_national if parishes_national is not None and not parishes_national.empty else parishes)
+    keys = ["usuarios", "presupuesto_ejecutado", "presupuesto_codificado"] + (["unidades"] if has_units else [])
+    territories = {"provincia": provinces}
+    maps = {}
+    for lvl in levels:
+        if lvl == "provincia":
+            maps[lvl] = {"layer": "provincia", "focus": [],
+                         "values": {p["code"]: p["people"] for p in provinces if p["code"] != NO_POLYGON}}
+            continue
+        table = territory.level_table(parishes, lvl, [k for k in keys if k in parishes])
+        table = table.loc[table.provincia_codigo.astype(str).ne(NO_POLYGON)].sort_values("usuarios", ascending=False)
+        territories[lvl] = _level_rows(table.reset_index(drop=True), has_units)
+        values = (territory.canton_values(map_source, "usuarios") if lvl == "canton"
+                  else territory.polygon_values(map_source, "usuarios"))[0]
+        maps[lvl] = {"layer": lvl, "focus": focus, "values": values}
+    reach_levels = [lvl for lvl in levels if not (lvl == "provincia" and len(focus) == 1)] or levels
+    reach_frame = parishes if has_detail else frame
+    reach = territory.reach(reach_frame, "usuarios", reach_levels)
+    composition = {lvl: _composition(national if lvl == "provincia" else parishes, lvl, programs) for lvl in levels}
+    main = levels[-1]
+    if has_detail and main != "provincia":
+        detail_level, detail = main, _territory_detail(parishes, main, has_units)
+    else:
+        detail_level = "provincia"
+
+    # Territorial findings: where coverage concentrates at each level, and the leading canton.
+    whole = "de la selección" if selected else "del país"
+    level_findings = {}
+    for lvl in reach_levels:
+        item = reach.get(lvl) or {}
+        if item.get("count", 0) < 2 or not item.get("half"):
+            continue
+        masculine = territory.LEVEL_GENDER[lvl] == "m"
+        if item["half"] == 1:
+            ranked = [p for p in provinces if p["position"]] if lvl == "provincia" else territories.get(lvl, [])
+            first = ranked[0] if ranked else None
+            if first and first["people"] and totals["people"]:
+                name = first["name"]
+                if lvl == "parroquia" and first.get("canton") and first["canton"] not in name:
+                    name = f"{name} ({first['canton']})"
+                level_findings[lvl] = {"icon": "layers", "text": f"{name} concentra por sí {'solo' if masculine else 'sola'} el "
+                                                                 f"{number(first['people'] / totals['people'] * 100, 1)} % de los "
+                                                                 f"{people_lower} {whole}."}
+            continue
+        article = "los" if masculine else "las"
+        level_findings[lvl] = {"icon": "layers", "text": f"La mitad de los {people_lower} se concentra en {number(item['half'])} de {article} "
+                                                         f"{number(item['count'])} {territory.LEVEL_PLURALS[lvl].lower()} con cobertura."}
+    finest = next((level_findings[lvl] for lvl in reach_levels[::-1] if lvl in level_findings), None)
+    if finest:
+        insights.append(finest)
+    cantons = territories.get("canton") or []
+    canton_named = (reach.get("canton") or {}).get("half") == 1
+    if cantons and cantons[0]["people"] and totals["people"] and not canton_named:
+        first = cantons[0]
+        insights.append({"icon": "landmark", "text": f"{first['name']} es el cantón con más {people_lower}: {number(first['people'])}, el "
+                                                     f"{number(first['people'] / totals['people'] * 100, 1)} % {whole}."})
+
+    # Reach tiles, worded as on the dashboard: territories with coverage and how many gather half of it.
+    reach_tiles = []
+    icons = {"provincia": "map", "canton": "landmark", "parroquia": "pin"}
+    for lvl in reach_levels:
+        item = reach.get(lvl) or {}
+        if not item.get("count"):
+            continue
+        verb = "reúne" if item["half"] == 1 else "reúnen"
+        reach_tiles.append({"level": lvl, "icon": icons[lvl], "title": territory.LEVEL_PLURALS[lvl], "count": item["count"],
+                            "with_text": f"con {people_lower}", "half": item["half"],
+                            "half_text": f"{verb} la mitad de los {people_lower}"})
+
     if territory_label is None:
         names = [p["name"] for p in provinces if p["selected"]]
         territory_label = names[0] if len(names) == 1 else (f"{len(names)} provincias" if names else "Nacional")
     generated_at, generated_label = stamp()
-    map_values = parish["values"] if parish else {p["code"]: p["people"] for p in provinces}
+    map_values = maps[main]["values"]
     return {
         "kind": "territorial",
         "title": str(title or module.label)[:100],
@@ -275,8 +423,11 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         "executed_available": executed,
         "programs": programs, "provinces": provinces, "province_count": province_count, "detail": detail,
         "selected_codes": sorted(selected), "map_values": map_values,
-        "map_layer": "parroquia" if parish else "provincia", "map_focus": parish["focus"] if parish else [],
-        "parish": parish,
+        "map_layer": maps[main]["layer"], "map_focus": maps[main]["focus"], "parish": parish,
+        "level": level if has_detail else "provincia", "levels": levels, "territories": territories, "maps": maps,
+        "reach": reach, "reach_levels": reach_levels, "reach_tiles": reach_tiles, "level_findings": level_findings,
+        "composition": composition,
+        "detail_level": detail_level,
         "insights": insights, "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",
         "generated_at": generated_at, "generated_label": generated_label,
     }
