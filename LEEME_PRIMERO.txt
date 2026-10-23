@@ -1,4 +1,4 @@
-InfoReportes MTDH — PAQUETE LISTO PARA GITHUB
+InfoReport MTDH — PAQUETE LISTO PARA GITHUB
 
 1. Descomprime el paquete y abre la carpeta del proyecto.
 2. Sube TODO su contenido a tu repositorio privado de GitHub.

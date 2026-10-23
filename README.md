@@ -1,10 +1,12 @@
 # InfoReport · MTDH
 
-Sistema de indicadores estratégicos y reportes institucionales del Ministerio de Trabajo y Desarrollo Humano, construido en **Streamlit**. Reúne acceso con usuario y contraseña, un tablero con el mapa del Ecuador, consulta por **periodo (año y mes), ámbito, territorio y programa**, y un centro de reportes con tres productos generados con exactamente la misma selección: **resumen ejecutivo de una página (PDF), presentación de tres diapositivas (PowerPoint) y libro de datos (Excel)**.
+Sistema de indicadores estratégicos y reportes institucionales del Ministerio de Trabajo y Desarrollo Humano, construido en **Streamlit**. Reúne acceso con usuario y contraseña, un tablero con el mapa del Ecuador por **provincia, cantón y parroquia**, consulta por **periodo (año y mes), ámbito, territorio y programa**, y un centro de reportes que genera, con exactamente la misma selección, el **resumen ejecutivo (PDF), la presentación (PowerPoint) y el libro de datos (Excel)**.
+
+Ámbitos disponibles, siempre por separado: **transferencias monetarias**, **servicios de protección integral**, **gestión laboral** y **presupuesto institucional**.
 
 ## Descomprimir, subir y abrir
 
-El paquete está preparado para subir su contenido directamente a GitHub. Incluye los Parquet depurados, el logo, los iconos, las tipografías y una cuenta lista para ingresar. **No necesitas ejecutar scripts de configuración ni pegar Secrets para el primer despliegue.**
+El paquete está preparado para subir su contenido directamente a GitHub. Incluye los Parquet depurados, la cartografía, el logo, los iconos, las tipografías y una cuenta lista para ingresar. **No necesitas ejecutar scripts de configuración ni pegar Secrets para el primer despliegue.**
 
 | Acceso | Valor |
 | --- | --- |
@@ -16,7 +18,7 @@ El paquete está preparado para subir su contenido directamente a GitHub. Incluy
 3. En Streamlit Community Cloud, selecciona **Create app**, tu repositorio, la rama `main` y **`app.py`**. Elige **Python 3.12** en las opciones avanzadas y despliega.
 4. Ingresa con `admin` y `admin12345678`.
 
-Cada cambio que llega a la rama `main` se refleja en la aplicación publicada.
+Cada cambio que llega a la rama `main` se refleja en la aplicación publicada. La aplicación vuelve a cargar sus propios módulos cuando su código cambia, de modo que un despliegue nuevo no queda mezclado con la versión anterior; si la nube conservara una sesión antigua, **Reboot app** en Streamlit Cloud la reinicia.
 
 ## Inicio rápido en tu equipo
 
@@ -33,7 +35,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Ingresa con la cuenta indicada arriba. La base Parquet ya está incluida; puedes abrir el sistema sin reprocesar el Excel.
+Ingresa con la cuenta indicada arriba. Las bases Parquet ya están incluidas; puedes abrir el sistema sin reprocesar los Excel.
 
 En Windows también puedes ejecutar **INICIAR_WINDOWS.bat**. Instala las dependencias en un entorno propio y abre la aplicación con el acceso ya preparado.
 
@@ -49,112 +51,111 @@ La contraseña se guarda como hash PBKDF2-SHA256 con sal aleatoria y 600.000 ite
 
 ## Qué puedes hacer
 
-- **Tablero:** la franja institucional abre la consulta con el **año** y el **mes** del corte, el **ámbito** (transferencias monetarias o servicios de protección integral, nunca mezclados), las provincias y los programas. El mapa del Ecuador muestra el indicador territorial elegido (beneficiarios o usuarios, unidades de atención, presupuesto del año o presupuesto acumulado) y resalta en oro el territorio seleccionado. Siguen las cifras clave, con su peso en el total nacional cuando hay un filtro; los resultados por programa (personas y presupuesto); los resultados por provincia (posición de cada provincia y distribución por programa), y el cuadro de resultados con descarga en Excel.
-- **Centro de reportes:** eliges el producto y el título; una vista previa muestra la pieza antes de generarla. Cada documento conserva el periodo, el ámbito y el territorio seleccionados, y su nombre de archivo los identifica (por ejemplo, `MTDH_resumen_transferencias_2026-09.pdf`).
-- **Actualizar los datos:** ejecutar el proceso Excel → Parquet con validaciones de claves, programas, provincias, montos y conciliación de acumulados.
-- **Agregar ejecución presupuestaria:** incorporar un CSV complementario validado. El tablero muestra esa columna solo cuando la selección tiene ejecución registrada.
+- **Tablero.** La franja institucional abre la consulta con el **ámbito**, el **año** y el **mes** del corte, el territorio y los programas. Junto a ella, el mapa del Ecuador muestra el indicador elegido y cambia de nivel con el selector **Provincia · Cantón · Parroquia**; al elegir una provincia, el mapa se acerca a ella y un localizador indica su ubicación. Siguen las cifras clave, los resultados por programa (personas, ejecución y presupuesto), los resultados por territorio y el cuadro de resultados con descarga en Excel.
+- **Resultados por territorio.** El alcance territorial resume cuántas provincias, cantones y parroquias registran el indicador y cuántas reúnen la mitad. Cada gráfico de barras territorial (ranking, ejecución presupuestaria y distribución por programa) tiene su propio selector **Provincia · Cantón · Parroquia** en la parte superior.
+- **Centro de reportes.** Eliges el producto, el título y el **nivel territorial** de los archivos: **Provincia, Cantón, Parroquia o Todo**. Una vista previa muestra la pieza antes de generarla y su nombre de archivo identifica ámbito, periodo y nivel (por ejemplo, `MTDH_resumen_transferencias_2026-09_cantones.pdf`).
+
+### Ámbitos
+
+| Ámbito | Indicadores | Desagregación |
+| --- | --- | --- |
+| Transferencias monetarias | Beneficiarios, presupuesto ejecutado, codificado, ejecución presupuestaria y presupuesto acumulado 2023–2026 por bono o pensión | Provincia, cantón y parroquia (corte mensual); provincia (años de referencia) |
+| Servicios de protección integral | Usuarios, unidades de atención, presupuesto ejecutado, codificado, ejecución y acumulado por servicio | Provincia, cantón y parroquia (corte mensual); provincia (años de referencia) |
+| Gestión laboral | Contratos vigentes, contratos registrados cada mes que siguen vigentes, personas jubiladas compensadas y recursos para compensaciones jubilares | Nacional, con sus fuentes oficiales |
+| Presupuesto institucional | Codificado, devengado, ejecución y saldo por programa, zona de planificación, unidad ejecutora, grupo de gasto, fuente y tipo de gasto | Planta central y zonas de planificación |
 
 ### Periodos disponibles
 
-| Año | Mes | Etiqueta en pantalla y documentos |
+| Ámbito | Periodos | Etiqueta en pantalla y documentos |
 | --- | --- | --- |
-| 2026 | Septiembre | Corte septiembre 2026 |
-| 2025 | Corte anual | Año 2025 |
-| 2024 | Corte anual | Año 2024 |
+| Transferencias y servicios | Septiembre 2026; años 2025 y 2024 | Corte septiembre 2026 · Año 2025 · Año 2024 |
+| Presupuesto institucional | Septiembre 2026 | Corte septiembre 2026 |
+| Gestión laboral | Enero a septiembre de 2026 | Año 2026 |
 
-Cada periodo se consulta por separado: las cifras no se suman ni se comparan entre periodos. Cuando la base incorpore nuevos cortes mensuales, el selector de mes los mostrará automáticamente.
+Cada periodo se consulta por separado: las cifras no se suman ni se comparan entre periodos. Los años de referencia no tienen detalle parroquial; en ellos los selectores de nivel quedan en «Provincia». Cuando la base incorpore nuevos cortes mensuales, el selector de mes los mostrará automáticamente.
 
 ### Productos del centro de reportes
 
-| Producto | Contenido |
-| --- | --- |
-| **Resumen ejecutivo** (PDF, una página) | Placa institucional con el mapa, cuatro cifras clave con iconos, mapa y principales provincias, resultados por programa y tres aspectos destacados redactados para la toma de decisiones. |
-| **Presentación** (PowerPoint, tres diapositivas) | 1) Portada con las cifras clave; 2) resultados por provincia, con mapa, principales provincias y un hallazgo territorial; 3) resultados por programa, con gráfico nativo editable y aspectos destacados. Iconos, formas y textos son objetos de PowerPoint editables, con notas para quien expone. |
-| **Libro de datos** (Excel) | Cinco hojas: resumen, resultados por programa o servicio, provincias, detalle con filtros y totales que se recalculan, y ficha técnica. Las cifras son números reales con formato y el libro trae un tema de Office «MTDH Institucional». |
+| Producto | Transferencias y servicios | Presupuesto institucional | Gestión laboral |
+| --- | --- | --- | --- |
+| **Resumen ejecutivo** (PDF) | Dos páginas. 1) Cifras clave, mapa del nivel elegido, ejecución y resultados por programa, aspectos destacados. 2) Detalle territorial: alcance por nivel, tablas de provincias, cantones o parroquias con cobertura, presupuesto y ejecución, y distribución por programa | Dos páginas. 1) Cifras clave, mapa y ejecución por zona y por programa, aspectos destacados. 2) Composición del gasto y unidades ejecutoras | Una página: cifras clave, contratación mensual, contratos vigentes según su registro, fuentes y aspectos destacados |
+| **Presentación** (PowerPoint) | Portada con cifras clave; una diapositiva por nivel elegido (mapa, principales territorios y un hallazgo); ejecución presupuestaria; resultados por programa | Portada, ejecución por zona, ejecución por programa y composición del gasto | Portada, contratación laboral y compensaciones jubilares |
+| **Libro de datos** (Excel) | Resumen, programas, una hoja por nivel elegido (Provincias, Cantones, Parroquias), detalle por programa y territorio con filtros, ficha técnica | Resumen, programas, zonas y unidades, grupos de gasto, detalle y ficha técnica | Resumen, contratos por mes y ficha técnica con las fuentes |
 
-Las exportaciones se generan en memoria. No requieren Microsoft Office, LibreOffice, un navegador instalado ni servicios externos. Hay ejemplos en `examples/`.
+En la presentación, iconos, formas, textos y gráficos son objetos de PowerPoint editables, con notas para quien expone. En el libro de datos las cifras son números reales con formato, los totales son fórmulas que se recalculan con los filtros y el archivo trae un tema de Office «MTDH Institucional». Las exportaciones se generan en memoria; no requieren Microsoft Office, LibreOffice, un navegador instalado ni servicios externos. Hay ejemplos en `examples/`.
 
 ## Diseño e identidad visual
 
-- **Información estratégica, sin notas aclaratorias.** El tablero y los documentos usan títulos formales y descriptivos, sin preguntas, instrucciones de uso ni advertencias técnicas, y no repiten la misma cifra en varios gráficos.
-- **Un ámbito a la vez.** Transferencias monetarias y servicios de protección integral se consultan y exportan por separado; ningún gráfico ni total los combina.
+- **Información estratégica, sin notas aclaratorias.** El tablero y los documentos usan títulos formales y descriptivos, sin preguntas, instrucciones de uso ni advertencias técnicas, y no repiten el mismo gráfico: las portadas llevan la silueta del país con el territorio del reporte en oro, no una copia del mapa del cuerpo.
+- **Un ámbito a la vez.** Transferencias, servicios, gestión laboral y presupuesto institucional se consultan y exportan por separado; ningún gráfico ni total los combina.
+- **Tres niveles territoriales.** Provincia, cantón y parroquia se leen con el mismo selector en el mapa, en cada gráfico territorial y en los archivos. Los cantones y parroquias de una provincia elegida se muestran completos cuando caben en el gráfico; a escala nacional, los 25 primeros.
 - **Gráficos neutros.** Los gráficos reciben un indicador (nombre, unidad y formato) en lugar de una columna fija, así que sirven igual para beneficiarios, usuarios, unidades o presupuesto y para los indicadores que se agreguen después (ver «Agregar nuevos indicadores»).
 - **Paleta institucional en un solo lugar.** `src/theme.py` reúne el morado del logo y del boletín, la lavanda y la niebla de sus superficies, el oro del escudo y una rampa morada generada en OKLCH. La aplicación, los gráficos y los tres productos leen esos valores; el tema de Streamlit vive en `.streamlit/config.toml`. Procedencia de cada color: [assets/brand/PROCEDENCIA.md](assets/brand/PROCEDENCIA.md).
 - **Tipografías e iconos.** Montserrat para títulos y cifras y Public Sans para el texto, servidas por la propia aplicación desde `static/fonts`. Excel y PowerPoint usan Century Gothic y Calibri, instaladas con Microsoft Office. Los iconos (Lucide, licencia ISC) están en `assets/icons/png` en blanco, morado y oro.
-- **Mapas.** Se dibujan con la cartografía del INEC 2015 (parroquias, cantones, provincias y zonas de planificación) incluida en el proyecto, sin teselas ni servicios externos, con Galápagos en recuadro y la línea ecuatorial. Detalles: [assets/geo/PROCEDENCIA.md](assets/geo/PROCEDENCIA.md).
+- **Mapas.** Se dibujan con la cartografía del INEC 2015 (1.040 parroquias, 224 cantones, 24 provincias y las zonas de planificación) incluida en el proyecto, sin teselas ni servicios externos, con Galápagos en recuadro y la línea ecuatorial. Detalles y licencia: [assets/geo/PROCEDENCIA.md](assets/geo/PROCEDENCIA.md).
 - **Sin secciones desplegables.** Todo el contenido está a la vista; las opciones se eligen con controles segmentados.
-- **Teléfonos.** En el teléfono las cifras clave pasan a dos columnas, los gráficos se compactan, la matriz territorial y las tablas se deslizan de lado y la primera columna de las tablas queda fija.
-- **Movimiento con intención.** Una sola secuencia de entrada: las provincias del mapa se encienden de oeste a este y las cifras clave cuentan hasta su valor. Si el sistema pide reducir el movimiento, la aplicación lo respeta.
+- **Teléfonos.** En el teléfono las cifras clave pasan a dos columnas, los selectores ocupan el ancho completo sobre su gráfico, la serie mensual usa una versión con cifras más grandes, la matriz territorial y las tablas se deslizan de lado y la primera columna de las tablas queda fija.
+- **Movimiento con intención.** Una sola secuencia de entrada: el mapa se enciende de oeste a este y las cifras clave cuentan hasta su valor. Si el sistema pide reducir el movimiento, la aplicación lo respeta.
 - **Cifras en formato ecuatoriano.** Pantalla, gráficos y tablas muestran `1.234.567,89` sin importar el idioma del navegador; las tablas siguen ordenándose por el valor numérico. En los archivos de Office las cifras son números reales y se presentan según la configuración regional del equipo.
 
 ## Agregar nuevos indicadores
 
-Los ámbitos y sus indicadores se declaran en `src/indicators.py`. Cada `Module` define su nombre, la sección de datos que lee, el nombre de sus personas (beneficiarios, usuarios) y sus indicadores adicionales. El tablero, el mapa, los rankings, el cuadro de resultados y los tres productos leen esa declaración, de modo que un nuevo ámbito (por ejemplo, indicadores de contingencia o laborales) se integra al agregar sus filas a la base con la misma estructura de periodo, categoría y provincia, y declarar su `Module`. Si los nuevos datos tienen otra estructura, conviene ajustar primero el proceso de `src/etl.py`.
+Los ámbitos y sus indicadores se declaran en `src/indicators.py` (`MODULES` para los ámbitos territoriales y `AREAS` para el selector). Cada `Module` define su nombre, la sección de datos que lee, el nombre de sus personas (beneficiarios, usuarios) y sus indicadores adicionales. El tablero, el mapa, los rankings por nivel, el cuadro de resultados y los tres productos leen esa declaración, de modo que un nuevo ámbito territorial (por ejemplo, indicadores de contingencia) se integra al agregar sus filas a la base con la misma estructura de periodo, categoría y territorio, y declarar su `Module`. Si los nuevos datos tienen otra estructura, conviene ajustar primero el proceso de `src/etl_actualizacion.py`.
 
-## Actualizar la base Parquet
+## Actualizar los datos
 
-El Excel agregado original está en `data/source/Acumulado_VIS_VIE.xlsx`. Para reproducir la base incluida:
-
-```bash
-python scripts/build_data.py data/source/Acumulado_VIS_VIE.xlsx --period 2026-09 --period-source "Boletín de septiembre 2026; conciliación con los totales del Excel"
-```
-
-Para otro corte, sustituye el archivo y el mes por el corte real. El mes es obligatorio porque no está identificado dentro del Excel. El proceso conserva la procedencia de cada fila, una huella SHA-256 del insumo, un manifiesto de calidad y un esquema Arrow tipado. Los montos se almacenan con precisión decimal en Parquet.
-
-La actualización reemplaza el corte vigente. Las hojas históricas del insumo se mantienen como referencias separadas; el sistema no fabrica una serie mensual ni acumula conteos entre meses. Revisa los controles y vuelve a subir `data/processed/` al repositorio para que Streamlit use la nueva base.
-
-Para incorporar presupuesto ejecutado:
+Desde la raíz del repositorio:
 
 ```bash
-python scripts/build_data.py data/source/Acumulado_VIS_VIE.xlsx --period 2026-09 --period-source "Corte institucional validado" --ejecucion ruta/ejecucion_validada.csv
+python -m pip install -r requirements.txt
+python scripts/build_data.py --config config/actualizacion_datos.json
 ```
 
-La plantilla está en `data/templates/ejecucion_presupuestaria.csv`. Las claves deben corresponder a período, programa y provincia ya existentes. Si solo se completa parte de la selección, el sistema no presenta la suma parcial como ejecución total.
+El mismo comando genera la cobertura y el presupuesto territoriales, los indicadores provinciales, las referencias históricas y el presupuesto institucional; con `--incluir-laboral` agrega la consulta de las fuentes laborales oficiales. Las decisiones, conciliaciones y archivos generados están en [docs/ACTUALIZACION_DATOS.md](docs/ACTUALIZACION_DATOS.md) y la base laboral en [docs/GESTION_LABORAL.md](docs/GESTION_LABORAL.md). Después vuelve a subir `data/processed/` al repositorio para que Streamlit use la nueva base.
+
+Si cambia la división político-administrativa de las bases (por ejemplo, un cantón nuevo), la cartografía se regenera con `python scripts/build_geo.py <archivo TopoJSON>`, como se describe en [assets/geo/PROCEDENCIA.md](assets/geo/PROCEDENCIA.md).
 
 ## Cómo interpretar las cifras
 
-El insumo contiene **296 agregados provinciales**, no una base nominal de personas. En septiembre de 2026 reporta **1.578.019 beneficiarios de bonos y pensiones**, **456.239 usuarios de servicios** y **11.158 unidades de atención**. Esos conteos no permiten calcular personas únicas entre programas, provincias o períodos. Tampoco identifican físicamente las unidades para deduplicarlas.
+- **Cobertura.** Beneficiarios, usuarios y unidades de atención son conteos reportados por programa y territorio; no identifican personas únicas entre programas, territorios o periodos. En septiembre de 2026 suman 1.578.019 beneficiarios de bonos y pensiones, 456.356 usuarios de servicios y 11.215 unidades de atención.
+- **Presupuesto ejecutado y ejecución.** El presupuesto ejecutado es el devengado al corte; la ejecución presupuestaria es devengado sobre codificado, calculada con la suma de cada selección (nunca como promedio de porcentajes).
+- **Presupuesto acumulado.** Suma el presupuesto de 2023 a 2025 y el del año del corte; existe por provincia, no por cantón ni parroquia.
+- **Parroquias.** Las parroquias urbanas que la cartografía 2015 dibuja dentro de su cabecera cantonal se muestran con su nombre en tablas y rankings, y en el mapa dentro de esa cabecera. La zona en estudio (código 90) se incluye en los totales, no entre provincias, cantones o parroquias.
+- **Gestión laboral.** Los contratos registrados cada mes son los que siguen vigentes a la fecha de consulta, no el total de contratos firmados en ese mes. Las compensaciones jubilares se publican como «más de USD 229 millones» y así se presentan.
+- **Presupuesto institucional.** Es un universo propio del Ministerio: no se suma a los presupuestos de transferencias y servicios.
 
-- **Monto fiscal:** valor de la columna `Presupuesto 2026`. El archivo no certifica si corresponde a devengado, pagado, codificado u otra fase presupuestaria; por eso no se redefine como ejecución ni como monto mensual transferido.
-- **Monto de gobierno:** acumulado anterior más monto fiscal; sus componentes no se suman nuevamente al total.
-- **Ejecución presupuestaria:** no forma parte de esta base; la aplicación la muestra solo si se incorpora un insumo complementario validado.
-- **Pensión PAM y Pensión PCD:** tienen cero beneficiarios actuales, pero saldos históricos; se conservan para conciliar todos los montos.
-- **Periodos 2024 y 2025:** provienen de las hojas de referencia anual del Excel, sin mes de corte. Se consultan como «Año 2024» y «Año 2025», cada uno por separado y sin tasas interanuales.
-- **Referencia cantonal:** la hoja `calculos dic` contiene prorrateos con período desconocido y campos incompletos. Se conserva en `data/processed/` para trazabilidad, pero no se muestra en el tablero ni en los reportes.
-
-Las otras dos secciones del boletín original no están respaldadas por este Excel. Esta versión implementa los dos ámbitos solicitados; no incorpora contratos, contingencias u otros indicadores sin fuente.
-
-Consulta [docs/DATOS.md](docs/DATOS.md) para el diccionario, reglas y controles completos. El boletín original se conserva en `docs/reference/` como referencia de conciliación y marca, y su logo institucional se utiliza sin recrearlo. La propuesta visual toma sus colores y marca; no sustituye la aprobación de Comunicación.
+El boletín original se conserva en `docs/reference/` como referencia de conciliación y marca, y su logo institucional se utiliza sin recrearlo. La propuesta visual toma sus colores y marca; no sustituye la aprobación de Comunicación.
 
 ## Estructura modular
 
 ```text
 app.py                     Punto de entrada: franja institucional, tablero y centro de reportes
-src/indicators.py          Ámbitos (transferencias, servicios) e indicadores neutrales por periodo
+src/indicators.py          Ámbitos e indicadores neutrales por periodo
+src/views/                 Una vista por tipo de ámbito: territorial, presupuesto y gestión laboral
+src/territory.py           Provincias, cantones y parroquias: tablas, rankings, alcance y valores de mapa
+src/geo.py                 Cartografía: polígonos por nivel, recuadro de Galápagos, zonas y mapa SVG
+src/names.py               Nombres oficiales con tildes de territorios, programas y partidas
 src/theme.py               Paleta, rampas, tipografías y vocabulario institucional
-src/geo.py                 Provincias del Ecuador: polígonos, recuadro de Galápagos y mapa SVG
 src/ui.py                  Componentes visuales, iconos y tablas con cifras en formato ecuatoriano
 src/charts.py              Gráficos del tablero (Plotly), comunes a todos los indicadores
-src/data.py                Lectura de periodos, filtros y agregación compartida
-src/auth.py                Acceso, sesión y salida
-src/security.py            Hashes y control de intentos
-src/etl.py                 Depuración y esquema Parquet
-src/reports/context.py     Contexto común de los tres productos (cifras, hallazgos y etiquetas)
-src/reports/pdf.py         Resumen ejecutivo de una página
-src/reports/pptx.py        Presentación de tres diapositivas
-src/reports/excel.py       Libro de datos y cuadro de resultados en Excel
-src/reports/charts.py      Mapas de los documentos (matplotlib)
-.streamlit/config.toml     Tema institucional de Streamlit y tipografías web
-static/fonts/              Montserrat y Public Sans para la interfaz (SIL OFL)
-assets/                    Estilos, logo, escudo, iconos, tipografías de los documentos y límites provinciales
-config/access.toml         Cuenta inicial incluida, con contraseña en hash
-scripts/build_data.py      Actualización del insumo
-scripts/configure_auth.py  Configuración opcional de cuentas
-data/processed/            Base vigente, periodos anuales y manifiesto
-data/source/               Excel original agregado
-data/templates/            Insumos complementarios
+src/data.py                Lectura de periodos y del detalle territorial, filtros y agregación
+src/institutional.py       Presupuesto institucional por programa, zona, unidad, grupo y fuente
+src/gestion_laboral.py     Indicadores de gestión laboral
+src/auth.py, security.py   Acceso, sesión, hashes y control de intentos
+src/etl*.py, laboral*.py   Depuración de las bases y extracción de las fuentes laborales
+src/reports/context.py     Contexto de transferencias y servicios (cifras, niveles y hallazgos)
+src/reports/national.py    Contexto del presupuesto institucional y de gestión laboral
+src/reports/pdf.py         Resumen ejecutivo
+src/reports/pptx.py        Presentación
+src/reports/excel.py       Libro de datos y cuadros del tablero en Excel
+src/reports/charts.py      Mapas, siluetas y series de los documentos (matplotlib)
+assets/geo/                Cartografía del Ecuador y su procedencia
+scripts/build_data.py      Actualización de las bases
+scripts/build_geo.py       Generación de la cartografía
+config/                    Cuenta inicial, configuración de la actualización y fuentes laborales
+data/processed/            Bases vigentes, periodos anuales y manifiestos
 tests/                     Validación de datos, seguridad, interfaz, mapas y documentos
-examples/                  Ejemplos de los tres productos
+examples/                  Ejemplos de los productos
 ```
 
 ## Comprobar la instalación
@@ -175,4 +176,4 @@ python -m pytest tests -q
 - [XlsxWriter](https://xlsxwriter.readthedocs.io/) y [python-pptx](https://python-pptx.readthedocs.io/)
 - [Lucide](https://lucide.dev/) (iconos, licencia ISC)
 
-Los datos pertenecen al insumo aportado por el usuario. La identidad institucional y sus marcas pertenecen a sus titulares.
+Los datos pertenecen a las bases aportadas por el usuario y a las fuentes oficiales citadas. La identidad institucional y sus marcas pertenecen a sus titulares.

@@ -54,7 +54,7 @@ Juan confirmó expresamente **septiembre de 2026** como corte. El archivo no con
 
 Hay **11 repeticiones exactas adicionales**, que suman USD 45.570 de codificado y cero devengado. Se preservan con `fila_identica_previa = true`: faltan identificadores de partidas para decidir si deben eliminarse. Los totales reproducen el archivo completo y quedan pendientes de esa confirmación. No se han presentado como totales depurados de duplicados.
 
-El bloque del dashboard dice explícitamente «Total nacional», muestra devengado, codificado, certificado y porcentaje, un gráfico y una descarga CSV por programa presupuestario. No obedece a los filtros de provincia o ámbito de VIS/VIE y se oculta al seleccionar las referencias anuales. Los reportes PDF/PPTX/Excel por ámbito siguen exportando exclusivamente su selección VIS/VIE.
+En InfoReport esta base es el ámbito **Presupuesto institucional**, consultado aparte de transferencias y servicios: codificado, devengado, ejecución y saldo por programa, zona de planificación, unidad ejecutora, grupo de gasto, fuente y tipo de gasto, con filtros propios de zona y programa. Sus reportes (resumen de dos páginas, cuatro diapositivas y libro de datos) exportan solo esa selección; los de transferencias y servicios exportan exclusivamente su selección VIS/VIE.
 
 ## Cobertura de las tablas del boletín
 

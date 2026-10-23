@@ -56,18 +56,25 @@ def parish_table(frame: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     Records of a cantonal seat and of the urban parish that shares its name (``MACHALA`` 070102 and 070150) read as
     one place, so they are added together; their codes stay listed in ``parroquia_codigo``.
     """
-    view = frame.assign(parroquia_nombre=frame.parroquia.map(names.place), canton_nombre=frame.canton.map(names.place))
+    view = frame.assign(parroquia_nombre=_places(frame.parroquia), canton_nombre=_places(frame.canton))
     columns = ["provincia_codigo", "provincia", "canton_codigo", "canton_nombre", "parroquia_nombre"]
-    grouped = view.groupby(columns, as_index=False, observed=True).agg(
-        **{key: (key, lambda s: s.sum(min_count=1)) for key in keys},
-        parroquia_codigo=("parroquia_codigo", lambda s: ", ".join(sorted(set(map(str, s))))))
-    return grouped.sort_values(keys[0], ascending=False, na_position="last").reset_index(drop=True)
+    groups = view.groupby(columns, observed=True, sort=False)
+    grouped = groups[keys].sum(min_count=1)
+    grouped["parroquia_codigo"] = groups["parroquia_codigo"].agg(lambda s: ", ".join(sorted(set(map(str, s)))))
+    grouped = grouped.reset_index()
+    return grouped.sort_values(keys[0], ascending=False, na_position="last", kind="stable").reset_index(drop=True)
+
+
+def _places(values: pd.Series) -> pd.Series:
+    """Readable names of a column, computed once per distinct value."""
+    mapping = {value: names.place(value) for value in values.unique()}
+    return values.map(mapping)
 
 
 def canton_table(frame: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     columns = ["provincia_codigo", "provincia", "canton_codigo", "canton"]
     grouped = frame.groupby(columns, as_index=False, observed=True)[keys].sum(min_count=1)
-    grouped["canton_nombre"] = grouped.canton.map(names.place)
+    grouped["canton_nombre"] = _places(grouped.canton)
     return grouped.sort_values(keys[0], ascending=False, na_position="last").reset_index(drop=True)
 
 
@@ -139,7 +146,8 @@ def level_table(frame: pd.DataFrame, level: str, keys: list[str]) -> pd.DataFram
     if level == "parroquia":
         table = parish_table(frame, keys)
         table["codigo"], table["nombre"] = table.parroquia_codigo, table.parroquia_nombre
-        labels = [parish_label(row) for _index, row in table.iterrows()]
+        labels = [parish_label({"parroquia_nombre": parish, "canton_nombre": canton})
+                  for parish, canton in zip(table.parroquia_nombre, table.canton_nombre)]
         table["detalle"] = [f"{label}, {province}" for label, province in zip(labels, table.provincia)]
     elif level == "canton":
         table = canton_table(frame, keys)

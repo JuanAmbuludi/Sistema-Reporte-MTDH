@@ -164,12 +164,10 @@ class TerritorialView:
         by_key = {indicator.key: indicator for indicator in indicators}
         if st.session_state.get("map_indicator") not in by_key:
             st.session_state["map_indicator"] = indicators[0].key
-        measure, level = st.columns([1.35, 1], gap="small")
-        with measure:
-            key = st.segmented_control("Indicador territorial", list(by_key), format_func=lambda k: by_key[k].compact,
-                                       key="map_indicator", required=True, width="stretch")
-        with level:
-            self.map_level = self.level_control("map_level", default="parroquia", show_label=True)
+        # Indicator and level stacked at full width: three indicators (services, annual references) need the room.
+        key = st.segmented_control("Indicador territorial", list(by_key), format_func=lambda k: by_key[k].compact,
+                                   key="map_indicator", required=True, width="stretch")
+        self.map_level = self.level_control("map_level", default="parroquia", show_label=True)
         self.indicator = by_key[key]
         svg, label, selected_key, equator = self.map_svg(night=True)
         ui.hero_map(svg, label, selected=selected_key, equator=equator)
