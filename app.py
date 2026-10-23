@@ -128,7 +128,8 @@ with st.container(key="band"):
                 st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=clear_filters,
                           type="tertiary", key="reset_filters")
 
-    indicators = module.indicators(period["year"])
+    executed_available = scoped["presupuesto_ejecutado"].notna().all()
+    indicators = module.indicators(period["year"], executed=executed_available)
     by_key = {indicator.key: indicator for indicator in indicators}
     if st.session_state.get("map_indicator") not in by_key:
         st.session_state["map_indicator"] = indicators[0].key
@@ -148,7 +149,7 @@ if filtered.empty:
 national = filter_data(scoped, programas=selected_programs or None)
 stats, national_stats, scope_stats = summarize(filtered), summarize(national), summarize(scoped)
 selected_codes = set(selected_provinces)
-money = module.money(period["year"])
+money = module.money(period["year"], executed=executed_available)
 people = module.people_indicator()
 selection_hash = hashlib.sha256(pd.util.hash_pandas_object(filtered, index=True).values.tobytes()).hexdigest()[:10]
 
@@ -241,8 +242,11 @@ def display_table(frame: pd.DataFrame, key: str, height: int | str = "auto") -> 
         money["previous"].key: (f"{money['previous'].compact} (USD)", "money"),
         money["government"].key: (f"{money['government'].compact} (USD)", "money"),
     })
-    if frame["presupuesto_ejecutado"].notna().any():
+    if frame["presupuesto_ejecutado"].notna().any() and not executed_available:
         columns["presupuesto_ejecutado"] = ("Presupuesto ejecutado (USD)", "money")
+    if frame.get("presupuesto_codificado", pd.Series(dtype=float)).notna().any():
+        columns["presupuesto_codificado"] = ("Presupuesto codificado (USD)", "money")
+        columns["porcentaje_ejecucion"] = ("Ejecución (%)", "pct")
     ui.data_table(frame, columns, height=height, key=key, bar="participacion")
 
 
@@ -251,13 +255,15 @@ def table_workbook(detail: pd.DataFrame, module_id: str, year: int, subtitle: st
     """The results table as an institutional Excel sheet; it opens well whatever the regional settings."""
     from src.reports import table_xlsx
     mod = MODULES[module_id]
-    cash = mod.money(year)
+    cash = mod.money(year, executed=detail["presupuesto_ejecutado"].notna().all())
     layout = [("Provincia", "provincia", "text", 26.0), (mod.item.capitalize(), "programa", "text", 36.0),
               (mod.people, "usuarios", "int", 14.0), ("Participación", "participacion", "pct", 12.0)]
     layout += [(extra.label, extra.key, "int", 13.0) for extra in mod.extra]
     layout += [(f"{cash['fiscal'].label} (USD)", cash["fiscal"].key, "usd", 19.0),
                (f"{cash['previous'].label} (USD)", cash["previous"].key, "usd", 21.0),
                (f"{cash['government'].label} (USD)", cash["government"].key, "usd", 21.0)]
+    if detail.get("presupuesto_codificado", pd.Series(dtype=float)).notna().any():
+        layout += [("Presupuesto codificado (USD)", "presupuesto_codificado", "usd", 21.0)]
     layout = [item for item in layout if item[1] in detail]
     records = []
     for item in detail.to_dict("records"):
@@ -269,6 +275,10 @@ def table_workbook(detail: pd.DataFrame, module_id: str, year: int, subtitle: st
 
 
 def dashboard() -> None:
+    if stats["porcentaje_ejecucion"] is not None:
+        ui.info_note(f"El devengado representa el {ui.number(stats['porcentaje_ejecucion'], 2)} % del presupuesto codificado "
+                     f"de USD {ui.number(stats['presupuesto_codificado'] / 1e6, 2)} millones para esta selección.",
+                     "Ejecución fiscal al corte")
     ui.section_heading(f"Resultados por {module.item}", context_label, "chart")
     if module.extra:
         left, right = st.columns(2, gap="medium")
@@ -323,6 +333,8 @@ def dashboard() -> None:
                            file_name=f"MTDH_cuadro_{module.id}_{period_id}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", icon=":material/table_view:",
                            key="detail_xlsx", type="primary")
+    from src.institutional import show_institutional
+    show_institutional(period_id)
 
 
 # ---------------------------------------------------------------------------

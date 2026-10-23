@@ -1,6 +1,8 @@
-# Datos y reglas de cálculo
+# Datos y reglas de cálculo — referencia del formato original
 
-La aplicación utiliza la hoja **provincial** de `Acumulado VIS-VIE.xlsx`. El archivo es un consolidado agregado: contiene una fila por programa y provincia, sin cédulas ni identificadores de unidades. El corte **septiembre de 2026** se toma del boletín PDF adjunto y sus cifras nacionales concilian con la hoja vigente. El Excel por sí solo no informa el mes.
+**Actualización vigente:** consulte [ACTUALIZACION_DATOS.md](ACTUALIZACION_DATOS.md). Las nuevas fuentes ya aportan cobertura revisada y devengado/codificado. El procedimiento recomendado es `python scripts/build_data.py --config config/actualizacion_datos.json`. El contenido siguiente documenta el formato anterior y la ruta de importación heredada; sus cifras y ausencia de ejecución no describen la versión actual.
+
+La versión original utiliza la hoja **provincial** de `Acumulado VIS-VIE.xlsx`. El archivo es un consolidado agregado: contiene una fila por programa y provincia, sin cédulas ni identificadores de unidades. El corte **septiembre de 2026** se toma del boletín PDF adjunto y sus cifras nacionales concilian con la hoja vigente. El Excel por sí solo no informa el mes.
 
 ## Estructura que consume la aplicación
 

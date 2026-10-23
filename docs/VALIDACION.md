@@ -1,26 +1,41 @@
-# Validación de la entrega
+# Validación de la actualización de datos
 
-Versión revisada el 22 de octubre de 2026 con Python 3.12 y Streamlit 1.66.1.
+Actualización revisada el 22 de octubre de 2026 (Ecuador). Véase [ACTUALIZACION_DATOS.md](ACTUALIZACION_DATOS.md) para decisiones, comparación y límites de las fuentes.
 
-## Fuente y cifras
+## Datos y compatibilidad
 
-Se procesó el Excel original incluido en `data/source/`. Los 296 agregados vigentes se conciliaron por provincia y programa. Los controles verifican 1.578.019 beneficiarios reportados de bonos y pensiones, 456.239 usuarios de servicios y 11.158 unidades en septiembre de 2026. Se conservaron los saldos históricos de las dos pensiones con cobertura actual cero.
+Se mantienen `indicadores.parquet`, los 296 agregados por programa/provincia y las 17 columnas originales. La cobertura nueva suma 1.578.019 beneficiarios de bonos, 456.356 usuarios de servicios y 11.215 unidades. Los usuarios de cobertura y presupuesto concilian por programa/parroquia. El codificado VIS se distribuye sin sumar el total distrital repetido.
 
-Las hojas de referencia anual se consultan como periodos propios: «Año 2025» (1.557.996 beneficiarios y 443.903 usuarios) y «Año 2024» (1.428.909 beneficiarios y 453.391 usuarios). Cada periodo se lee por separado; la aplicación rechaza cualquier suma o comparación entre periodos.
+Los acumulados anteriores coinciden exactamente, fila por fila, con el Excel original. `historico_referencia.parquet` se conserva idéntico. La base financiera nacional se procesa por separado, con 5.206 filas y 11 repeticiones marcadas y conservadas. Su corte de septiembre de 2026 fue confirmado por el responsable; no se dedujo del encabezado antiguo de programación.
 
-La reorganización no cambia datos ni reglas: la base Parquet, el manifiesto y los cálculos son los mismos; cambian la presentación, las etiquetas y los productos de salida.
+## Comprobaciones ejecutadas
 
-## Aplicación y documentos
+**66 pruebas aprobadas**, sin omisiones, más 30 subpruebas. Incluyen:
 
-- **Pruebas automáticas:** 46 aprobadas y 1 omitida a propósito (la que reprocesa el Excel original solo corre si se define `MTDH_SOURCE_EXCEL`). Cubren depuración, claves, filtros, acumulados, nulos, periodos, autenticación, la interfaz sin secciones desplegables, la separación de transferencias y servicios, la selección por año, los filtros que alcanzan a cada indicador, la redacción formal sin notas técnicas, los mapas y el contenido de los tres productos.
-- **Navegador real (Chromium):** inicio de sesión; tablero nacional, por provincia, por ámbito y por año; centro de reportes y descarga efectiva del resumen ejecutivo, la presentación, el libro de datos y el cuadro de resultados para septiembre de 2026 (transferencias) y el año 2024 (servicios), sin errores de página. Los nombres de archivo identifican ámbito y periodo.
-- **Pantallas:** escritorio de 1.440 px y teléfono de 390 px con agente de iPhone, sin desbordamiento horizontal del documento.
-- **Documentos:** resumen ejecutivo de una página, presentación de tres diapositivas con gráfico nativo editable e iconos, y libro de datos de cinco hojas. Se abrieron con LibreOffice y se inspeccionaron página por página, nacionales y con provincia seleccionada.
+- Reconstrucción del Excel anterior y del conjunto actualizado, manteniendo importes decimales.
+- Conciliación de cobertura y presupuesto, códigos territoriales, distribución distrital, ausencia de multiplicación por modalidad, nulos y porcentajes calculados desde los totales.
+- Conservación de nombres, claves y acumulados históricos; reproducción de los Parquet a partir de las fuentes entregadas.
+- Reproducción de la base laboral con la evidencia guardada en la misma ejecución, sin cambiar la fecha de consulta.
+- Rechazo de cobertura repetida, parroquias presupuestarias faltantes, fechas incoherentes y distribución inválida; ante fallo se conservan los archivos previamente entregados.
+- Filtros, periodos, autenticación, separación de ámbitos y ocultamiento del bloque financiero al seleccionar referencias anuales.
+- Exportación de PDF de una página, PPTX de tres diapositivas y Excel con valores numéricos, fórmulas y ficha técnica; las etiquetas actuales muestran presupuesto ejecutado.
 
-Los tests que contienen cifras esperadas corresponden al insumo de septiembre de 2026 y a sus hojas de referencia. Al sustituir ese corte por datos nuevos, actualiza esas referencias de regresión con cifras previamente conciliadas.
+Comando utilizado:
 
-## Publicación
+```bash
+MTDH_SOURCE_EXCEL=data/source/Acumulado_VIS_VIE.xlsx python -m pytest -q
+```
 
-La aplicación queda lista para desplegar desde `app.py`, con dependencias, datos, iconos, tipografías y cuenta inicial incluidos. El acceso `admin` / `admin12345678` se lee de `config/access.toml`, que contiene el hash de la contraseña. No requiere ejecutar el asistente ni configurar Secrets para el primer despliegue. Una sección `[auth]` configurada posteriormente en Secrets sustituye por completo ese acceso inicial.
+En Windows puede definir esa variable de entorno previamente o ejecutar `python -m pytest -q`; en este último caso se omite únicamente la prueba heredada opcional del Excel original. Las pruebas de actualización sí reconstruyen los nuevos insumos.
 
-El repositorio no incluye el archivo privado `.streamlit/secrets.toml` ni la cuenta personal del usuario; `.gitignore` lo excluye. El tema institucional (`.streamlit/config.toml`) y las tipografías web (`static/fonts`) sí forman parte del repositorio, porque Streamlit los necesita al desplegar.
+Se comprobó la aplicación en Chromium: acceso con una cuenta temporal de pruebas, visualización financiera, cambio a servicios y descarga efectiva del CSV financiero. Cero excepciones de la aplicación. La vista de teléfono de 390 px no tiene desbordamiento horizontal del documento. Se revisaron visualmente el bloque financiero y los PDF nacionales de ambos ámbitos; los importes, unidades y textos se muestran sin solapamientos.
+
+Los avisos de openpyxl corresponden a extensiones de formato de Excel no soportadas durante la lectura. Los Excel de origen se copiaron sin modificarlos. No se usan macros ni se evalúan vínculos externos.
+
+## Límites de la validación
+
+Los conteos son agregados reportados, no personas o unidades deduplicadas. Las fuentes actualizadas no aportan una serie mensual VIS/VIE anterior a septiembre. Las referencias 2024 y 2025 siguen sin mes documentado.
+
+Los totales de la base financiera reproducen las filas suministradas; queda pendiente confirmar las 11 repeticiones y el universo necesario para conciliar el presupuesto de la tabla 4 del boletín. No se declara equivalencia entre ese presupuesto, el institucional nuevo y VIS/VIE. La tabla 3 queda pendiente por instrucción del usuario.
+
+El comando principal y sus opciones anteriores siguen funcionando. El inicio de sesión y su configuración permanecen intactos. Los cambios de esta entrega no incluyen secretos ni cuentas de pruebas.

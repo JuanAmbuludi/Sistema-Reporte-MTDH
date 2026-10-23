@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "periodo": "2026-09-01",
+  "periodo_origen": "Septiembre de 2026 confirmado expresamente por Juan en esta conversación el 22 de octubre de 2026 (Ecuador). La fecha no consta en el archivo; se conserva el encabezado PROGRAMADO 2024 como dato de origen.",
+  "fuente": {
+    "archivo": "Base_de_datos_fin.xlsx",
+    "sha256": "e2600776d916dc5bcfd65a6094f4f0c9131bc4574c8acdafa5ec46d8bd0c120e"
+  },
+  "filas": 5206,
+  "generado_utc": "2026-10-23T03:03:23.229238+00:00",
+  "totales": {
+    "presupuesto_codificado": 2137233099.36,
+    "presupuesto_ejecutado": 978122861.16,
+    "presupuesto_certificado": 33300921.5,
+    "porcentaje_ejecucion": 45.765848444556724
+  },
+  "control_calidad": {
+    "repeticiones_exactas_conservadas": 11,
+    "codificado_repeticiones": 45570.0
+  },
+  "advertencias": [
+    "Corte confirmado por el operador; el archivo no documenta una fecha de reporte y mantiene el encabezado PROGRAMADO 2024.",
+    "Los totales corresponden al universo de esta base financiera; no se suman con los de VIS/VIE ni se presume equivalencia con todo el MTDH.",
+    "Hay filas de contenido idéntico sin identificador de partida suficiente para determinar si son duplicados; se conservan y se marcan.",
+    "El porcentaje se calcula como suma de devengado / suma de codificado; no se suman ni promedian los porcentajes de las filas."
+  ],
+  "archivo": "presupuesto_institucional.parquet",
+  "sha256": "03cb688df3a23430f99006281ff75f673b0050c7bae6e9c4d9ab7b5e922454b6"
+}

@@ -105,7 +105,8 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
             national = national.assign(**{column: float("nan")})
     period_id, default_label, year = _period(frame)
     period_label = period_label or default_label
-    money = module.money(year)
+    executed = frame["presupuesto_ejecutado"].notna().all()
+    money = module.money(year, executed=executed)
     selected = {str(c) for c in (selected_codes or [])}
     people_label = module.people
     people_lower = people_label.lower()
@@ -192,15 +193,15 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
                                                 f"{people_lower} del país."})
     if has_units:
         insights.append({"icon": "trending-up", "text": f"Los servicios operan con {number(totals['units'])} unidades de atención y un "
-                                                        f"presupuesto {year} de USD {millions(totals['fiscal'])} millones."})
+                                                        f"{money['fiscal'].label.lower()} de USD {millions(totals['fiscal'])} millones."})
     else:
-        insights.append({"icon": "trending-up", "text": f"El presupuesto {year} asciende a USD {millions(totals['fiscal'])} millones y el "
+        insights.append({"icon": "trending-up", "text": f"El {money['fiscal'].label.lower()} asciende a USD {millions(totals['fiscal'])} millones y el "
                                                         f"presupuesto acumulado 2023–{year} alcanza USD {millions(totals['government'])} millones."})
 
     budget_leader = max(programs, key=lambda r: r["fiscal"] or 0)
     if len(programs) > 1 and totals["fiscal"]:
-        insights.append({"icon": "banknote", "text": f"{budget_leader['label']} recibe el "
-                                                     f"{number(budget_leader['fiscal'] / totals['fiscal'] * 100, 1)} % del presupuesto {year}, "
+        insights.append({"icon": "banknote", "text": f"{budget_leader['label']} registra el "
+                                                     f"{number(budget_leader['fiscal'] / totals['fiscal'] * 100, 1)} % del {money['fiscal'].label.lower()}, "
                                                      f"con USD {millions(budget_leader['fiscal'])} millones."})
 
     if territory_label is None:
@@ -213,6 +214,7 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         "period_id": period_id, "period_label": period_label, "year": year,
         "territory_label": territory_label, "programs_label": programs_label or f"Todos los {module.items}",
         "labels": labels, "kpis": kpis, "totals": totals, "national": nation,
+        "executed_available": bool(executed),
         "programs": programs, "provinces": provinces, "province_count": province_count, "detail": detail,
         "selected_codes": sorted(selected), "map_values": {p["code"]: p["people"] for p in provinces},
         "insights": insights, "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",

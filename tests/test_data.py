@@ -31,15 +31,15 @@ class DeliveredSourceTests(unittest.TestCase):
         self.assertFalse(self.df.duplicated(["periodo", "programa_id", "provincia_codigo"]).any())
         stats = summarize(self.df)
         self.assertEqual(stats["beneficiarios"], 1578019)
-        self.assertEqual(stats["usuarios_servicios"], 456239)
-        self.assertEqual(stats["unidades"], 11158)
+        self.assertEqual(stats["usuarios_servicios"], 456356)
+        self.assertEqual(stats["unidades"], 11215)
         self.assertEqual(stats["provincias"], 24)
-        self.assertIsNone(stats["presupuesto_ejecutado"])
+        self.assertAlmostEqual(stats["presupuesto_ejecutado"], 1180002197.25, places=2)
 
-    def test_each_service_matches_supplied_bulletin(self):
+    def test_each_service_matches_updated_coverage(self):
         totals = aggregate(self.df, "programa_id").set_index("programa_id")
-        expected = {"DII": (274975, 6759), "PAM_SERV": (114697, 2792),
-                    "PCD_SERV": (37039, 1229), "PE": (29528, 378)}
+        expected = {"DII": (274884, 6814), "PAM_SERV": (114771, 2794),
+                    "PCD_SERV": (37076, 1230), "PE": (29625, 377)}
         for key, (users, units) in expected.items():
             self.assertEqual(totals.loc[key, "usuarios"], users)
             self.assertEqual(totals.loc[key, "unidades"], units)
@@ -54,13 +54,13 @@ class DeliveredSourceTests(unittest.TestCase):
         bonos = filter_data(self.df, secciones=["bonos_pensiones"])
         self.assertTrue(bonos.unidades.isna().all())
         self.assertTrue(aggregate(bonos).unidades.isna().all())
-        self.assertTrue(aggregate(self.df).presupuesto_ejecutado.isna().all())
+        self.assertTrue(load_history().presupuesto_ejecutado.isna().all())
         self.assertIsNone(summarize(bonos)["unidades"])
 
     def test_filters_are_intersections_and_explicit_empty_means_empty(self):
         selection = filter_data(self.df, provincias=["01"], programas=["DII"], secciones=["proteccion_integral"])
         self.assertEqual(len(selection), 1)
-        self.assertEqual(selection.usuarios.iloc[0], 8270)
+        self.assertEqual(selection.usuarios.iloc[0], 8555)
         self.assertEqual(len(filter_data(self.df, provincias=[])), 0)
         self.assertEqual(len(filter_data(self.df, provincias=["Azuay"])), 12)
 
@@ -129,6 +129,7 @@ class InputValidationTests(unittest.TestCase):
         self.assertEqual(records[0]["presupuesto_ejecutado"], Decimal("12.340000"))
         self.assertIsNone(records[1]["presupuesto_ejecutado"])
         df = load_data().iloc[:2].copy()
+        df["presupuesto_ejecutado"] = float("nan")
         df.loc[df.index[0], "presupuesto_ejecutado"] = 12.34
         self.assertIsNone(summarize(df)["presupuesto_ejecutado"])
         self.assertEqual(summarize(df)["presupuesto_ejecutado_parcial"], 12.34)

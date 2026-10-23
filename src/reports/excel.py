@@ -555,7 +555,7 @@ class Workbook:
         _f, _l, row = self.table(ws, row, [("Elemento", 0, "text", 1, 1), ("Descripción", 1, "text", 2, 1)], facts, height=22)
         row = self.heading(ws, row + 1, "Indicadores", last=2)
         _f, _l, row = self.table(ws, row, [("Indicador", 0, "text", 1, 1), ("Definición", 1, "text", 2, 1)],
-                                 module.definitions(ctx["year"]), height=30)
+                                 module.definitions(ctx["year"], executed=ctx.get("executed_available", False)), height=38)
         row = self.heading(ws, row + 1, "Contenido del libro", last=2)
         contents = [("Resumen", "Cifras clave, resultados por " + labels["item"] + ", mapa y aspectos destacados"),
                     (labels["items"].capitalize(), f"{labels['people']}, participación y presupuesto por {labels['item']}"),

@@ -16,7 +16,7 @@ SECTIONS = {
     "bonos_pensiones": "Bonos y pensiones",
     "proteccion_integral": "Servicios de protección integral",
 }
-MONEY_COLUMNS = ["monto_fiscal", "monto_gobierno", "monto_anterior", "presupuesto_ejecutado"]
+MONEY_COLUMNS = ["monto_fiscal", "monto_gobierno", "monto_anterior", "presupuesto_ejecutado", "presupuesto_codificado"]
 METRIC_COLUMNS = ["usuarios", "unidades", *MONEY_COLUMNS]
 
 
@@ -27,6 +27,8 @@ def load_data(data_dir: str | Path | None = None) -> pd.DataFrame:
         path = path / "indicadores.parquet"
     frame = pd.read_parquet(path)
     for col in MONEY_COLUMNS:
+        if col not in frame:
+            frame[col] = float("nan")
         if col in frame:
             frame[col] = pd.to_numeric(frame[col], errors="raise").astype(float)
     for col in ["usuarios", "unidades", "unidades_origen"]:
@@ -47,6 +49,8 @@ def load_history(data_dir: str | Path | None = None) -> pd.DataFrame:
         return pd.DataFrame()
     frame = pd.read_parquet(path)
     for col in MONEY_COLUMNS:
+        if col not in frame:
+            frame[col] = float("nan")
         if col in frame:
             frame[col] = pd.to_numeric(frame[col], errors="raise").astype(float)
     return frame
@@ -136,6 +140,8 @@ def summarize(df: pd.DataFrame) -> dict:
     servicios = df.loc[df["seccion"].eq("proteccion_integral")]
     complete = len(df) > 0 and df["presupuesto_ejecutado"].notna().all()
     partial = _sum(df["presupuesto_ejecutado"])
+    codified = (_sum(df["presupuesto_codificado"]) if len(df) and "presupuesto_codificado" in df
+                and df["presupuesto_codificado"].notna().all() else None)
     dates = df["periodo"].dropna() if "periodo" in df else pd.Series(dtype="datetime64[ns]")
     return {
         "usuarios": _sum(df["usuarios"], integer=True) or 0,
@@ -147,6 +153,8 @@ def summarize(df: pd.DataFrame) -> dict:
         "monto_anterior": _sum(df["monto_anterior"]),
         "presupuesto_ejecutado": partial if complete else None,
         "presupuesto_ejecutado_parcial": partial,
+        "presupuesto_codificado": codified,
+        "porcentaje_ejecucion": partial / codified * 100 if complete and codified else None,
         "ejecucion_cobertura_pct": float(df["presupuesto_ejecutado"].notna().mean() * 100) if len(df) else 0.0,
         "registros": len(df),
         "provincias": int(df.loc[df["provincia_codigo"].ne("90"), "provincia_codigo"].nunique()),
@@ -164,10 +172,16 @@ def aggregate(df: pd.DataFrame, by: str | list[str] = "programa") -> pd.DataFram
         raise ValueError("Indique al menos una dimensión para agrupar.")
     if df.empty:
         return pd.DataFrame(columns=groups + METRIC_COLUMNS + ["registros", "ejecucion_cobertura_pct"])
+    for col in METRIC_COLUMNS:
+        if col not in df:
+            df = df.assign(**{col: float("nan")})
     grouped = df.groupby(groups, dropna=False, observed=True)
     out = grouped[METRIC_COLUMNS].sum(min_count=1)
     out["registros"] = grouped.size()
     supplied = grouped["presupuesto_ejecutado"].count()
     out["ejecucion_cobertura_pct"] = 100 * supplied / out["registros"]
     out.loc[supplied.ne(out["registros"]), "presupuesto_ejecutado"] = float("nan")
+    codified_count = grouped["presupuesto_codificado"].count()
+    out.loc[codified_count.ne(out["registros"]), "presupuesto_codificado"] = float("nan")
+    out["porcentaje_ejecucion"] = out["presupuesto_ejecutado"] / out["presupuesto_codificado"].where(out["presupuesto_codificado"].gt(0)) * 100
     return out.reset_index()

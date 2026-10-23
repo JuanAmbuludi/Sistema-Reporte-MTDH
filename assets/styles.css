@@ -125,6 +125,7 @@ html{scroll-behavior:smooth}
 
 /* ---------- KPI cards (overlap the band) ---------- */
 .kpi-grid{position:relative;z-index:3;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:-86px 0 8px}
+.kpi-grid.kpi-inline{margin-top:12px}
 .kpi{position:relative;background:#fff;border-radius:var(--r-lg);padding:20px 20px 18px;box-shadow:var(--shadow-2);border:1px solid rgba(81,47,141,.06);overflow:hidden;
   animation:rise .7s calc(.18s + var(--i,0)*.08s) var(--ease) both;transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--morado))}

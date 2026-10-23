@@ -226,7 +226,7 @@ def hero_map(values: dict[str, float], names: dict[str, str], selected: set[str]
     )
 
 
-def kpi_grid(cards: list[dict]) -> None:
+def kpi_grid(cards: list[dict], *, overlap: bool = True) -> None:
     """Cards: label, value, decimals, prefix, suffix, note, icon, tone, share."""
     items = []
     for i, card in enumerate(cards):
@@ -243,7 +243,8 @@ def kpi_grid(cards: list[dict]) -> None:
             f'<h3>{_esc(card["label"])}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
             f'<p class="kpi-note">{_esc(card.get("note", ""))}</p>{share_html}</article>'
         )
-    st.markdown(f'<section class="kpi-grid" aria-label="Indicadores principales">{"".join(items)}</section>', unsafe_allow_html=True)
+    css_class = "kpi-grid" if overlap else "kpi-grid kpi-inline"
+    st.markdown(f'<section class="{css_class}" aria-label="Indicadores principales">{"".join(items)}</section>', unsafe_allow_html=True)
 
 
 def section_heading(title: str, subtitle: str = "", symbol: str = "chart", anchor: str = "") -> None:

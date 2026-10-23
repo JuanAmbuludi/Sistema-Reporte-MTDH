@@ -1,27 +1,30 @@
 {
-  "schema_version": "1.0.0",
-  "generado_utc": "2026-10-22T15:34:38.244092+00:00",
+  "schema_version": "1.1.0",
+  "generado_utc": "2026-10-23T03:03:22.491458+00:00",
   "periodo": "2026-09-01",
   "periodo_label": "Septiembre 2026",
-  "periodo_origen": "Resumen_Ejecutivo_MTDH_2026_09.pdf: Septiembre 2026; totales provinciales conciliados con el boletín.",
+  "periodo_origen": "Servicios: fecha 2026-09-30 en Usuarios_vis_vie. Bonos y presupuesto: corte septiembre 2026 del boletín y actualización aportada por Juan; usuarios conciliados por programa y parroquia.",
   "fuente": {
-    "archivo": "Acumulado VIS-VIE.xlsx",
-    "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e"
+    "archivo": "Acumulado_VIS_VIE.xlsx",
+    "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+    "uso": "Referencia histórica del acumulado; cobertura y ejecución actuales en fuentes."
   },
   "granularidad": "Una fila por corte, programa y provincia; fuente agregada.",
   "moneda": "USD",
   "filas": 296,
   "totales": {
-    "usuarios": 2034258,
+    "usuarios": 2034375,
     "beneficiarios": 1578019,
-    "usuarios_servicios": 456239,
-    "unidades": 11158,
-    "monto_fiscal": 1180002196.4343,
-    "monto_gobierno": 4512402557.131901,
+    "usuarios_servicios": 456356,
+    "unidades": 11215,
+    "monto_fiscal": 1180002197.252246,
+    "monto_gobierno": 4512402557.949846,
     "monto_anterior": 3332400360.6976013,
-    "presupuesto_ejecutado": null,
-    "presupuesto_ejecutado_parcial": null,
-    "ejecucion_cobertura_pct": 0.0,
+    "presupuesto_ejecutado": 1180002197.252246,
+    "presupuesto_ejecutado_parcial": 1180002197.252246,
+    "presupuesto_codificado": 1781225672.5187092,
+    "porcentaje_ejecucion": 66.24664215532474,
+    "ejecucion_cobertura_pct": 100.0,
     "registros": 296,
     "provincias": 24,
     "programas": 12,
@@ -29,37 +32,55 @@
     "anio": 2026
   },
   "advertencias": [
-    "Los conteos son agregados reportados por programa y provincia. Sin identificadores nominales no se pueden deduplicar personas entre programas, servicios o cortes.",
-    "El mes de corte no consta en el Excel; se registra por parámetro explícito con su evidencia. No existe una serie mensual en este archivo.",
-    "Presupuesto fiscal es el campo Presupuesto del año. La fuente no certifica si es devengado, pagado, codificado u otra fase; no se interpreta automáticamente como presupuesto ejecutado ni monto mensual transferido.",
-    "El monto acumulado de gobierno combina el acumulado anterior y el presupuesto fiscal; no se suma nuevamente con esos componentes.",
-    "Las referencias de 2024 y 2025 no informan mes de corte. Sus cifras no son comparables como variaciones interanuales ni como ejecución fiscal de igual período.",
-    "Las unidades de bonos y pensiones se marcan como no aplicables (nulo); el cero original queda en unidades_origen.",
-    "Zona en estudio se conserva con código interno 90; no se cuenta como una provincia adicional.",
-    "La hoja calculos dic contiene un prorrateo cantonal de referencia, con período no documentado y datos incompletos. Se conserva separada y no se suma al corte provincial vigente.",
-    "Presupuesto ejecutado no disponible: use un CSV complementario verificado para completar ese indicador."
+    "Cobertura: agregados reportados, sin identificadores para deduplicar personas o unidades entre modalidades, cooperantes o períodos.",
+    "Servicios: fecha explícita en la cobertura. Bonos y presupuesto: corte asignado por el operador y conciliado por programa/parroquia; no contienen una serie mensual.",
+    "El presupuesto ejecutado corresponde a total_devengado; no es pago efectivo ni monto exclusivamente del mes.",
+    "Codificado VIS: suma de componentes corriente e inversión distribuidos. total_codificado repite el total distrital en cada parroquia y no se suma.",
+    "Se preserva el acumulado anterior 2023–2025; el acumulado de gobierno suma ese valor y el devengado fiscal actual. No implica una fase presupuestaria homogénea en años anteriores.",
+    "Las pensiones PAM y PCD solo aportan acumulados anteriores; no tienen registros vigentes en las nuevas fuentes.",
+    "Unidades: se utilizan las de Usuarios_vis_vie, no las de la base presupuestaria, cuyos conteos difieren.",
+    "Las referencias 2024 y 2025 no documentan mes; no se convierten en cierres mensuales.",
+    "La base financiera institucional tiene su propio universo y no se suma ni se distribuye sobre VIS/VIE."
   ],
   "definiciones": {
     "periodo": "Primer día del mes de corte indicado por el operador; no representa fecha de transacción.",
-    "usuarios": "Conteo agregado reportado en Usuarios; en bonos se presenta como beneficiarios reportados. No equivale a usuarios únicos verificados.",
-    "unidades": "Suma de unidades de atención reportadas en servicios; no aplica a bonos y pensiones.",
-    "monto_fiscal": "Valor de Presupuesto 2026, en USD, sin fase presupuestaria certificada en el insumo.",
+    "usuarios": "Suma de sumsumusuario de la base de cobertura, conciliada con sumusuarios de presupuesto por programa/parroquia.",
+    "unidades": "Suma de sumunidad de cobertura para servicios; sin identificadores de unidad para verificar unicidad. No aplica a bonos.",
+    "monto_fiscal": "Alias compatible del presupuesto ejecutado fiscal (total_devengado) para conservar los nombres del dashboard.",
     "monto_anterior": "Acumulado 2023–2025 reportado, en USD.",
-    "monto_gobierno": "Acumulado reportado de gobierno: monto_anterior + monto_fiscal, en USD.",
-    "presupuesto_ejecutado": "Ejecución verificada, solo desde CSV complementario. Nulo significa no disponible, no cero.",
+    "monto_gobierno": "Acumulado anterior 2023–2025 más devengado fiscal del corte actual; no sumar otra vez sus componentes.",
+    "presupuesto_ejecutado": "Total devengado fiscal informado en Presupuesto_vis_vie; agregado territorialmente sin repetir modalidades.",
     "provincia_codigo": "Código provincial ecuatoriano de dos dígitos; 90 es una clave interna para Zona en estudio.",
-    "fuente_hoja / fuente_fila": "Procedencia exacta del registro dentro del Excel original."
+    "fuente_hoja / fuente_fila": "Fila del Excel anterior que respalda el acumulado previo. La procedencia del detalle nuevo está en los Parquet territoriales.",
+    "presupuesto_codificado": "VIE: total_codificado. VIS: presupuesto_codificado_corriente + presupuesto_codificado_inversion, ya distribuidos."
   },
-  "ejecucion_complementaria": null,
+  "ejecucion_complementaria": {
+    "archivo": "Presupuesto_vis_vie.xlsx",
+    "fase": "devengado",
+    "cobertura_pct": 100,
+    "filas": 296,
+    "periodo_origen": "Corte del operador; conciliación con la cobertura por programa y parroquia."
+  },
   "control_calidad": {
     "claves_duplicadas": 0,
     "valores_negativos": 0,
     "conteos_fraccionarios": 0,
     "acumulados_no_conciliados": 0,
     "diferencias_acumulado_2025": 0,
-    "ejecucion_disponible_filas": 0,
+    "ejecucion_disponible_filas": 296,
     "precision_monetaria_decimales": 6,
-    "tolerancia_conciliacion_usd": 0.01
+    "tolerancia_conciliacion_usd": 0.01,
+    "filas_cobertura": 10849,
+    "filas_presupuesto": 9299,
+    "usuarios_conciliados_parroquia": true,
+    "grupos_distribucion_validados": 160,
+    "codificados_repetidos_no_sumados": 2836,
+    "max_diferencia_redondeo_devengado_usd": 0.0625,
+    "codificado_suma_columna_original_no_utilizable": 10262202254.062155,
+    "codificado_depurado": 1781225672.518709,
+    "fechas_cobertura_servicios": [
+      "2026-09-30"
+    ]
   },
   "historicos": [
     {
@@ -97,8 +118,8 @@
   ],
   "archivos": {
     "indicadores.parquet": {
-      "sha256": "cc8baf196606e3953a9f315b958fc768a16a27fba5e6ebaf8f2efc63be259072",
-      "bytes": 14797,
+      "sha256": "b8943d8d831104065a8444c78ccd2783736dc3ddfc18645fe31e602c270f954d",
+      "bytes": 20348,
       "filas": 296
     },
     "historico_referencia.parquet": {
@@ -110,6 +131,39 @@
       "sha256": "2eb26a36d75593d449b510f04e70b743fa69fb2e8f648aeb3c55af4503f933bb",
       "bytes": 20795,
       "filas": 746
+    },
+    "cobertura_territorial.parquet": {
+      "sha256": "c04998829c7bb3ed1bae29d20c470b8788fd458884345a594d5c6b50bb1afae4",
+      "bytes": 105323,
+      "filas": 10849
+    },
+    "presupuesto_territorial.parquet": {
+      "sha256": "29b01b466d48841f8c24eb7c300e8240b5995caacedc596c8dce377a21a732f9",
+      "bytes": 177736,
+      "filas": 9299
     }
+  },
+  "fuentes": {
+    "acumulado_anterior": {
+      "archivo": "Acumulado_VIS_VIE.xlsx",
+      "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+      "uso": "Referencia histórica del acumulado; cobertura y ejecución actuales en fuentes."
+    },
+    "cobertura": {
+      "archivo": "Usuarios_vis_vie.xlsx",
+      "sha256": "ab30fcc3819ab7b6bb8e9d71982316ae57bacf0d1b0228ba328bcd1146300978"
+    },
+    "presupuesto": {
+      "archivo": "Presupuesto_vis_vie.xlsx",
+      "sha256": "8692ef8406a0556ee10458b1db001a5d558868a196e7bbdb5c2b8854fb97d955"
+    }
+  },
+  "decision_versiones": "Usar los archivos nuevos para cobertura y ejecución. Conservar Acumulado_VIS_VIE.xlsx como fuente histórica del acumulado 2023–2025.",
+  "comparacion": {
+    "usuarios_servicios_antes": 456239,
+    "usuarios_servicios_ahora": 456356,
+    "unidades_antes": 11158,
+    "unidades_ahora": 11215,
+    "detalle": "comparacion_versiones.csv"
   }
 }

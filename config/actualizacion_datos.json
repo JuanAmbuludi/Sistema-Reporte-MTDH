@@ -1,0 +1,10 @@
+{
+  "excel": "data/source/Acumulado_VIS_VIE.xlsx",
+  "usuarios": "data/source/Usuarios_vis_vie.xlsx",
+  "presupuesto": "data/source/Presupuesto_vis_vie.xlsx",
+  "financiero": "data/source/Base_de_datos_fin.xlsx",
+  "period": "2026-09",
+  "period_source": "Servicios: fecha 2026-09-30 en Usuarios_vis_vie. Bonos y presupuesto: corte septiembre 2026 del boletín y actualización aportada por Juan; usuarios conciliados por programa y parroquia.",
+  "financiero_periodo": "2026-09",
+  "financiero_period_source": "Septiembre de 2026 confirmado expresamente por Juan en esta conversación el 22 de octubre de 2026 (Ecuador). La fecha no consta en el archivo; se conserva el encabezado PROGRAMADO 2024 como dato de origen."
+}

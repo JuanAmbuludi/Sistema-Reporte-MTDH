@@ -10,7 +10,7 @@ from pptx import Presentation
 from src.data import filter_data, load_periods
 from src.reports import build_report_context, generate_pdf, generate_pptx, generate_xlsx
 
-BANNED = ["N/D", "No aplica", "no disponible", "No disponible", "Excel", "fuente_", "jecutad", "no certifica",
+BANNED = ["N/D", "No aplica", "no disponible", "No disponible", "Excel", "fuente_", "no certifica",
           "no documentado", "registros", "Selección "]
 
 
@@ -37,7 +37,7 @@ def test_context_follows_module_and_period(periods):
     current = build_report_context(filter_data(_period(data, "2026-09"), secciones=["bonos_pensiones"]))
     assert current["module_label"] == "Transferencias monetarias" and current["period_label"] == "Septiembre 2026"
     assert current["totals"]["people"] == 1578019
-    assert [k["label"] for k in current["kpis"]] == ["Beneficiarios", "Programas con beneficiarios", "Presupuesto 2026",
+    assert [k["label"] for k in current["kpis"]] == ["Beneficiarios", "Programas con beneficiarios", "Presupuesto ejecutado 2026",
                                                      "Presupuesto acumulado 2023–2026"]
     annual = build_report_context(filter_data(_period(data, "2025"), secciones=["proteccion_integral"]))
     assert annual["period_label"] == "Año 2025" and annual["labels"]["fiscal"] == "Presupuesto 2025"
@@ -55,7 +55,7 @@ def test_selected_province_keeps_its_national_place(periods):
     services = filter_data(_period(data, "2026-09"), secciones=["proteccion_integral"])
     context = build_report_context(filter_data(services, provincias=["09"]), national=services, selected_codes={"09"})
     assert context["territory_label"] == "Guayas"
-    assert context["totals"]["people"] == 87943
+    assert context["totals"]["people"] == 88004
     assert all(k["share"] is not None for k in context["kpis"])
     assert "primer lugar" in context["insights"][1]["text"]
     guayas = next(p for p in context["provinces"] if p["code"] == "09")

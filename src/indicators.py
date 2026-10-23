@@ -39,14 +39,15 @@ class Module:
     people_icon: str
     extra: tuple[Indicator, ...] = field(default_factory=tuple)
 
-    def money(self, year: int) -> dict[str, Indicator]:
+    def money(self, year: int, *, executed: bool = False) -> dict[str, Indicator]:
         """Budget indicators whose names carry the period's year.
 
         The government accumulation adds the budgets of this administration (from 2023) up to the period.
         """
         span = f"2023–{year - 1}" if year - 1 > 2023 else "2023"
         return {
-            "fiscal": Indicator("monto_fiscal", f"Presupuesto {year}", "money", "banknote"),
+            "fiscal": Indicator("monto_fiscal", f"Presupuesto ejecutado {year}" if executed else f"Presupuesto {year}", "money", "banknote",
+                                short=f"Ejecutado {year}" if executed else f"Presupuesto {year}"),
             "previous": Indicator("monto_anterior", f"Presupuesto acumulado {span}", "money", "landmark",
                                   short=f"Acumulado {span}"),
             "government": Indicator("monto_gobierno", f"Presupuesto acumulado 2023–{year}", "money", "landmark",
@@ -56,32 +57,32 @@ class Module:
     def people_indicator(self) -> Indicator:
         return Indicator("usuarios", self.people, "count", self.people_icon, self.people.lower())
 
-    def indicators(self, year: int) -> list[Indicator]:
+    def indicators(self, year: int, *, executed: bool = False) -> list[Indicator]:
         """Indicators a reader can map and rank, in reading order."""
-        money = self.money(year)
+        money = self.money(year, executed=executed)
         return [self.people_indicator(), *self.extra, money["fiscal"], money["government"]]
 
-    def definitions(self, year: int) -> list[tuple[str, str]]:
+    def definitions(self, year: int, *, executed: bool = False) -> list[tuple[str, str]]:
         """Formal definitions for the technical sheet of the data workbook."""
-        money = self.money(year)
+        money = self.money(year, executed=executed)
         span = money["previous"].label.removeprefix("Presupuesto acumulado ").removeprefix("Presupuesto ")
         rows = [(self.people, self.people_definition)]
         rows += [(extra.label, EXTRA_DEFINITIONS.get(extra.key, "")) for extra in self.extra]
         rows += [
-            (money["fiscal"].label, f"Presupuesto asignado en {year} a cada {self.item}, en dólares de los Estados Unidos."),
-            (money["previous"].label, f"Suma de los presupuestos asignados en {span}, en dólares de los Estados Unidos."),
-            (money["government"].label, f"Suma de los presupuestos asignados de 2023 a {year}; incluye el presupuesto {year}."),
+            (money["fiscal"].label, f"Devengado fiscal reportado al corte de {year}; no es exclusivamente el gasto del mes." if executed else f"Presupuesto reportado en {year}; la fuente histórica no identifica su fase presupuestaria."),
+            (money["previous"].label, f"Acumulado reportado en {span}, en dólares de los Estados Unidos."),
+            (money["government"].label, f"Acumulado anterior más el presupuesto fiscal de {year}; no sumar nuevamente sus componentes."),
         ]
         return rows
 
     @property
     def people_definition(self) -> str:
         if self.people == "Beneficiarios":
-            return "Número de personas registradas como beneficiarias de cada bono o pensión en el periodo."
-        return f"Número de personas atendidas por cada {self.item} en el periodo."
+            return "Beneficiarios reportados por bono o pensión; agregados sin deduplicación entre programas."
+        return f"Usuarios reportados por {self.item}; agregados sin deduplicación entre modalidades."
 
 
-EXTRA_DEFINITIONS = {"unidades": "Unidades operativas en las que se prestan los servicios de protección integral."}
+EXTRA_DEFINITIONS = {"unidades": "Unidades reportadas en la base de cobertura; sin identificadores para deduplicarlas entre modalidades y cooperantes."}
 
 
 MODULES: dict[str, Module] = {
