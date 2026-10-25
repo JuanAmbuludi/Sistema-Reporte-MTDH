@@ -649,27 +649,34 @@ def _labour(c, ctx: dict, pages: int) -> None:
     top = bottom - 14
     column = (full - 22) / 2
     info = ctx["info"]
-    _heading(c, "Contratos vigentes según su registro", M, top - 12, column)
-    share = (info["cohorts_share"] or 0) / 100
     bar_y = top - 58
-    c.setFillColor(C(theme.LILA_200))
-    c.roundRect(M, bar_y, column, 18, 4, stroke=0, fill=1)
-    c.setFillColor(C(theme.SERIE_BONOS))
-    c.roundRect(M, bar_y, max(8, column * share), 18, 4, stroke=0, fill=1)
-    c.setFillColor(colors.white)
-    c.setFont("Text-Bold", 8.4)
-    c.drawString(M + 6, bar_y + 6, f"{number(info['cohorts_share'], 1)} %")
-    c.setFillColor(NIGHT)
-    c.drawRightString(M + column - 6, bar_y + 6, f"{number(100 - (info['cohorts_share'] or 0), 1)} %")
-    legend = [(C(theme.SERIE_BONOS), f"Registrados de {ctx['span']} de {ctx['year']}: {number(info['cohorts'])}"),
-              (C(theme.LILA_200), f"Registrados en otros periodos: {number(info['stock'] - info['cohorts'])}")]
-    for index, (color, text) in enumerate(legend):
-        ly = bar_y - 22 - index * 16
-        c.setFillColor(color)
-        c.roundRect(M, ly, 9, 9, 2, stroke=0, fill=1)
-        c.setFillColor(INK)
+    if info.get("same_cut", True):
+        _heading(c, "Contratos vigentes según su registro", M, top - 12, column)
+        share = (info["cohorts_share"] or 0) / 100
+        bar_y = top - 58
+        c.setFillColor(C(theme.LILA_200))
+        c.roundRect(M, bar_y, column, 18, 4, stroke=0, fill=1)
+        c.setFillColor(C(theme.SERIE_BONOS))
+        c.roundRect(M, bar_y, max(8, column * share), 18, 4, stroke=0, fill=1)
+        c.setFillColor(colors.white)
+        c.setFont("Text-Bold", 8.4)
+        c.drawString(M + 6, bar_y + 6, f"{number(info['cohorts_share'], 1)} %")
+        c.setFillColor(NIGHT)
+        c.drawRightString(M + column - 6, bar_y + 6, f"{number(100 - (info['cohorts_share'] or 0), 1)} %")
+        legend = [(C(theme.SERIE_BONOS), f"Registrados de {ctx['span']} de {ctx['year']}: {number(info['cohorts'])}"),
+                  (C(theme.LILA_200), f"Registrados en otros periodos: {number(info['stock'] - info['cohorts'])}")]
+        for index, (color, text) in enumerate(legend):
+            ly = bar_y - 22 - index * 16
+            c.setFillColor(color)
+            c.roundRect(M, ly, 9, 9, 2, stroke=0, fill=1)
+            c.setFillColor(INK)
+            c.setFont("Text-Medium", 8.4)
+            c.drawString(M + 15, ly + 1.5, text)
+    else:
+        _heading(c, "Fechas de referencia", M, top - 12, column)
         c.setFont("Text-Medium", 8.4)
-        c.drawString(M + 15, ly + 1.5, text)
+        c.drawString(M, bar_y, f"Stock: {info['stock_label']}")
+        c.drawString(M, bar_y - 18, f"Serie mensual: {info['cohorts_label']}")
     sources_y = bar_y - 80
     _heading(c, "Fuentes de información", M, sources_y, column)
     style = ParagraphStyle("src", fontName="Text", fontSize=8.2, leading=11, textColor=INK)

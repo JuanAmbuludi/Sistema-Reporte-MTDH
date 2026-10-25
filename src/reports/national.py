@@ -124,9 +124,9 @@ def labour_context(info: dict, *, title: str, period: dict) -> dict:
         {"key": "stock", "label": "Contratos vigentes", "value": info["stock"], "kind": "count", "icon": "briefcase", "share": None,
          "note": f"Al {info['stock_label']}"},
         {"key": "cohorts", "label": f"Contratos registrados en {year}", "value": info["cohorts"], "kind": "count", "icon": "file-check",
-         "share": None, "note": f"{_pct(info['cohorts_share'])} de los vigentes"},
-        {"key": "retirees", "label": "Personas jubiladas compensadas", "value": info["retirees"], "kind": "count", "icon": "user-check",
-         "share": None, "note": "Exservidores y extrabajadores"},
+         "share": None, "note": f"Estado al {info['cohorts_label']}"},
+        {"key": "retirees", "label": "Expedientes compensados" if info.get("retirees_unit") == "expedientes" else "Personas jubiladas compensadas", "value": info["retirees"], "kind": "count", "icon": "user-check",
+         "share": None, "note": f"Al {info['retirement_cut']}" if info.get("retirement_cut") else "Exservidores y extrabajadores"},
         {"key": "compensation", "label": "Compensaciones jubilares", "value": info["compensation"], "kind": "money", "icon": "coins",
          "share": None, "lower_bound": info["compensation_lower_bound"], "decimals": 0, "note": f"Pagadas en {info['retirees_year']}"},
     ]
@@ -139,19 +139,25 @@ def labour_context(info: dict, *, title: str, period: dict) -> dict:
     amount = f"{'más de ' if info['compensation_lower_bound'] else ''}USD {millions(info['compensation'], 0)} millones"
     insights = [
         {"icon": "briefcase", "text": f"El país registra {number(info['stock'])} contratos de trabajo vigentes al {info['stock_label']}."},
-        {"icon": "file-check", "text": f"De {span} de {year} se registraron {number(info['cohorts'])} contratos que siguen vigentes: el "
-                                       f"{_pct(info['cohorts_share'])} de los contratos vigentes del país."},
+        {"icon": "file-check", "text": f"De {span} de {year} se registraron {number(info['cohorts'])} contratos con estado vigente al {info['cohorts_label']}."},
         {"icon": "user-check", "text": f"En {info['retirees_year']} se compensó a {number(info['retirees'])} exservidores y extrabajadores "
                                        f"públicos jubilados, con {amount}."},
         {"icon": "trending-up", "text": f"En promedio se registraron {number(info['average'])} contratos por mes que siguen vigentes."},
     ]
     sources = [
-        ("Contratos vigentes y registrados por mes", "Sistema Único de Trabajo (SUT), Ministerio del Trabajo",
+        ("Contratos registrados por mes", f"SUT, estado al {info['cohorts_label']}",
          next((u for i, u in info["sources"] if i == "sut_contratos"), "")),
         ("Personas jubiladas y compensaciones jubilares", "Balance oficial publicado por el Ministerio del Trabajo"
          + (f" el {info['published_label']}" if info.get("published_label") else ""),
          next((u for i, u in info["sources"] if i == "mdt_noticia_jubilados"), "")),
     ]
+    if any(i == "sgde_contratos" for i, _ in info["sources"]):
+        sources.insert(0, ("Stock de contratos", f"SGDE, corte {info['stock_label']}",
+                           next(u for i, u in info["sources"] if i == "sgde_contratos")))
+    if info.get("retirees_unit") == "expedientes":
+        insights[2]["text"] = f"Se compensaron {number(info['retirees'])} expedientes de jubilación, con {amount}, al {info['retirement_cut']}."
+        sources[-1] = ("Compensaciones jubilares", f"SGDE, corte {info['retirement_cut']}",
+                       next((u for i, u in info["sources"] if i == "sgde_jubilados"), ""))
     generated_at, generated_label = stamp()
     return {
         "kind": "laboral", "module_id": "laboral", "module_label": AREAS["laboral"]["label"],

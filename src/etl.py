@@ -19,7 +19,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from openpyxl import load_workbook
+from .table_source import load_workbook
 
 from .data import summarize
 
@@ -185,29 +185,40 @@ def join_execution(records: list[dict], csv_path: str | Path, period: date) -> d
     """Attach explicitly supplied execution; never infer it from Presupuesto."""
     lookup = {(r["programa_id"], r["provincia_codigo"]): r for r in records}
     seen, count = set(), 0
-    with Path(csv_path).open("r", encoding="utf-8-sig", newline="") as stream:
-        reader = csv.DictReader(stream)
-        required = {"periodo", "programa_id", "provincia_codigo", "presupuesto_ejecutado"}
-        if not required.issubset(reader.fieldnames or []):
-            raise ValueError("El CSV de ejecución requiere: " + ", ".join(sorted(required)))
-        for lineno, row in enumerate(reader, 2):
-            incoming = str(row["periodo"]).strip()
-            if incoming not in {period.isoformat(), period.strftime("%Y-%m")}:
-                raise ValueError(f"El período de ejecución en fila {lineno} no coincide con el corte {period:%Y-%m}.")
-            key = (row["programa_id"].strip(), row["provincia_codigo"].strip().zfill(2))
-            if key in seen:
-                raise ValueError(f"Clave duplicada en ejecución, fila {lineno}: {key}")
-            if key not in lookup:
-                raise ValueError(f"Clave huérfana en ejecución, fila {lineno}: {key}")
-            seen.add(key)
-            lookup[key]["presupuesto_ejecutado"] = number(row["presupuesto_ejecutado"], f"ejecución fila {lineno}")
-            count += 1
+    if Path(csv_path).suffix.lower() == ".parquet":
+        frame = pd.read_parquet(csv_path)
+        fields, rows = frame.columns, frame.to_dict("records")
+    else:
+        with Path(csv_path).open("r", encoding="utf-8-sig", newline="") as stream:
+            reader = csv.DictReader(stream)
+            fields, rows = reader.fieldnames or [], list(reader)
+    required = {"periodo", "programa_id", "provincia_codigo", "presupuesto_ejecutado"}
+    if not required.issubset(fields):
+        raise ValueError("La base de ejecución requiere: " + ", ".join(sorted(required)))
+    for lineno, row in enumerate(rows, 2):
+        incoming = str(row["periodo"]).strip()
+        if incoming not in {period.isoformat(), period.strftime("%Y-%m")}:
+            raise ValueError(f"El período de ejecución en fila {lineno} no coincide con el corte {period:%Y-%m}.")
+        key = (str(row["programa_id"]).strip(), str(row["provincia_codigo"]).strip().zfill(2))
+        if key in seen:
+            raise ValueError(f"Clave duplicada en ejecución, fila {lineno}: {key}")
+        if key not in lookup:
+            raise ValueError(f"Clave huérfana en ejecución, fila {lineno}: {key}")
+        seen.add(key)
+        lookup[key]["presupuesto_ejecutado"] = number(row["presupuesto_ejecutado"], f"ejecución fila {lineno}")
+        count += 1
     if not count:
-        raise ValueError("El CSV de ejecución solo tiene encabezados; complete al menos un registro o retire --ejecucion.")
+        raise ValueError("La base de ejecución solo tiene encabezados; complete al menos un registro o retire --ejecucion.")
     return {"archivo": Path(csv_path).name, "sha256": _sha256(csv_path), "filas": count, "cobertura_pct": 100 * count / len(records)}
 
 
 def _sha256(path) -> str:
+    if Path(path).is_dir():
+        digest = hashlib.sha256()
+        for item in sorted(Path(path).glob("*.parquet")):
+            digest.update(item.name.encode())
+            digest.update(item.read_bytes())
+        return digest.hexdigest()
     digest = hashlib.sha256()
     with Path(path).open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
@@ -228,7 +239,7 @@ def build_dataset(excel_path: str | Path, output_dir: str | Path, period: str, *
     """Validate everything before writing a new current dataset."""
     excel_path, out = Path(excel_path), Path(output_dir)
     cut = parse_period(period)
-    if not excel_path.is_file():
+    if not excel_path.is_file() and not excel_path.is_dir():
         raise FileNotFoundError(f"No se encuentra el Excel: {excel_path}")
     workbook = load_workbook(excel_path, read_only=True, data_only=True)
     try:

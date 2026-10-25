@@ -250,10 +250,13 @@ def test_budget_exports_read_execution_by_program_and_zone(budget):
 
 
 def test_labour_exports_keep_each_figure_with_its_reference(labour):
-    assert labour["info"]["stock"] == 2789419 and labour["info"]["cohorts"] == 507451
-    assert labour["kpis"][3]["lower_bound"]
+    from src.gestion_laboral import load_labour, summary
+    from src.reports.context import number, millions
+    current = summary(load_labour())
+    assert labour["info"]["stock"] == current["stock"] and labour["info"]["cohorts"] == 507451
+    assert not labour["kpis"][3]["lower_bound"]
     text = _pdf_text(generate_pdf(labour), pages=1)
-    for expected in ["Gestión laboral", "2.789.419", "507.451", "Más de USD 229 M", "Fuentes de información"]:
+    for expected in ["Gestión laboral", number(current["stock"]), "507.451", f"USD {millions(current['compensation'], 0)} M", "Fuentes de información"]:
         assert expected in text
     deck, texts = _deck_texts(generate_pptx(labour))
     assert len(deck.slides) == 3 and "Contratación laboral" in texts and "Compensaciones jubilares" in texts
@@ -262,4 +265,4 @@ def test_labour_exports_keep_each_figure_with_its_reference(labour):
     book = load_workbook(BytesIO(generate_xlsx(labour)))
     assert book.sheetnames == ["Resumen", "Contratos por mes", "Ficha técnica"]
     links = [c.hyperlink.target for row in book["Ficha técnica"].iter_rows() for c in row if c.hyperlink]
-    assert any("trabajo.gob.ec" in (link or "") for link in links)
+    assert any("sgde-indicadores.github.io" in (link or "") for link in links)

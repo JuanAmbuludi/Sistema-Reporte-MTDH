@@ -216,10 +216,6 @@ def build_laboral(evidence: dict, output: str | Path) -> dict:
     (output / evidence_path).write_bytes(raw)
     pq.write_table(table, output / "gestion_laboral.parquet", compression="zstd")
     (output / archive_path).write_bytes((output / "gestion_laboral.parquet").read_bytes())
-    with (output / "gestion_laboral.csv").open("w", encoding="utf-8-sig", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=SCHEMA.names)
-        writer.writeheader()
-        writer.writerows(rows)
     manifest = {"schema_version": SCHEMA_VERSION, "consulta_id": run_id,
                 "fecha_consulta_utc": evidence["fecha_consulta_utc"], "filas": len(rows),
                 "meses_contratos": sorted(p.strftime("%Y-%m") for p in months_seen),

@@ -69,10 +69,10 @@ class LabourView:
             {"label": "Contratos vigentes", "value": info["stock"], "icon": "briefcase", "tone": "morado",
              "note": f"Registro nacional al {info['stock_label']}"},
             {"label": f"Contratos registrados en {info['year']}", "value": info["cohorts"], "icon": "file-check", "tone": "violeta",
-             "note": f"De {span}, vigentes a la fecha", "bar": info["cohorts_share"],
+             "note": f"De {span}; estado al {info['cohorts_label']}", "bar": info["cohorts_share"],
              "bar_label": f"{ui.pct(info['cohorts_share'])} de los contratos vigentes"},
-            {"label": "Personas jubiladas compensadas", "value": info["retirees"], "icon": "user-check", "tone": "oro",
-             "note": f"Exservidores y extrabajadores públicos en {info['retirees_year']}"},
+            {"label": "Expedientes de jubilación compensados" if info.get("retirees_unit") == "expedientes" else "Personas jubiladas compensadas", "value": info["retirees"], "icon": "user-check", "tone": "oro",
+             "note": f"Al {info['retirement_cut']}" if info.get("retirement_cut") else f"Exservidores y extrabajadores públicos en {info['retirees_year']}"},
             {"label": "Compensaciones jubilares", "value": compensation / 1e6 if compensation else None, "decimals": 0,
              "prefix": "Más de USD" if info["compensation_lower_bound"] else "USD", "suffix": "millones", "icon": "coins",
              "tone": "fucsia", "note": f"Pagadas en {info['retirees_year']}"},
@@ -84,17 +84,22 @@ class LabourView:
         ui.section_heading("Contratación laboral", f"Total nacional · contratos registrados de {span} de {info['year']}", "briefcase")
         left, right = st.columns([1, 1.15], gap="medium")
         with left, st.container(border=True, key="card_labour_split"):
-            ui.chart_title("Contratos vigentes según su registro", f"Total nacional al {info['stock_label']}")
-            parts = [(f"Registrados de {span} de {info['year']}", info["cohorts"]),
-                     ("Registrados en otros periodos", info["stock"] - info["cohorts"])]
-            show_chart(charts.part_of_whole(parts), "labour_split")
+            if info.get("same_cut", True):
+                ui.chart_title("Contratos vigentes según su registro", f"Total nacional al {info['stock_label']}")
+                parts = [(f"Registrados de {span} de {info['year']}", info["cohorts"]),
+                         ("Registrados en otros periodos", info["stock"] - info["cohorts"])]
+                show_chart(charts.part_of_whole(parts), "labour_split")
+            else:
+                ui.chart_title("Fechas de referencia", "Cada fuente conserva su fecha de actualización")
+                st.metric("Contratos vigentes", ui.number(info["stock"]))
+                st.caption(f"Stock nacional: {info['stock_label']}. Serie mensual: estado al {info['cohorts_label']}.")
         columns = {"mes": ("Mes", "text", 150), "contratos": ("Contratos registrados", "int"),
                    "participacion": ("Participación en el año", "pct", None, None, "Peso"),
                    "acumulado": ("Acumulado del año", "int", None, None, "Acumulado")}
         layout = [("Mes", "mes", "text", 18.0), ("Contratos registrados", "contratos", "int", 18.0),
                   ("Participación en el año", "participacion", "pct", 16.0), ("Acumulado del año", "acumulado", "int", 18.0)]
         with right, st.container(border=True, key="card_labour_detail"):
-            ui.chart_title("Contratos registrados por mes", "Contratos de cada mes que siguen vigentes, con su peso en el año")
+            ui.chart_title("Contratos registrados por mes", f"Estado vigente al {info['cohorts_label']}")
             ui.data_table(self.table, columns, key="labour_table", bar="participacion")
             download_table(self.table, layout, title="Contratos registrados por mes",
                            subtitle=f"{self.period['label']} · Total nacional · contratos que siguen vigentes",

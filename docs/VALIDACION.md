@@ -25,7 +25,7 @@ Los acumulados anteriores coinciden exactamente, fila por fila, con el Excel ori
 Comando utilizado:
 
 ```bash
-MTDH_SOURCE_EXCEL=data/source/Acumulado_VIS_VIE.xlsx python -m pytest -q
+MTDH_SOURCE_EXCEL=data/source/Acumulado_VIS_VIE/ python -m pytest -q
 ```
 
 En Windows puede definir esa variable de entorno previamente o ejecutar `python -m pytest -q`; en este último caso se omite únicamente la prueba heredada opcional del Excel original. Las pruebas de actualización sí reconstruyen los nuevos insumos.

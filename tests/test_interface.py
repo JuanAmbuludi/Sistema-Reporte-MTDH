@@ -157,6 +157,9 @@ def test_labour_management_shows_contracts_and_retirement():
     app.segmented_control(key="module").set_value("laboral").run()
     assert not app.exception
     html = _markdown(app)
-    for expected in ["Gestión laboral", "2.789.419", "507.451", "4.676", "Más de USD", "Contratos registrados por mes", "ec-columns"]:
+    from src.gestion_laboral import load_labour, summary
+    from src.ui import number
+    current = summary(load_labour())
+    for expected in ["Gestión laboral", number(current["stock"]), "507.451", number(current["retirees"]), "USD", "Contratos registrados por mes", "ec-columns"]:
         assert expected in html, expected
     _generate_every_product(app)

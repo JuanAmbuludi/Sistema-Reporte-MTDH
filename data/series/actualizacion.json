@@ -1,0 +1,1132 @@
+{
+  "version": 2,
+  "fuentes": {
+    "cobertura_vis": {
+      "archivo": "02-VIS_usuarios_unidades_2026.parquet",
+      "sha256": "122da94fdc2c5b4a581ab349dae7018df288ecf43ef8d69e5952abd17b4f9410",
+      "bytes": 648059
+    },
+    "bonos_vie": {
+      "archivo": "01-VIE_beneficiarios_bonos_2026.parquet",
+      "sha256": "2f88ce3454c592c3592a73d0126617e6ea7092eb8f29a59e70c3bbf7fcabca72",
+      "bytes": 706202
+    },
+    "incentivos": {
+      "archivo": "01-sanc01_beneficiarios_incentivos_202610231553.parquet",
+      "sha256": "a4f6dfe620b5e9423d3f9faee83a6e3a0dca5ef3181e44243c33696e69ddda38",
+      "bytes": 116953065
+    },
+    "antropicos": {
+      "archivo": "02-sanc02_bono_eventos_naturales_antropicos_202610231559.csv",
+      "sha256": "edbec6cc7a2969fea9b78945c225ca48ba0dd6f74574f5ec2b7a59ff8de27136",
+      "bytes": 111188796
+    },
+    "contingencias": {
+      "archivo": "03-sanc03_cobertura_contingencias_202610231604.csv",
+      "sha256": "43bbbb352d6ac11950cf01b9cbdf47df25e23414be623b7c525f40d6b7d5ece5",
+      "bytes": 3611790
+    },
+    "orfandad": {
+      "archivo": "04-Beneficiarios_Feminicidio.csv",
+      "sha256": "16c5a5fe116b0547137e4fc9a9c8f4c32dcbcfcb80c63c7148dfa16ec10d91ad",
+      "bytes": 1086
+    },
+    "control_antropicos": {
+      "archivo": "05-Desagregacion_antropicos.csv",
+      "sha256": "a15a2569e450d5957d3783a0f6e7761bd4a3df0f715ac264ef5f37602b2d8458",
+      "bytes": 12286
+    },
+    "control_contingencias": {
+      "archivo": "06-Desagregacion_contingencias.csv",
+      "sha256": "bcd6950637a09528fdec156e6921e87026114c3172a75298945c3c1aa3d74dc6",
+      "bytes": 169353
+    },
+    "presupuesto_aprobado": {
+      "archivo": "01-09-Ejecuci-n-Presupuestaria-SEPTIEMBRE-2026.xlsx",
+      "sha256": "7bf0297c9d9a71d0c0a30ee783c0ff03170d8e3dddb8764487675f3c821fb15c",
+      "bytes": 16823
+    },
+    "web": {
+      "consulta_utc": "2026-10-25T22:53:21.189235+00:00",
+      "recursos": [
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
+          "sha256": "5d990b67afc0859a6dfe538bdf99b2ed0abd844e25761b270f52b06bda16e8ac",
+          "bytes": 32359
+        },
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpis.html",
+          "sha256": "5b79060c95aff0bd0dde0e94367fdc41293f5c3ce79646d78a7d7e5c3adb7a2e",
+          "bytes": 46900
+        },
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/contratos/dashboard_data.json",
+          "sha256": "01bc8c87ef9d8a5a8793cc9bb736930b95607b23f3307921967c2d10510aeb9d",
+          "bytes": 1653980
+        },
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/kpi_trabajo.csv",
+          "sha256": "8f439a356ed7028f0e0ca879f17d07c2eb2290414b5382b2f55bc119a061c137",
+          "bytes": 3642
+        },
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/jubilados/corte.csv",
+          "sha256": "fc03a337df023d4f1f350d65218915130aec5d35bfb398ed90fbb341abad0177",
+          "bytes": 157
+        },
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/jubilados/gestion.csv",
+          "sha256": "b22f8692655cf8e2656c43fe860c93c6012e75beed2364fc8d60cc2e85dca0e9",
+          "bytes": 6579
+        },
+        {
+          "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/jovenes_accion/periodos.csv",
+          "sha256": "2a0efb65bb6538dfc5ea0c6e2ab69b8d17e403a6f1f1fa1da7f4911b571f4313",
+          "bytes": 943
+        }
+      ],
+      "metodo": "Extracción de los JSON/CSV públicos enlazados por las páginas HTML"
+    }
+  },
+  "controles": {
+    "incentivos": {
+      "filas_entrada": 2712029,
+      "repeticiones_transaccion_eliminadas": 422587,
+      "respuestas_no_acreditadas": 76838,
+      "jea_fase3_beneficiarios_acreditados": 126681,
+      "jea_fase3_monto_acreditado": "50672400.00",
+      "fecha_min": "2023-01-26T13:39:59",
+      "fecha_max": "2026-09-25T13:51:09",
+      "clave_deduplicacion": [
+        "programa_id",
+        "fase",
+        "cedula",
+        "valor",
+        "codigo_rechazo",
+        "fecha_acreditacion",
+        "numero_referencia",
+        "observacion"
+      ]
+    },
+    "antropicos": {
+      "filas_entrada": 226616,
+      "filas_versiones_elegidas": 91832,
+      "duplicados_exactos_eliminados": 0,
+      "filas_depuradas": 91832,
+      "montos_faltantes": 0,
+      "versiones": [
+        {
+          "familia": "JAIBA_MORA",
+          "anio": 2026,
+          "archivo_elegido": "Base_Bono_de_Contingencia_Antr_picos_Jaiba_Mora_2026__9._Septiembre__9d649a410e__hoja_01_HABILITADOS.csv"
+        },
+        {
+          "familia": "GENERAL",
+          "anio": 2024,
+          "archivo_elegido": "2_Base_Bono_de_Contingencia_antr_picos_2024__387172218d__hoja_01_Hoja1.csv"
+        },
+        {
+          "familia": "GENERAL",
+          "anio": 2025,
+          "archivo_elegido": "3_Base_Bono_de_Contingecnia_antr_picos_2025__0bb317a710__hoja_01_BASE.csv"
+        },
+        {
+          "familia": "GENERAL",
+          "anio": 2026,
+          "archivo_elegido": "Base_de_datos_Bono_de_Contigencia_Antr_picos_2026__9._Septiembre__5542d5feb2__hoja_01_Base.csv"
+        }
+      ],
+      "sin_fecha_habilitacion": 0,
+      "sin_fecha_cobro": 24949
+    },
+    "contingencias": {
+      "filas_entrada": 5877,
+      "filas_versiones_elegidas": 5877,
+      "duplicados_exactos_eliminados": 0,
+      "filas_depuradas": 5877,
+      "montos_faltantes": 0,
+      "versiones": [],
+      "sin_fecha_habilitacion": 0,
+      "sin_fecha_cobro": 1051
+    },
+    "presupuesto_aprobado": {
+      "archivo": "01-09-Ejecuci-n-Presupuestaria-SEPTIEMBRE-2026.xlsx",
+      "sha256": "7bf0297c9d9a71d0c0a30ee783c0ff03170d8e3dddb8764487675f3c821fb15c",
+      "periodo_corte": "2026-09",
+      "devengado_acumulado": "1261791379.87",
+      "presupuesto_aprobado": "1715698112.49",
+      "planificado_anual": "1767164544.76",
+      "totales_conciliados": true,
+      "planificado_total_hoja": "1767164544.77",
+      "diferencia_redondeo_planificado": "-0.01",
+      "asignaciones_compartidas": [
+        "BDH_BDHV"
+      ],
+      "universo": "Grupos de gasto 58, 57 y 78 del presupuesto social; no es todo el presupuesto institucional."
+    },
+    "contratos": {
+      "fecha_corte": "2026-10-23",
+      "fecha_hora_corte": "2026-10-23T02:21",
+      "registrados": 13511660,
+      "por_estado": {
+        "Finalizado": 10721912,
+        "Vigente": 2789748
+      },
+      "territorio": "Provincia y cantón; la fuente no publica parroquia.",
+      "naturaleza": "Stock registrado a fecha_corte, no nuevos contratos del mes.",
+      "nacionalidad": "Solo contratos de personas extranjeras; no suma al universo completo.",
+      "empresas": "Conteos distintos por estado/territorio; TOTAL es un agregado aparte, no sumable con provincias."
+    },
+    "jovenes_web": {
+      "fase": 3,
+      "periodo": "2026-09",
+      "registrados": 637808,
+      "habilitados": 150000,
+      "presupuesto_publicado": 180000000.0,
+      "ejecucion_publicada": 107475600.0
+    },
+    "conciliacion_jea": {
+      "diferencia_aprobado_menos_web": "50400.00",
+      "decision": "Usar archivo aprobado para devengado. SANC01 solo acredita pagos de julio de fase 3; cobertura bancaria parcial."
+    },
+    "cobertura_vis": {
+      "ambito": "Nacional, provincia, cantón y parroquia",
+      "registros_por_nivel_conciliados": true,
+      "filas_nacionales": 206,
+      "filas_territoriales": 51462,
+      "filas_con_codigo_ambiguo": 0,
+      "codigos_ambiguos": [],
+      "unicos": "Cada nivel fue deduplicado en origen. No sumar únicos territoriales para sustituir el nacional ni sumar niveles entre sí.",
+      "modalidad_vis": "Se conserva la modalidad detallada; CDI directos, convenios y emblemáticos permanecen separados."
+    },
+    "bonos_vie": {
+      "ambito": "Nacional, provincia, cantón y parroquia",
+      "registros_por_nivel_conciliados": true,
+      "filas_nacionales": 63,
+      "filas_territoriales": 81909,
+      "filas_con_codigo_ambiguo": 518,
+      "codigos_ambiguos": [
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Provincia",
+          "codigo_territorio": "14"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1412"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Cantón",
+          "codigo_territorio": "1401"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "141251"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-01",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-02",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-03",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-04",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-05",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-06",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140157"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-07",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-08",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-08",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-08",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-08",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-08",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        },
+        {
+          "periodo": "2026-09",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "010952"
+        },
+        {
+          "periodo": "2026-09",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "100153"
+        },
+        {
+          "periodo": "2026-09",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "140953"
+        },
+        {
+          "periodo": "2026-09",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180160"
+        },
+        {
+          "periodo": "2026-09",
+          "nivel_territorial": "Parroquia",
+          "codigo_territorio": "180163"
+        }
+      ],
+      "unicos": "Cada nivel fue deduplicado en origen. No sumar únicos territoriales para sustituir el nacional ni sumar niveles entre sí.",
+      "modalidad_vis": null
+    }
+  },
+  "inventario": [
+    {
+      "base": "antropicos_mensuales.parquet",
+      "filas": 49,
+      "columnas": 8,
+      "bytes": 3906,
+      "periodos": [
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "sha256": "70ae9820a946334d71ba9edbb99877d49002a360da2f78a7fdc706a18aeac891"
+    },
+    {
+      "base": "antropicos_territorial.parquet",
+      "filas": 1000,
+      "columnas": 11,
+      "bytes": 13561,
+      "periodos": [
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "sha256": "aa1820f09c76546c040531b55f05de9d9aff10591db0dab9af3a540e6ad3c0ff"
+    },
+    {
+      "base": "beneficiarios_orfandad.parquet",
+      "filas": 44,
+      "columnas": 6,
+      "bytes": 2871,
+      "periodos": [
+        "2023-01",
+        "2023-02",
+        "2023-03",
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "ca613091e49e413e18beee39091c0ac9e74f702b2c5a77e4bd337e9b6c47feb8"
+    },
+    {
+      "base": "bonos_vie.parquet",
+      "filas": 63,
+      "columnas": 7,
+      "bytes": 3415,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "c2e97f6d0025a07acf85a5cb8482f1bae5ddffe88013e0df14ad7d56038c7fce"
+    },
+    {
+      "base": "bonos_vie_territorial.parquet",
+      "filas": 81909,
+      "columnas": 16,
+      "bytes": 400576,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "931629aaa68cdee66e51c2afd05aa3ab8d9110db9e3b219a7ad1d572b1c9f214"
+    },
+    {
+      "base": "cobertura_vis.parquet",
+      "filas": 206,
+      "columnas": 9,
+      "bytes": 5781,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "25f55c16de770e086f309920570cc29b387e00d19079f5b4761fa448e807546f"
+    },
+    {
+      "base": "cobertura_vis_territorial.parquet",
+      "filas": 51462,
+      "columnas": 18,
+      "bytes": 292626,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "b4c59b226c3e30234a7ef5fc3492b164f9e9e587bbf65643803524fb2a049922"
+    },
+    {
+      "base": "contingencias_mensuales.parquet",
+      "filas": 66,
+      "columnas": 8,
+      "bytes": 3997,
+      "periodos": [
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "sha256": "881835e1aac3074324a65387e1e315f6e93137432fdb596231c54aab9449e579"
+    },
+    {
+      "base": "contingencias_territorial.parquet",
+      "filas": 7384,
+      "columnas": 12,
+      "bytes": 35057,
+      "periodos": [
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "sha256": "596f08dcbdd548767a501cdfd94fdac3a65d5b74bed5e84587eb5dc6c49b8373"
+    },
+    {
+      "base": "controles/antropicos_recibido.parquet",
+      "filas": 9,
+      "columnas": 7,
+      "bytes": 3016,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "f5cd846254a6d183d918137faa0a345d637e07269a82381e5295b42a66716a44"
+    },
+    {
+      "base": "controles/contingencias_recibido.parquet",
+      "filas": 34,
+      "columnas": 6,
+      "bytes": 2796,
+      "periodos": [
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "1b31a2ad9c8c297712c425b3619d206d0584594c2c99f163a8ae8b7a2870c25b"
+    },
+    {
+      "base": "incentivos_mensuales.parquet",
+      "filas": 91,
+      "columnas": 9,
+      "bytes": 4952,
+      "periodos": [
+        "2023-01",
+        "2023-02",
+        "2023-03",
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "6afa6c648ca4c7eb0446baa44eb84e20c54e2b1d0cbf51af44d43c26fb897b1b"
+    },
+    {
+      "base": "jovenes_accion_fase3.parquet",
+      "filas": 1,
+      "columnas": 10,
+      "bytes": 3908,
+      "periodos": [
+        "2026-09"
+      ],
+      "sha256": "670825cea230c75abfe93096653c54b48ce6a47611b9800bd0899f6ac2a9fde5"
+    },
+    {
+      "base": "laboral/contratos_act.parquet",
+      "filas": 50929,
+      "columnas": 10,
+      "bytes": 209362,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "40bf9362a9b51ad5b49b5daa6d86395f98f41e5f67a1f48794221235be61ca0e"
+    },
+    {
+      "base": "laboral/contratos_base.parquet",
+      "filas": 543,
+      "columnas": 11,
+      "bytes": 5976,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "af675a5cb370f9a0b9efe992e7a8e91b3c57e656ecc02a8851c8a471650c3901"
+    },
+    {
+      "base": "laboral/contratos_canton.parquet",
+      "filas": 3897,
+      "columnas": 12,
+      "bytes": 15704,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "6d48325e2be43bf60792a2de2b09cf9c2e423cf8a0347fdbb319ad003fbefa99"
+    },
+    {
+      "base": "laboral/contratos_empresas.parquet",
+      "filas": 78,
+      "columnas": 8,
+      "bytes": 3487,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "99cf0cdaf04f5b2253587e207043c6d93301725da0da0a2614f35e16cd318382"
+    },
+    {
+      "base": "laboral/contratos_etnia.parquet",
+      "filas": 3251,
+      "columnas": 12,
+      "bytes": 11865,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "0e36e1f6764d72b76d74b0dbc0d7eb261fb84994d351af53722800213ece54c8"
+    },
+    {
+      "base": "laboral/contratos_nac.parquet",
+      "filas": 4604,
+      "columnas": 12,
+      "bytes": 12955,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "d88a7ca5b371732f1d8a5eb5cf3ff255970dbd827573634aa20132b65fac4658"
+    },
+    {
+      "base": "laboral/contratos_rama.parquet",
+      "filas": 9709,
+      "columnas": 12,
+      "bytes": 24385,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "494c656e7ced24a1d196210d95e821c14571ca4c4279a79b4bdad60ae2208648"
+    },
+    {
+      "base": "laboral/contratos_tipo.parquet",
+      "filas": 8962,
+      "columnas": 12,
+      "bytes": 23647,
+      "periodos": [
+        "2026-10"
+      ],
+      "sha256": "b624337395fe1b269d2b5d4f6151504f54dadb09010b77fc39d346a4be493200"
+    },
+    {
+      "base": "laboral/jubilados.parquet",
+      "filas": 122,
+      "columnas": 13,
+      "bytes": 6057,
+      "periodos": [
+        "2023",
+        "2024",
+        "2025",
+        "2026-09"
+      ],
+      "sha256": "439cca4a7cccfb20d66a11907006415f93549f8761f4c3d0e93ebc0554c29da1"
+    },
+    {
+      "base": "presupuesto_social_asignado.parquet",
+      "filas": 13,
+      "columnas": 9,
+      "bytes": 3821,
+      "periodos": [
+        "2026-09"
+      ],
+      "sha256": "7857f8fe09ec563e81d4e7e0594757e8953081398f0da18e107ced880cf5d117"
+    },
+    {
+      "base": "presupuesto_social_mensual.parquet",
+      "filas": 126,
+      "columnas": 10,
+      "bytes": 5802,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "d8a72e976d8ba182239afbdcbd59040ff68fe390f8f979e5f1d90873f7d1734c"
+    },
+    {
+      "base": "resumen_social_mensual.parquet",
+      "filas": 126,
+      "columnas": 12,
+      "bytes": 6980,
+      "periodos": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "sha256": "adc916cfe03b5245ef2f07f9db518b0b782e0bce742d5f588f8aae505a447b39"
+    }
+  ],
+  "periodos_ausentes": {
+    "antropicos_mensuales.parquet": [],
+    "antropicos_territorial.parquet": [],
+    "beneficiarios_orfandad.parquet": [
+      "2026-06"
+    ],
+    "bonos_vie.parquet": [],
+    "bonos_vie_territorial.parquet": [],
+    "cobertura_vis.parquet": [],
+    "cobertura_vis_territorial.parquet": [],
+    "contingencias_mensuales.parquet": [],
+    "contingencias_territorial.parquet": [],
+    "incentivos_mensuales.parquet": [],
+    "jovenes_accion_fase3.parquet": [
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07",
+      "2026-08"
+    ],
+    "presupuesto_social_asignado.parquet": [
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07",
+      "2026-08"
+    ],
+    "presupuesto_social_mensual.parquet": [],
+    "resumen_social_mensual.parquet": []
+  },
+  "periodos_esperados": [
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ]
+}

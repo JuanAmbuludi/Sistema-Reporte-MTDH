@@ -1,12 +1,12 @@
 {
   "schema_version": "1.1.0",
-  "generado_utc": "2026-10-23T03:03:22.491458+00:00",
+  "generado_utc": "2026-10-25T23:03:43.612653+00:00",
   "periodo": "2026-09-01",
   "periodo_label": "Septiembre 2026",
   "periodo_origen": "Servicios: fecha 2026-09-30 en Usuarios_vis_vie. Bonos y presupuesto: corte septiembre 2026 del boletín y actualización aportada por Juan; usuarios conciliados por programa y parroquia.",
   "fuente": {
-    "archivo": "Acumulado_VIS_VIE.xlsx",
-    "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+    "archivo": "Acumulado_VIS_VIE",
+    "sha256": "bee81c1f4196b90855cf721f54e0229e03563f5a6be42bfb507dad4c76e6ab12",
     "uso": "Referencia histórica del acumulado; cobertura y ejecución actuales en fuentes."
   },
   "granularidad": "Una fila por corte, programa y provincia; fuente agregada.",
@@ -55,7 +55,7 @@
     "presupuesto_codificado": "VIE: total_codificado. VIS: presupuesto_codificado_corriente + presupuesto_codificado_inversion, ya distribuidos."
   },
   "ejecucion_complementaria": {
-    "archivo": "Presupuesto_vis_vie.xlsx",
+    "archivo": "Presupuesto_vis_vie.parquet",
     "fase": "devengado",
     "cobertura_pct": 100,
     "filas": 296,
@@ -98,28 +98,28 @@
     {
       "hoja": "provincial",
       "filas_excel": 297,
-      "columnas_declaradas": 12
+      "columnas_declaradas": 7
     },
     {
       "hoja": "provincial (2025)",
       "filas_excel": 297,
-      "columnas_declaradas": 13
+      "columnas_declaradas": 8
     },
     {
       "hoja": "Hoja1 (2)",
       "filas_excel": 297,
-      "columnas_declaradas": 8
+      "columnas_declaradas": 7
     },
     {
       "hoja": "calculos dic",
       "filas_excel": 747,
-      "columnas_declaradas": 16384
+      "columnas_declaradas": 9
     }
   ],
   "archivos": {
     "indicadores.parquet": {
-      "sha256": "b8943d8d831104065a8444c78ccd2783736dc3ddfc18645fe31e602c270f954d",
-      "bytes": 20348,
+      "sha256": "4764b9a909661995480c64d954f020eaa3eb8a049d2c52f5059ba8a14d12d3ad",
+      "bytes": 20353,
       "filas": 296
     },
     "historico_referencia.parquet": {
@@ -133,37 +133,37 @@
       "filas": 746
     },
     "cobertura_territorial.parquet": {
-      "sha256": "c04998829c7bb3ed1bae29d20c470b8788fd458884345a594d5c6b50bb1afae4",
-      "bytes": 105323,
+      "sha256": "b857ade13f36f8aa1f1d62c0112d68c8ba9780e3a0c914879b9f8f24dd8a230a",
+      "bytes": 105338,
       "filas": 10849
     },
     "presupuesto_territorial.parquet": {
-      "sha256": "29b01b466d48841f8c24eb7c300e8240b5995caacedc596c8dce377a21a732f9",
-      "bytes": 177736,
+      "sha256": "1c326c340adfa6a0b0bb4e9b6614320ab8866e8cdeab8752efb0fa39303d4636",
+      "bytes": 177751,
       "filas": 9299
     }
   },
   "fuentes": {
     "acumulado_anterior": {
-      "archivo": "Acumulado_VIS_VIE.xlsx",
-      "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+      "archivo": "Acumulado_VIS_VIE",
+      "sha256": "bee81c1f4196b90855cf721f54e0229e03563f5a6be42bfb507dad4c76e6ab12",
       "uso": "Referencia histórica del acumulado; cobertura y ejecución actuales en fuentes."
     },
     "cobertura": {
-      "archivo": "Usuarios_vis_vie.xlsx",
-      "sha256": "ab30fcc3819ab7b6bb8e9d71982316ae57bacf0d1b0228ba328bcd1146300978"
+      "archivo": "Usuarios_vis_vie.parquet",
+      "sha256": "ea5163756bdbcd0dfe400642d3adf55f8e45b242555f91014c126893d6d99f92"
     },
     "presupuesto": {
-      "archivo": "Presupuesto_vis_vie.xlsx",
-      "sha256": "8692ef8406a0556ee10458b1db001a5d558868a196e7bbdb5c2b8854fb97d955"
+      "archivo": "Presupuesto_vis_vie.parquet",
+      "sha256": "d5c6b8a67692931bb554d1832a13934c9b6bff6d9d9e33b8a583ff1dc581d1ae"
     }
   },
-  "decision_versiones": "Usar los archivos nuevos para cobertura y ejecución. Conservar Acumulado_VIS_VIE.xlsx como fuente histórica del acumulado 2023–2025.",
+  "decision_versiones": "Usar Usuarios_vis_vie.parquet y Presupuesto_vis_vie.parquet para el detalle territorial. Conservar Acumulado_VIS_VIE/ como fuente histórica del acumulado 2023–2025. El presupuesto social aprobado nacional se consulta por separado en data/series.",
   "comparacion": {
     "usuarios_servicios_antes": 456239,
     "usuarios_servicios_ahora": 456356,
     "unidades_antes": 11158,
     "unidades_ahora": 11215,
-    "detalle": "comparacion_versiones.csv"
+    "detalle": "comparacion_versiones.parquet"
   }
 }

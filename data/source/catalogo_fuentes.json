@@ -1,0 +1,58 @@
+[
+  {
+    "original": "Acumulado_VIS_VIE.xlsx",
+    "hoja": "provincial",
+    "sha256_original": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+    "parquet": "data/source/Acumulado_VIS_VIE/01_provincial.parquet",
+    "filas": 296,
+    "columnas": 7
+  },
+  {
+    "original": "Acumulado_VIS_VIE.xlsx",
+    "hoja": "provincial (2025)",
+    "sha256_original": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+    "parquet": "data/source/Acumulado_VIS_VIE/02_provincial_2025.parquet",
+    "filas": 296,
+    "columnas": 8
+  },
+  {
+    "original": "Acumulado_VIS_VIE.xlsx",
+    "hoja": "Hoja1 (2)",
+    "sha256_original": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+    "parquet": "data/source/Acumulado_VIS_VIE/03_hoja1_2.parquet",
+    "filas": 296,
+    "columnas": 7
+  },
+  {
+    "original": "Acumulado_VIS_VIE.xlsx",
+    "hoja": "calculos dic",
+    "sha256_original": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e",
+    "parquet": "data/source/Acumulado_VIS_VIE/04_calculos_dic.parquet",
+    "filas": 746,
+    "columnas": 9
+  },
+  {
+    "original": "Base_de_datos_fin.xlsx",
+    "hoja": "BASE INFORMACIÓN",
+    "sha256_original": "e2600776d916dc5bcfd65a6094f4f0c9131bc4574c8acdafa5ec46d8bd0c120e",
+    "parquet": "data/source/Base_de_datos_fin.parquet",
+    "filas": 5206,
+    "columnas": 20
+  },
+  {
+    "original": "Presupuesto_vis_vie.xlsx",
+    "hoja": "Sheet1",
+    "sha256_original": "8692ef8406a0556ee10458b1db001a5d558868a196e7bbdb5c2b8854fb97d955",
+    "parquet": "data/source/Presupuesto_vis_vie.parquet",
+    "filas": 9299,
+    "columnas": 15
+  },
+  {
+    "original": "Usuarios_vis_vie.xlsx",
+    "hoja": "Sheet1",
+    "sha256_original": "ab30fcc3819ab7b6bb8e9d71982316ae57bacf0d1b0228ba328bcd1146300978",
+    "parquet": "data/source/Usuarios_vis_vie.parquet",
+    "filas": 10849,
+    "columnas": 12
+  }
+]

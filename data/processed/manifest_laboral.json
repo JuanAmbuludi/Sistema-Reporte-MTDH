@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
-  "consulta_id": "20261022T232229581149Z_9cd411c6",
-  "fecha_consulta_utc": "2026-10-22T23:22:29.581149+00:00",
+  "schema_version": "1.1.0",
+  "consulta_id": "sgde_2026-10-23_01bc8c87",
+  "fecha_consulta_utc": "2026-10-25T22:53:21.189235+00:00",
   "filas": 12,
   "meses_contratos": [
     "2026-01",
@@ -17,11 +17,11 @@
   "evidencia": "laboral_evidencias/20261022T232229581149Z_9cd411c6.json",
   "evidencia_sha256": "9cd411c6f843bfeef7f1505d0bd6d730e002f70fc6c94d4b7553c4fb08cda80e",
   "copia_del_corte": "laboral_cortes/20261022T232229581149Z_9cd411c6.parquet",
-  "parquet_sha256": "0424a02304f55cb7f0a2d1b669f6c082e5f3a0292daf829a44540b3f6235a858",
+  "parquet_sha256": "5438d178c8000b504ff732afc455de0e5e930b4b40b3d2b025656e9823d51cb0",
   "fuentes": {
-    "sut": "https://sut.trabajo.gob.ec/contratos-web/mrl/contenido/indicadores/indiContratos.xhtml",
-    "powerbi": "https://app.powerbi.com/view?r=eyJrIjoiMTk3MThlMWQtOGYyZC00YWE1LTk1MjgtODBhZjI4ZWFhY2ZhIiwidCI6IjcyMzhjNzFmLWE2OWMtNGE5ZC05MmFjLThkMTE1MTA0OTU3MSIsImMiOjR9",
-    "jubilados": "https://www.trabajo.gob.ec/el-gobierno-del-presidente-daniel-noboa-cumple-con-cerca-de-15-mil-exservidores-y-extrabajadores-mediante-el-pago-de-sus-compensaciones-jubilares/"
+    "sut_contratos": "https://app.powerbi.com/view?r=eyJrIjoiMTk3MThlMWQtOGYyZC00YWE1LTk1MjgtODBhZjI4ZWFhY2ZhIiwidCI6IjcyMzhjNzFmLWE2OWMtNGE5ZC05MmFjLThkMTE1MTA0OTU3MSIsImMiOjR9",
+    "sgde_contratos": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
+    "sgde_jubilados": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpis.html#/kpis-trabajo"
   },
   "controles": {
     "meses_completos": true,
@@ -30,9 +30,89 @@
   },
   "advertencias": [
     "No sumar indicadores, unidades, cortes ni naturalezas diferentes.",
-    "Los meses del SUT son cohortes con estado actual, no stocks históricos.",
-    "El monto de jubilaciones respeta el operador de la fuente; > es límite inferior.",
-    "Jubilados: año conocido, mes de cierre no documentado. Noticia configurada, no feed automático.",
-    "No incluye contingencias ni ejecución presupuestaria general."
-  ]
+    "Los meses del SUT son cohortes con estado a su fecha de observación, no stocks históricos.",
+    "El stock y las cohortes conservan cortes independientes; no calcular participaciones entre ellos.",
+    "La jubilación SGDE mide expedientes y monto acumulado anual al corte publicado, no personas únicas ni gasto de un solo mes."
+  ],
+  "actualizacion_stock_sgde": {
+    "fecha_corte": "2026-10-23",
+    "fecha_hora_corte": "2026-10-23T02:21",
+    "registrados": 13511660,
+    "por_estado": {
+      "Finalizado": 10721912,
+      "Vigente": 2789748
+    },
+    "territorio": "Provincia y cantón; la fuente no publica parroquia.",
+    "naturaleza": "Stock registrado a fecha_corte, no nuevos contratos del mes.",
+    "nacionalidad": "Solo contratos de personas extranjeras; no suma al universo completo.",
+    "empresas": "Conteos distintos por estado/territorio; TOTAL es un agregado aparte, no sumable con provincias."
+  },
+  "fuentes_stock": {
+    "consulta_utc": "2026-10-25T22:53:21.189235+00:00",
+    "recursos": [
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
+        "sha256": "5d990b67afc0859a6dfe538bdf99b2ed0abd844e25761b270f52b06bda16e8ac",
+        "bytes": 32359
+      },
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpis.html",
+        "sha256": "5b79060c95aff0bd0dde0e94367fdc41293f5c3ce79646d78a7d7e5c3adb7a2e",
+        "bytes": 46900
+      },
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/contratos/dashboard_data.json",
+        "sha256": "01bc8c87ef9d8a5a8793cc9bb736930b95607b23f3307921967c2d10510aeb9d",
+        "bytes": 1653980
+      },
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/kpi_trabajo.csv",
+        "sha256": "8f439a356ed7028f0e0ca879f17d07c2eb2290414b5382b2f55bc119a061c137",
+        "bytes": 3642
+      },
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/jubilados/corte.csv",
+        "sha256": "fc03a337df023d4f1f350d65218915130aec5d35bfb398ed90fbb341abad0177",
+        "bytes": 157
+      },
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/jubilados/gestion.csv",
+        "sha256": "b22f8692655cf8e2656c43fe860c93c6012e75beed2364fc8d60cc2e85dca0e9",
+        "bytes": 6579
+      },
+      {
+        "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/jovenes_accion/periodos.csv",
+        "sha256": "2a0efb65bb6538dfc5ea0c6e2ab69b8d17e403a6f1f1fa1da7f4911b571f4313",
+        "bytes": 943
+      }
+    ],
+    "metodo": "Extracción de los JSON/CSV públicos enlazados por las páginas HTML"
+  },
+  "consulta_cohortes_original": {
+    "consulta_id": "20261022T232229581149Z_9cd411c6",
+    "fecha_consulta_utc": "2026-10-22T23:22:29.581149+00:00"
+  },
+  "alcance_evidencia": "evidencia y copia_del_corte respaldan la consulta SUT original, conservada como referencia. Los cortes actuales están en cortes_por_indicador y data/series/laboral.",
+  "cortes_por_indicador": {
+    "contratos_del_mes_vigentes": {
+      "fecha_corte": "22/10/2026 3:56:59",
+      "fuente": "https://app.powerbi.com/view?r=eyJrIjoiMTk3MThlMWQtOGYyZC00YWE1LTk1MjgtODBhZjI4ZWFhY2ZhIiwidCI6IjcyMzhjNzFmLWE2OWMtNGE5ZC05MmFjLThkMTE1MTA0OTU3MSIsImMiOjR9",
+      "unidad": "contratos"
+    },
+    "contratos_vigentes_total": {
+      "fecha_corte": "23/10/2026 02:21:00",
+      "fuente": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
+      "unidad": "contratos"
+    },
+    "jubilados_compensados": {
+      "fecha_corte": "2026-09-18",
+      "fuente": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpis.html#/kpis-trabajo",
+      "unidad": "expedientes"
+    },
+    "compensaciones_jubilares_usd": {
+      "fecha_corte": "2026-09-18",
+      "fuente": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpis.html#/kpis-trabajo",
+      "unidad": "USD"
+    }
+  }
 }

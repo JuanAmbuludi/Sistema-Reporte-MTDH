@@ -23,7 +23,7 @@ DATA = ROOT / "data/processed"
 @pytest.fixture(scope="module")
 def legacy(tmp_path_factory):
     target = tmp_path_factory.mktemp("legacy")
-    build_dataset(SOURCE / "Acumulado_VIS_VIE.xlsx", target, "2026-09", period_source="Prueba de conciliación")
+    build_dataset(SOURCE / "Acumulado_VIS_VIE", target, "2026-09", period_source="Prueba de conciliación")
     return target
 
 
@@ -115,7 +115,7 @@ def test_inconsistent_sources_fail_instead_of_being_filled_with_zeros(legacy, tm
     monkeypatch.setattr(update, "read_rows", corrupt)
     original_bytes = (target / "indicadores.parquet").read_bytes()
     with pytest.raises(ValueError):
-        update.refresh_vis_vie(target, SOURCE / "Usuarios_vis_vie.xlsx", SOURCE / "Presupuesto_vis_vie.xlsx",
+        update.refresh_vis_vie(target, SOURCE / "Usuarios_vis_vie.parquet", SOURCE / "Presupuesto_vis_vie.parquet",
                                "2026-09", period_source="Prueba")
     assert (target / "indicadores.parquet").read_bytes() == original_bytes
 
@@ -126,9 +126,11 @@ def test_all_sources_rebuild_together_and_validation_failure_preserves_delivered
                "--output", str(tmp_path), "--incluir-laboral", "--laboral-evidencia", str(DATA / manifest["evidencia"])]
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    for name in ["indicadores.parquet", "historico_referencia.parquet", "gestion_laboral.parquet",
+    for name in ["indicadores.parquet", "historico_referencia.parquet",
                  "cobertura_territorial.parquet", "presupuesto_territorial.parquet", "presupuesto_institucional.parquet"]:
         assert (tmp_path / name).read_bytes() == (DATA / name).read_bytes(), name
+    # Replay the dated original SUT extraction, not the subsequently updated SGDE stock.
+    assert (tmp_path / "gestion_laboral.parquet").read_bytes() == (DATA / manifest["copia_del_corte"]).read_bytes()
     before = {p.name: p.read_bytes() for p in tmp_path.glob("*.*")}
     failed = subprocess.run(command + ["--financiero", str(tmp_path / "missing.xlsx")], capture_output=True, text=True)
     assert failed.returncode == 1 and "Actualización no completada" in failed.stderr
@@ -137,4 +139,4 @@ def test_all_sources_rebuild_together_and_validation_failure_preserves_delivered
 
 def test_financial_cut_requires_provenance(tmp_path):
     with pytest.raises(ValueError, match="origen del corte"):
-        update.build_financial(SOURCE / "Base_de_datos_fin.xlsx", tmp_path, "2026-09", "")
+        update.build_financial(SOURCE / "Base_de_datos_fin.parquet", tmp_path, "2026-09", "")

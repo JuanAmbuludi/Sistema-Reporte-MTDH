@@ -3,11 +3,11 @@
   "periodo": "2026-09-01",
   "periodo_origen": "Septiembre de 2026 confirmado expresamente por Juan en esta conversación el 22 de octubre de 2026 (Ecuador). La fecha no consta en el archivo; se conserva el encabezado PROGRAMADO 2024 como dato de origen.",
   "fuente": {
-    "archivo": "Base_de_datos_fin.xlsx",
-    "sha256": "e2600776d916dc5bcfd65a6094f4f0c9131bc4574c8acdafa5ec46d8bd0c120e"
+    "archivo": "Base_de_datos_fin.parquet",
+    "sha256": "48067fb8f14ffd70fc023b5c55512b9e89f745032075277bbb8e4820c24e52bd"
   },
   "filas": 5206,
-  "generado_utc": "2026-10-23T03:03:23.229238+00:00",
+  "generado_utc": "2026-10-25T23:03:43.820216+00:00",
   "totales": {
     "presupuesto_codificado": 2137233099.36,
     "presupuesto_ejecutado": 978122861.16,
@@ -25,5 +25,5 @@
     "El porcentaje se calcula como suma de devengado / suma de codificado; no se suman ni promedian los porcentajes de las filas."
   ],
   "archivo": "presupuesto_institucional.parquet",
-  "sha256": "03cb688df3a23430f99006281ff75f673b0050c7bae6e9c4d9ab7b5e922454b6"
+  "sha256": "1c427f4f3feee88160b58851457d65e393372c470fc48349f3fae1d2838d0b13"
 }

@@ -393,11 +393,15 @@ def _labour(prs, ctx: dict):
     _text(slide, 8.95, 1.45, 3.9, 0.4, "Contratos vigentes", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
     _text(slide, 8.95, 1.95, 3.9, 0.6, number(info["stock"]), size=34, color=theme.MORADO_900, font=DISPLAY, bold=True)
     _text(slide, 8.95, 2.62, 3.9, 0.3, f"Al {info['stock_label']}", size=12, color=theme.PIZARRA)
-    share = (info["cohorts_share"] or 0) / 100
-    _box(slide, 8.95, 3.2, 3.85, 0.34, theme.LILA_200, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.3)
-    _box(slide, 8.95, 3.2, max(0.2, 3.85 * share), 0.34, theme.SERIE_BONOS, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.3)
-    _text(slide, 8.95, 3.62, 3.9, 0.6, f"{number(info['cohorts_share'], 1)} % se registró de {ctx['span']} de {ctx['year']}",
-          size=12.5, color=theme.MORADO, bold=True)
+    if info.get("same_cut", True):
+        share = (info["cohorts_share"] or 0) / 100
+        _box(slide, 8.95, 3.2, 3.85, 0.34, theme.LILA_200, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.3)
+        _box(slide, 8.95, 3.2, max(0.2, 3.85 * share), 0.34, theme.SERIE_BONOS, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.3)
+        _text(slide, 8.95, 3.62, 3.9, 0.6, f"{number(info['cohorts_share'], 1)} % se registró de {ctx['span']} de {ctx['year']}",
+              size=12.5, color=theme.MORADO, bold=True)
+    else:
+        _text(slide, 8.95, 3.2, 3.9, 0.8, f"Serie mensual: estado al {info['cohorts_label']}",
+              size=12.5, color=theme.MORADO, bold=True)
     finding = ctx["insights"][1]
     _finding(slide, finding, 8.95, 4.55, 3.9, 2.25)
     _footer(slide, ctx, 2, total)
@@ -407,9 +411,10 @@ def _labour(prs, ctx: dict):
     _header(slide, "Compensaciones jubilares", f"Exservidores y extrabajadores públicos · Año {info['retirees_year']}")
     amount = f"{'Más de ' if info['compensation_lower_bound'] else ''}USD {millions(info['compensation'], 0)} M"
     average = info["compensation"] / info["retirees"] if info.get("compensation") and info.get("retirees") else None
-    tiles = [("user-check", "Personas compensadas", number(info["retirees"])), ("coins", "Recursos destinados", amount)]
+    unit = "expediente" if info.get("retirees_unit") == "expedientes" else "persona"
+    tiles = [("user-check", "Expedientes compensados" if unit == "expediente" else "Personas compensadas", number(info["retirees"])), ("coins", "Recursos destinados", amount)]
     if average:
-        tiles.append(("banknote", "Promedio por persona", f"{'Más de ' if info['compensation_lower_bound'] else ''}USD {number(average)}"))
+        tiles.append(("banknote", f"Promedio por {unit}", f"{'Más de ' if info['compensation_lower_bound'] else ''}USD {number(average)}"))
     for index, (icon, label, value) in enumerate(tiles):
         y = 1.62 + index * 1.72
         _box(slide, 0.55, y, 6.2, 1.5, "#FFFFFF", shape=MSO_SHAPE.ROUNDED_RECTANGLE, line="#E4DEEE", radius=0.08)

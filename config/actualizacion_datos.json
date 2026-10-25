@@ -1,8 +1,8 @@
 {
-  "excel": "data/source/Acumulado_VIS_VIE.xlsx",
-  "usuarios": "data/source/Usuarios_vis_vie.xlsx",
-  "presupuesto": "data/source/Presupuesto_vis_vie.xlsx",
-  "financiero": "data/source/Base_de_datos_fin.xlsx",
+  "excel": "data/source/Acumulado_VIS_VIE",
+  "usuarios": "data/source/Usuarios_vis_vie.parquet",
+  "presupuesto": "data/source/Presupuesto_vis_vie.parquet",
+  "financiero": "data/source/Base_de_datos_fin.parquet",
   "period": "2026-09",
   "period_source": "Servicios: fecha 2026-09-30 en Usuarios_vis_vie. Bonos y presupuesto: corte septiembre 2026 del boletín y actualización aportada por Juan; usuarios conciliados por programa y parroquia.",
   "financiero_periodo": "2026-09",

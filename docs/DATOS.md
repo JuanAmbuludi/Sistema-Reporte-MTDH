@@ -1,6 +1,8 @@
 # Datos y reglas de cálculo — referencia del formato original
 
-**Actualización vigente:** consulte [ACTUALIZACION_DATOS.md](ACTUALIZACION_DATOS.md). Las nuevas fuentes ya aportan cobertura revisada y devengado/codificado. El procedimiento recomendado es `python scripts/build_data.py --config config/actualizacion_datos.json`. El contenido siguiente documenta el formato anterior y la ruta de importación heredada; sus cifras y ausencia de ejecución no describen la versión actual.
+**Series y presupuesto aprobado:** consulte [REVISION_BASES_2026.md](REVISION_BASES_2026.md) y [data/README.md](../data/README.md).
+
+**Actualización territorial:** consulte [ACTUALIZACION_DATOS.md](ACTUALIZACION_DATOS.md). Las nuevas fuentes ya aportan cobertura revisada y devengado/codificado. El procedimiento recomendado es `python scripts/build_data.py --config config/actualizacion_datos.json`. El contenido siguiente documenta el formato anterior y la ruta de importación heredada; sus cifras y ausencia de ejecución no describen la versión actual.
 
 La versión original utiliza la hoja **provincial** de `Acumulado VIS-VIE.xlsx`. El archivo es un consolidado agregado: contiene una fila por programa y provincia, sin cédulas ni identificadores de unidades. El corte **septiembre de 2026** se toma del boletín PDF adjunto y sus cifras nacionales concilian con la hoja vigente. El Excel por sí solo no informa el mes.
 
@@ -24,7 +26,7 @@ Los archivos usan compresión Zstandard. El esquema vigente almacena conteos ent
 | `monto_fiscal` | Columna `Presupuesto 2026`, en USD. El insumo no documenta si es devengado, pagado, codificado u otra fase. No equivale automáticamente a ejecución ni a transferencias mensuales. |
 | `monto_anterior` | Columna `acumulado 2023-2025`, en USD. |
 | `monto_gobierno` | Columna `acumulado`, en USD. Se verifica que sea anterior + fiscal para cada fila; no se vuelve a sumar con ambos componentes. |
-| `presupuesto_ejecutado` | Nulo en la fuente entregada. Puede completarse mediante un CSV complementario con montos verificados, corte y claves coincidentes. |
+| `presupuesto_ejecutado` | Nulo en la fuente entregada. Puede completarse mediante un Parquet o CSV complementario con montos verificados, corte y claves coincidentes. |
 | `fuente_hoja`, `fuente_fila` | Procedencia exacta del dato en el Excel, conservada en todas las tablas. |
 
 La cobertura nacional tiene **24 provincias**. `Zona en estudio` se conserva bajo el código interno **90** y se incluye en los totales, pero no se cuenta como una provincia número 25. No se excluye Galápagos: la fuente provincial lo incluye.
@@ -57,7 +59,7 @@ La hoja `Hoja1 (2)` contiene presupuesto 2024 con cifras distintas a la columna 
 Desde la raíz del proyecto, con las dependencias instaladas:
 
 ```bash
-python scripts/build_data.py "ruta/Acumulado VIS-VIE.xlsx" --period 2026-09 --period-source "Boletín institucional de septiembre de 2026"
+python scripts/build_data.py data/source/Acumulado_VIS_VIE --period 2026-09 --period-source "Boletín institucional de septiembre de 2026"
 ```
 
 `--period` es obligatorio porque el mes no está en el Excel. El año del corte debe coincidir con el encabezado presupuestario de la hoja. Puede cambiar la hoja vigente con `--sheet` y la carpeta de salida con `--output`. El script valida encabezados, categorías, provincias, claves duplicadas, conteos enteros, importes no negativos y conciliación de acumulados. Ante un error, detiene la importación en lugar de eliminar filas o reemplazar faltantes por ceros.
@@ -66,7 +68,7 @@ El formato de hojas antiguas se conserva explícitamente como referencia. Si cam
 
 ## Incorporar presupuesto ejecutado
 
-Complete una copia de `data/templates/ejecucion_presupuestaria.csv` con las columnas:
+Complete una copia de `data/templates/ejecucion_presupuestaria.parquet` con las columnas:
 
 ```csv
 periodo,programa_id,provincia_codigo,presupuesto_ejecutado
@@ -75,7 +77,7 @@ periodo,programa_id,provincia_codigo,presupuesto_ejecutado
 Use corte `AAAA-MM` o `AAAA-MM-01`, códigos provinciales de dos dígitos e importes en USD con punto decimal y sin separadores de miles. Cada combinación programa/provincia debe aparecer una sola vez, existir en el Excel y corresponder al mismo corte. No complete datos faltantes con cero; use cero solo si la ejecución verificada es efectivamente cero.
 
 ```bash
-python scripts/build_data.py "ruta/Acumulado VIS-VIE.xlsx" --period 2026-09 --ejecucion "ruta/ejecucion_verificada.csv" --period-source "Corte validado por el área responsable"
+python scripts/build_data.py data/source/Acumulado_VIS_VIE --period 2026-09 --ejecucion "ruta/ejecucion_verificada.parquet" --period-source "Corte validado por el área responsable"
 ```
 
 | Código de programa | Programa |

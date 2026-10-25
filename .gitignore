@@ -13,3 +13,7 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local nominal inputs must never be committed. Publish only aggregate outputs.
+data/entrada_local/
+data/**/*.tmp

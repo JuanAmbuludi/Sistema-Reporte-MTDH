@@ -145,7 +145,7 @@ BUDGET_DEFINITIONS = [
 LABOUR_DEFINITIONS = [
     ("Contratos vigentes", "Contratos de trabajo en estado vigente registrados en el Sistema Único de Trabajo, a la fecha de actualización de la fuente."),
     ("Contratos registrados en el año", "Contratos registrados cada mes del año que se mantienen vigentes a la fecha de consulta."),
-    ("Personas jubiladas compensadas", "Exservidores y extrabajadores públicos que recibieron su compensación jubilar en el año, según el balance oficial publicado."),
+    ("Expedientes de jubilación compensados", "Expedientes de compensación jubilar acumulados en el año hasta el corte publicado; no representan necesariamente personas únicas."),
     ("Recursos para compensaciones jubilares", "Monto destinado en el año al pago de compensaciones jubilares, según el balance oficial publicado."),
 ]
 

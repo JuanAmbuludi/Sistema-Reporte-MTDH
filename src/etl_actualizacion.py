@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from openpyxl import load_workbook
+from .table_source import load_workbook
 
 from .etl import MONEY_TYPE, PROGRAMS, PROVINCES, SCHEMA, _sha256, _write_table, norm, number, parse_period
 from .data import load_data, summarize
@@ -234,7 +234,7 @@ def refresh_vis_vie(output: Path, users_path: Path, budget_path: Path, period: s
     _write_table(rows, output / "indicadores.parquet", UPDATED_SCHEMA)
     write_detail(user_detail, output / "cobertura_territorial.parquet", "periodo/programa_id/parroquia_codigo/modalidad/cooperante")
     write_detail(budget_detail, output / "presupuesto_territorial.parquet", "periodo/programa_id/parroquia_codigo")
-    pd.DataFrame(reconciliation).to_csv(output / "comparacion_versiones.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(reconciliation).to_parquet(output / "comparacion_versiones.parquet", index=False, compression="zstd")
     manifest["schema_version"] = "1.1.0"
     manifest["generado_utc"] = datetime.now(timezone.utc).isoformat()
     manifest["periodo_origen"] = period_source
@@ -270,11 +270,11 @@ def refresh_vis_vie(output: Path, users_path: Path, budget_path: Path, period: s
         "monto_gobierno": "Acumulado anterior 2023–2025 más devengado fiscal del corte actual; no sumar otra vez sus componentes.",
         "fuente_hoja / fuente_fila": "Fila del Excel anterior que respalda el acumulado previo. La procedencia del detalle nuevo está en los Parquet territoriales.",
     })
-    manifest["decision_versiones"] = "Usar los archivos nuevos para cobertura y ejecución. Conservar Acumulado_VIS_VIE.xlsx como fuente histórica del acumulado 2023–2025."
+    manifest["decision_versiones"] = "Usar Usuarios_vis_vie.parquet y Presupuesto_vis_vie.parquet para el detalle territorial. Conservar Acumulado_VIS_VIE/ como fuente histórica del acumulado 2023–2025. El presupuesto social aprobado nacional se consulta por separado en data/series."
     manifest["comparacion"] = {"usuarios_servicios_antes": sum(r["usuarios"] for r in old_rows if r["seccion"] == "proteccion_integral"),
                                "usuarios_servicios_ahora": manifest["totales"]["usuarios_servicios"],
                                "unidades_antes": sum(r["unidades"] or 0 for r in old_rows), "unidades_ahora": manifest["totales"]["unidades"],
-                               "detalle": "comparacion_versiones.csv"}
+                               "detalle": "comparacion_versiones.parquet"}
     for name in ["indicadores.parquet", "cobertura_territorial.parquet", "presupuesto_territorial.parquet"]:
         manifest["archivos"][name] = {"sha256": _sha256(output / name), "bytes": (output / name).stat().st_size,
                                       "filas": pq.ParquetFile(output / name).metadata.num_rows}

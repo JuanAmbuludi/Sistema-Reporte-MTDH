@@ -1,8 +1,10 @@
-# Actualización de cobertura y presupuesto — septiembre de 2026
+# Actualización territorial de cobertura y presupuesto — septiembre de 2026
+
+**Series nacionales y presupuesto aprobado:** consultar [REVISION_BASES_2026.md](REVISION_BASES_2026.md). Este documento describe el detalle territorial previo, conservado en Parquet; no sustituye el nuevo presupuesto social aprobado.
 
 ## Decisión sobre las versiones
 
-**Usar `Usuarios_vis_vie.xlsx` para cobertura y unidades y `Presupuesto_vis_vie.xlsx` para el devengado y codificado actuales. Conservar `Acumulado_VIS_VIE.xlsx` como fuente histórica.** Los archivos nuevos aportan detalle parroquial y fases presupuestarias explícitas, pero no reemplazan el acumulado 2023–2025 ni las referencias anuales 2024 y 2025.
+**Usar `Usuarios_vis_vie.parquet` para cobertura y unidades y `Presupuesto_vis_vie.parquet` para el devengado y codificado actuales. Conservar `Acumulado_VIS_VIE/` como fuente histórica.** Los archivos nuevos aportan detalle parroquial y fases presupuestarias explícitas, pero no reemplazan el acumulado 2023–2025 ni las referencias anuales 2024 y 2025.
 
 No se elimina ninguna fuente. El dashboard sigue leyendo `data/processed/indicadores.parquet`, con los mismos 296 registros por periodo/programa/provincia y las 17 columnas originales. Se añaden columnas; no se renombran las anteriores ni los códigos de programa.
 
@@ -22,7 +24,7 @@ Unidades por servicio en la versión nueva: DII 6.814; personas adultas mayores 
 
 Las seis transferencias con beneficiarios mantienen sus cifras: BDH 619.073; BDHV 367.289; BMD 164.983; BJGL 50.129; MMA 303.845; PTV 72.700. PAM y PCD se conservan por sus acumulados anteriores, sin cobertura ni ejecución actual.
 
-`comparacion_versiones.csv` permite revisar los cambios en cada programa y provincia. Las diferencias no se presentan como crecimiento mensual: son dos versiones del mismo corte.
+`comparacion_versiones.parquet` permite revisar los cambios en cada programa y provincia. Las diferencias no se presentan como crecimiento mensual: son dos versiones del mismo corte.
 
 ## Presupuesto VIS/VIE
 
@@ -43,7 +45,7 @@ Se mantiene `monto_fiscal` como alias del devengado para compatibilidad con grá
 
 ## Base financiera institucional
 
-`Base_de_datos_fin.xlsx` se conserva en su universo propio: 5.206 filas por dimensiones presupuestarias y unidad ejecutora. No se reparte entre bonos o servicios ni se suma a VIS/VIE.
+`Base_de_datos_fin.parquet` se conserva en su universo propio: 5.206 filas por dimensiones presupuestarias y unidad ejecutora. No se reparte entre bonos o servicios ni se suma a VIS/VIE.
 
 - Codificado: **USD 2.137.233.099,36**.
 - Devengado: **USD 978.122.861,16**.
@@ -65,7 +67,7 @@ En InfoReport esta base es el ámbito **Presupuesto institucional**, consultado 
 | 3. Contingencias | Pendiente por instrucción del usuario | No se construye ni completa esa tabla; las partidas de la base general se conservan en su total de origen |
 | 4. Gestión laboral y presupuesto | Base laboral y base financiera disponibles por separado | Los universos y cortes no permiten tratar todas las cifras como equivalentes a las del boletín |
 
-La extracción laboral existente conserva 2.789.419 contratos vigentes al estado de consulta del 22/10/2026 frente a 2.789.437 del boletín. Los 4.676 jubilados anuales de la noticia difieren de 4.686; el monto publicado es **más de USD 229 millones**, no el valor exacto USD 229,84 millones. La fuente no documenta un cierre mensual para jubilaciones. Véase [GESTION_LABORAL.md](GESTION_LABORAL.md).
+La extracción laboral anterior, preservada como evidencia del 22/10/2026, registró 2.789.419 contratos vigentes. La base actual se actualizó con SGDE a 2.789.748 al 23/10/2026. También se sustituyó la referencia anterior de 4.676 personas y «más de USD 229 millones» por la fuente de 4.686 expedientes y USD 229.841.799,89 al 18/09/2026. Véase [GESTION_LABORAL.md](GESTION_LABORAL.md).
 
 El presupuesto general nuevo tampoco coincide con USD 342,23 millones y 34,44 % del boletín. No se sustituye silenciosamente como si correspondiera al mismo universo. Para cerrar esa conciliación falta confirmar el alcance institucional y presupuestario de la tabla 4 original.
 
@@ -113,7 +115,7 @@ Esta última opción conserva las fechas de consulta originales; no simula una a
 | `cobertura_territorial.parquet` | 10.849 filas; programa/parroquia/modalidad/cooperante |
 | `presupuesto_territorial.parquet` | 9.299 filas; programa/parroquia; importes sin repetir modalidades |
 | `presupuesto_institucional.parquet` | 5.206 filas de la fuente financiera, con marcas de repetición |
-| `comparacion_versiones.csv` | Antes/después por provincia y programa |
+| `comparacion_versiones.parquet` | Antes/después por provincia y programa |
 | `manifest.json` | Fuentes, hashes, definiciones, corte y controles VIS/VIE |
 | `manifest_financiero.json` | Fuente, corte confirmado, controles y totales financieros |
 | `gestion_laboral.parquet` / `manifest_laboral.json` | Extracción laboral existente conservada |

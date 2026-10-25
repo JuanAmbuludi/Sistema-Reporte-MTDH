@@ -4,19 +4,22 @@ Sistema de indicadores estratégicos y reportes institucionales del Ministerio d
 
 Ámbitos disponibles, siempre por separado: **transferencias monetarias**, **servicios de protección integral**, **gestión laboral** y **presupuesto institucional**.
 
+## Bases históricas y presupuesto aprobado
+
+Las bases están organizadas en Parquet. [El catálogo](data/README.md) explica qué tabla usar y cómo incorporar meses anteriores o posteriores sin duplicar registros. [La revisión de octubre](docs/REVISION_BASES_2026.md) documenta las conciliaciones, faltantes y la validación de Jóvenes en Acción. VIS, VIE y el presupuesto social aprobado cubren enero a septiembre de 2026; las nuevas series incluyen nivel nacional, provincia, cantón y parroquia. Se conserva aparte el detalle operativo anterior por modalidad/cooperante que consume el tablero.
+
+El scraping diario de las páginas SGDE incorpora contratos por provincia y cantón y actualiza el stock del tablero. Las fuentes no publican parroquias.
+
 ## Descomprimir, subir y abrir
 
 El paquete está preparado para subir su contenido directamente a GitHub. Incluye los Parquet depurados, la cartografía, el logo, los iconos, las tipografías y una cuenta lista para ingresar. **No necesitas ejecutar scripts de configuración ni pegar Secrets para el primer despliegue.**
 
-| Acceso | Valor |
-| --- | --- |
-| Usuario | `admin` |
-| Contraseña | `admin12345678` |
+La configuración inicial de acceso está en `config/access.toml`. Para definir tus propias credenciales, consulta **Configuración de acceso opcional**.
 
 1. Descomprime el paquete y abre la carpeta del proyecto.
 2. Sube **todo su contenido** a un repositorio privado de GitHub. `app.py` y `requirements.txt` deben quedar en la raíz del repositorio; conserva también las carpetas `config`, `src`, `assets`, `static`, `data` y `.streamlit` (allí viven el tema institucional y las tipografías web).
 3. En Streamlit Community Cloud, selecciona **Create app**, tu repositorio, la rama `main` y **`app.py`**. Elige **Python 3.12** en las opciones avanzadas y despliega.
-4. Ingresa con `admin` y `admin12345678`.
+4. Ingresa con las credenciales configuradas.
 
 Cada cambio que llega a la rama `main` se refleja en la aplicación publicada. La aplicación vuelve a cargar sus propios módulos cuando su código cambia, de modo que un despliegue nuevo no queda mezclado con la versión anterior; si la nube conservara una sesión antigua, **Reboot app** en Streamlit Cloud la reinicia.
 
@@ -35,7 +38,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Ingresa con la cuenta indicada arriba. Las bases Parquet ya están incluidas; puedes abrir el sistema sin reprocesar los Excel.
+Ingresa con las credenciales configuradas. Las bases Parquet ya están incluidas; puedes abrir el sistema sin reprocesar los Excel.
 
 En Windows también puedes ejecutar **INICIAR_WINDOWS.bat**. Instala las dependencias en un entorno propio y abre la aplicación con el acceso ya preparado.
 
@@ -61,7 +64,7 @@ La contraseña se guarda como hash PBKDF2-SHA256 con sal aleatoria y 600.000 ite
 | --- | --- | --- |
 | Transferencias monetarias | Beneficiarios, presupuesto ejecutado, codificado, ejecución presupuestaria y presupuesto acumulado 2023–2026 por bono o pensión | Provincia, cantón y parroquia (corte mensual); provincia (años de referencia) |
 | Servicios de protección integral | Usuarios, unidades de atención, presupuesto ejecutado, codificado, ejecución y acumulado por servicio | Provincia, cantón y parroquia (corte mensual); provincia (años de referencia) |
-| Gestión laboral | Contratos vigentes, contratos registrados cada mes que siguen vigentes, personas jubiladas compensadas y recursos para compensaciones jubilares | Nacional, con sus fuentes oficiales |
+| Gestión laboral | Contratos vigentes, contratos registrados cada mes que siguen vigentes, expedientes de jubilación compensados y recursos para compensaciones jubilares | Nacional, con sus fuentes oficiales |
 | Presupuesto institucional | Codificado, devengado, ejecución y saldo por programa, zona de planificación, unidad ejecutora, grupo de gasto, fuente y tipo de gasto | Planta central y zonas de planificación |
 
 ### Periodos disponibles
@@ -107,11 +110,13 @@ Los ámbitos y sus indicadores se declaran en `src/indicators.py` (`MODULES` par
 Desde la raíz del repositorio:
 
 ```bash
-python -m pip install -r requirements.txt
-python scripts/build_data.py --config config/actualizacion_datos.json
+python -m pip install -r requirements-data.txt
+python scripts/update_history.py --entrada "/ruta/a/insumos" --web
 ```
 
-El mismo comando genera la cobertura y el presupuesto territoriales, los indicadores provinciales, las referencias históricas y el presupuesto institucional; con `--incluir-laboral` agrega la consulta de las fuentes laborales oficiales. Las decisiones, conciliaciones y archivos generados están en [docs/ACTUALIZACION_DATOS.md](docs/ACTUALIZACION_DATOS.md) y la base laboral en [docs/GESTION_LABORAL.md](docs/GESTION_LABORAL.md). Después vuelve a subir `data/processed/` al repositorio para que Streamlit use la nueva base.
+Para actualizar únicamente las fuentes laborales públicas, omita `--entrada`. También puede ejecutar manualmente **Actualizar datos laborales** en GitHub Actions; la consulta automática está programada a las 07:15 de Ecuador. El procedimiento y las reglas de sustitución de meses están en [data/README.md](data/README.md).
+
+Para reconstruir el detalle territorial anterior desde sus fuentes Parquet, use `python scripts/build_data.py --config config/actualizacion_datos.json`. Su metodología está en [docs/ACTUALIZACION_DATOS.md](docs/ACTUALIZACION_DATOS.md).
 
 Si cambia la división político-administrativa de las bases (por ejemplo, un cantón nuevo), la cartografía se regenera con `python scripts/build_geo.py <archivo TopoJSON>`, como se describe en [assets/geo/PROCEDENCIA.md](assets/geo/PROCEDENCIA.md).
 
@@ -121,7 +126,7 @@ Si cambia la división político-administrativa de las bases (por ejemplo, un ca
 - **Presupuesto ejecutado y ejecución.** El presupuesto ejecutado es el devengado al corte; la ejecución presupuestaria es devengado sobre codificado, calculada con la suma de cada selección (nunca como promedio de porcentajes).
 - **Presupuesto acumulado.** Suma el presupuesto de 2023 a 2025 y el del año del corte; existe por provincia, no por cantón ni parroquia.
 - **Parroquias.** Las parroquias urbanas que la cartografía 2015 dibuja dentro de su cabecera cantonal se muestran con su nombre en tablas y rankings, y en el mapa dentro de esa cabecera. La zona en estudio (código 90) se incluye en los totales, no entre provincias, cantones o parroquias.
-- **Gestión laboral.** Los contratos registrados cada mes son los que siguen vigentes a la fecha de consulta, no el total de contratos firmados en ese mes. Las compensaciones jubilares se publican como «más de USD 229 millones» y así se presentan.
+- **Gestión laboral.** Los contratos registrados cada mes son los que siguen vigentes a la fecha de consulta, no el total de contratos firmados en ese mes. La fuente SGDE informa 4.686 expedientes y USD 229.841.799,89 acumulados al 18 de septiembre de 2026. El stock de contratos y las cohortes mensuales conservan sus fechas de observación independientes.
 - **Presupuesto institucional.** Es un universo propio del Ministerio: no se suma a los presupuestos de transferencias y servicios.
 
 El boletín original se conserva en `docs/reference/` como referencia de conciliación y marca, y su logo institucional se utiliza sin recrearlo. La propuesta visual toma sus colores y marca; no sustituye la aprobación de Comunicación.

@@ -119,7 +119,7 @@ class LaboralPersistenceTests(unittest.TestCase):
             before = (out / "gestion_laboral.parquet").read_bytes()
             (out / "indicadores.parquet").write_bytes(b"keep-existing-vis-vie")
             raw.write_text('{"invalid": true}', encoding="utf-8")
-            failed = subprocess.run(command + [str(ROOT / "data/source/Acumulado_VIS_VIE.xlsx"), "--period", "2026-09",
+            failed = subprocess.run(command + [str(ROOT / "data/source/Acumulado_VIS_VIE"), "--period", "2026-09",
                                     "--incluir-laboral", "--laboral-evidencia", str(raw), "--output", str(out)], capture_output=True, text=True)
             self.assertNotEqual(failed.returncode, 0)
             self.assertEqual((out / "gestion_laboral.parquet").read_bytes(), before)
