@@ -3,7 +3,7 @@
   "criterio_alertas": "codigo_ua",
   "corte": "2026-10-26",
   "desde": "2026-09-14",
-  "generado_utc": "2026-10-26T22:32:30.504301+00:00",
+  "generado_utc": "2026-10-26T22:54:12.774781+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -961,6 +961,10 @@
     "registros": 89,
     "kits": 13390,
     "familias_reportadas": 12681,
-    "reemplaza_corte_anterior": true
+    "reemplaza_corte_anterior": true,
+    "total_oficial_confirmado": 13390,
+    "confirmacion_oficial_utc": "2026-10-26T22:54:12.774781+00:00",
+    "unidad_publicada": "Núcleos familiares",
+    "nota_unidad": "Campo familias de la base fuente, presentado como núcleos familiares por indicación del usuario; suma por entrega, no núcleos únicos."
   }
 }

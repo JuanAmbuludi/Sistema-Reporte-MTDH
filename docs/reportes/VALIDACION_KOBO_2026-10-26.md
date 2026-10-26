@@ -16,3 +16,7 @@
 ## Confirmación posterior de Guayas
 
 Las 17 CDI de Guayas se reclasifican como suspendidas por instrucción expresa del usuario, posterior al corte de la base. Se conserva `estado_fuente` con el valor inicial y el motivo de validación. El resultado final es 99 UA suspendidas: 35 CDI y 64 CNH; El Oro 75, Guayas 17 y Santa Elena 7. El PDF y la presentación muestran los 36 nombres disponibles y agrupan los 63 CNH sin nombre/cantón. Los totales de kits permanecen en 13.390 y las alertas con código UA en 10.
+
+## Confirmación oficial y unidad de presentación
+
+Total oficial confirmado por el usuario: 13.390 kits entregados. Se presenta el campo original `familias` como núcleos familiares: 12.681 reportados por entrega, sin afirmar unicidad. Se actualiza la fecha visible en dashboard y exportables. Montos cotejados con la ayuda memoria fuente: USD 33.200,80 gestionados; USD 354.379,41 en articulación; USD 13.405.351,02 de planificación nacional. No se suman esas etapas.

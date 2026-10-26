@@ -303,15 +303,15 @@ def kits_table(r: Response) -> None:
     summary = r.kits_summary()
     ui.rich_table([{"key": "provincia", "label": "Provincia", "kind": "strong"},
                    {"key": "kits", "label": "Kits", "kind": "bar"},
-                   {"key": "familias", "label": "Familias reportadas", "kind": "num"},
+                   {"key": "familias", "label": "Núcleos familiares reportados", "kind": "num"},
                    {"key": "registros", "label": "Registros", "kind": "num"}], summary,
                   total={"provincia": "Total", "kits": r.kits_total, "familias": int(r.kits.familias.sum()), "registros": r.kit_records})
-    st.caption("Familias reportadas por entrega; no representan familias únicas. El resumen PDF muestra el consolidado provincial; Excel conserva todas las entregas.")
+    st.caption("Núcleos familiares reportados por entrega; no representan núcleos familiares únicos. El resumen PDF muestra el consolidado provincial; Excel conserva todas las entregas.")
     with st.expander(f"Detalle de las {r.kit_records} entregas Kobo"):
         rows = r.kits.sort_values(["fecha", "kits"], ascending=[True, False]).to_dict("records")
         ui.rich_table([{"key": "fecha", "label": "Fecha", "kind": "date"}, {"key": "provincia", "label": "Provincia", "kind": "strong"},
                        {"key": "canton", "label": "Cantón"}, {"key": "kits", "label": "Kits", "kind": "num"},
-                       {"key": "familias", "label": "Familias reportadas", "kind": "num"}], rows)
+                       {"key": "familias", "label": "Núcleos familiares reportados", "kind": "num"}], rows)
 
 
 def kits_chart(r: Response) -> go.Figure:

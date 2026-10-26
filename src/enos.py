@@ -13,7 +13,7 @@ BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a 
              "Articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
 KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 26/10/2026, 22:26:42. Entregas del 31/08 al 26/10; "
             "incluye fechas anteriores al inicio de las alertas. Reemplaza el corte anterior. "
-            "Familias reportadas es una suma por entrega, no familias únicas. Datos declarados, pendientes de validación territorial.")
+            "Núcleos familiares reportados: suma por entrega, no núcleos únicos. El total de kits de este corte fue confirmado oficialmente.")
 QUALITY_NOTE = ("En el corte nacional hay 10 alertas con 10 códigos UA distintos: 8 con afectación documentada y 2 por confirmar. "
                 "ALT-2026-000315 y ALT-2026-000316 (Tenguel) tienen código UA, pero el relato solo describe inundación territorial; "
                 "no se presentan como daños confirmados al servicio.")

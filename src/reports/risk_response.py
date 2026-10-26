@@ -50,7 +50,7 @@ def build_context(view, *, title: str) -> dict:
                sources="Subsecretaría Territorial (análisis de alertas); corte Kobo de kits; ayuda memoria del bono de contingencia; base territorial de afectaciones por lluvias.",
                insights=[{"icon": "shield", "text": r.count_note()},
                          {"icon": "life-buoy", "text": f"{r.kits_total} kits en {response['kit_provinces']} provincias priorizadas; corte {response['kits_cut']}."},
-                         {"icon": "hand-coins", "text": f"{response['managed_people']} núcleos con bono gestionado: USD {number(response['managed_amount'], 2)}."}])
+                         {"icon": "hand-coins", "text": f"{response['managed_people']} núcleos familiares con bono gestionado: USD {number(response['managed_amount'], 2)}."}])
     return ctx
 
 
@@ -206,9 +206,12 @@ def render_pdf(c, ctx, pages):
     selected = set(ctx["selected_codes"])
     top = _band(c, {**ctx, "programs_label": "Respuesta del Ministerio"}, H, emblem_png(selected))
     cards = [dict(k) for k in ctx["kpis"]]
-    for card, caption in zip(cards, [f"Desde el {r['since']}", f"{r['kit_provinces']} provincias priorizadas", "Por inundaciones",
+    for card, caption in zip(cards, [f"Desde el {r['since']}", f"Dato oficial · {r['kit_provinces']} provincias", "Por inundaciones",
                                      f"Corte al {r['bonus_cut']}"]):
         card["note"] = caption
+        if "Núcleos familiares con bono" in card["label"]:
+            card["short"] = "Núcleos familiares"
+            card["note"] = "Con bono gestionado"
     top = _kpis(c, {**ctx, "kpis": cards, "share_word": ""}, top - 16) - 8
     c.setFillColor(C(theme.LILA_50)); c.roundRect(M, top - 34, full, 34, 6, fill=1, stroke=0)
     c.setFillColor(C(theme.MORADO_900)); c.setFont("Display", 21)
@@ -264,8 +267,8 @@ def render_pdf(c, ctx, pages):
     totals = _money_rows([_action_totals(r["actions"])])[0]
     rows.append(["Total", number(r["kits_total"]), number(r["families_total"]), number(totals["managed"]), totals["managed_text"],
                  number(totals["articulation"]), totals["articulation_text"]])
-    top = _pdf_table(c, top - 18, ["Provincia", "Kits", "Familias*", "Bono: núcleos", "Monto USD", "Articulación: personas", "Monto USD"],
-                     rows, [full - 366, 43, 49, 55, 75, 69, 75], size=7.2, padding=2.7,
+    top = _pdf_table(c, top - 18, ["Provincia", "Kits", "Núcleos familiares*", "Bono: núcleos familiares", "Monto USD", "Articulación: personas", "Monto USD"],
+                     rows, [full - 384, 43, 60, 62, 75, 69, 75], size=7.2, padding=2.7,
                      align=["L", "R", "R", "R", "R", "R", "R"], total=True) - 17
     kitrows = [{"name": a["provincia"], "value": a["kits"]} for a in r["kits_provinces"][:4]]
     rest = sum(a["kits"] for a in r["kits_provinces"][4:])
@@ -280,7 +283,7 @@ def render_pdf(c, ctx, pages):
            f"Inversión estimada: USD {number(plan['monto'], 2)}. Planificación, no ejecución."
     _paragraph(c, text, x, top - 23, half, size=9)
     top -= max(110, 20 + len(kitrows) * 18)
-    _paragraph(c, f"* {number(r['families_total'])} familias reportadas por entrega; no son familias únicas. "
+    _paragraph(c, f"* {number(r['families_total'])} núcleos familiares reportados por entrega; no son núcleos familiares únicos. "
                   "Detalle de fechas y cantones en el dashboard y en Excel (Kits y bono).", M, top, full, size=7.2)
     top -= 30
     left = note("Kits · alcance del corte", r["notes"]["kits"], M, top, half, size=7.4)
@@ -341,7 +344,7 @@ def render_pptx(prs, ctx):
     for i in range(0, len(actions), 11):
         part = actions[i:i + 11]
         _table(s, .55 + (i // 11) * 6.25, 1.5, 5.9,
-               [("Provincia", "name", None, "text"), ("Kits", "kits", .6, "int"), ("Bono núcleos", "managed", .65, "int"),
+               [("Provincia", "name", None, "text"), ("Kits", "kits", .6, "int"), ("Bono: núcleos familiares", "managed", .65, "int"),
                 ("USD gestionado", "managed_text", 1.05, "text"), ("Artic. personas", "articulation", .7, "int"),
                 ("USD articulación", "articulation_text", 1.05, "text")], part, row_h=.36, header_h=.65, size=8)
     _text(s, .55, 6.25, 12.2, .5, r["notes"]["bonus"], size=9)
@@ -349,10 +352,10 @@ def render_pptx(prs, ctx):
     _title(s, "Kits en provincias priorizadas", .55, 1.4, 7)
     for i in range(0, len(r["kits_provinces"]), 10):
         _table(s, .55 + (i // 10) * 3.65, 1.95, 3.5,
-               [("Provincia", "provincia", None, "text"), ("Kits", "kits", .65, "int"), ("Familias*", "familias", .7, "int")],
+               [("Provincia", "provincia", None, "text"), ("Kits", "kits", .65, "int"), ("Núcleos familiares*", "familias", .7, "int")],
                r["kits_provinces"][i:i + 10], row_h=.34, header_h=.5, size=8)
-    _text(s, .55, 6.05, 7.1, .65, f"{number(r['kits_total'])} kits · {number(r['families_total'])} familias reportadas* · {r['deliveries']} registros. "
-          "*No son familias únicas. Corte Kobo: 26/10/2026, 22:26.", size=11)
+    _text(s, .55, 6.05, 7.1, .65, f"{number(r['kits_total'])} kits · {number(r['families_total'])} núcleos familiares reportados* · {r['deliveries']} registros. "
+          "*No son núcleos familiares únicos. Corte Kobo: 26/10/2026, 22:26.", size=11)
     plan = r["plan"]
     _title(s, "Planificación El Niño 2026–2027", 8, 1.4, 4.8)
     _text(s, 8, 2.1, 4.8, 3.8, [f"{number(plan['personas'])} personas potenciales", f"{number(plan['nucleos'])} núcleos familiares potenciales",
@@ -409,12 +412,12 @@ def render_workbook(book):
            r["alerts"], note=r["count_note"], height=48, last=10, autofilter=True)
     ws, row = _sheet(book, "Provincias", theme.MORADO, "Acciones del Ministerio en cada provincia", [2.4, 24, 55, 16, 25, 24, 27, 25, 2.4])
     _block(book, ws, row, "Kits y bono de contingencia", [("Provincia", "name", "text"), ("Cantones", "cantons", "text"),
-           ("Kits", "kits", "int"), ("Bono gestionado (núcleos)", "managed", "int"), ("Monto gestionado (USD)", "managed_amount", "usd"),
+           ("Kits", "kits", "int"), ("Bono gestionado (núcleos familiares)", "managed", "int"), ("Monto gestionado (USD)", "managed_amount", "usd"),
            ("En articulación (personas)", "articulation", "int"), ("Monto en articulación (USD)", "articulation_amount", "usd")], r["actions"], last=7,
            total={"name": "Total", **{k: sum(a[k] for a in r["actions"]) for k in ("kits", "managed", "managed_amount", "articulation", "articulation_amount")}})
     ws, row = _sheet(book, "Kits y bono", theme.VIOLETA_500, "Kits y planificación del bono", [2.4, 24, 35, 35, 20, 22, 24, 2.4])
     _, _, row = _block(book, ws, row, "Kits entregados en provincias priorizadas", [("Período", "date", "text"), ("Provincia", "province", "text"),
-           ("Cantón", "canton", "text"), ("Kits", "kits", "int"), ("Familias reportadas", "families", "int"), ("ID Kobo", "id", "text")], r["kits"], note=r["notes"]["kits"], last=6, total={"date": "Total", "kits": r["kits_total"], "families": r["families_total"]})
+           ("Cantón", "canton", "text"), ("Kits", "kits", "int"), ("Núcleos familiares reportados", "families", "int"), ("ID Kobo", "id", "text")], r["kits"], note=r["notes"]["kits"], last=6, total={"date": "Total", "kits": r["kits_total"], "families": r["families_total"]})
     _block(book, ws, row + 2, "Planificación El Niño 2026–2027", [("Personas potenciales", "personas", "int"),
            ("Núcleos familiares potenciales", "nucleos", "int"), ("Inversión estimada (USD)", "monto", "usd")], [r["plan"]],
            note="Proyección nacional; planificación, no ejecución", last=4)

@@ -422,7 +422,7 @@ class RiskView:
             values[code] = float(value) if value == value else None
             titles[code] = (f"{names.place(row['provincia'])}\n{ui.number(row['alertas'])} alertas en servicios MTDH"
                             f"\n{ui.number(row['kits'])} kits en provincias priorizadas"
-                            f"\n{ui.number(row['gestionados'])} núcleos con bono gestionado")
+                            f"\n{ui.number(row['gestionados'])} núcleos familiares con bono gestionado")
         return values, titles
 
     def map_svg(self, indicator: str | None = None, night: bool = True, width: int = 640) -> tuple[str, str]:
@@ -470,7 +470,7 @@ class RiskView:
              "note": f"Registros distintos · desde {r.since:%d/%m/%Y}"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
              "note": f"{kit_provinces} provincias priorizadas · corte 26/10, 22:26"},
-            {"label": "Núcleos con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
+            {"label": "Núcleos familiares con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
              "note": "Por inundaciones · gestión del bono"},
             {"label": "Monto de bonos gestionados", "value": float(r.managed.monto.sum()), "prefix": "USD", "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
@@ -575,7 +575,7 @@ class RiskView:
         else:
             columns = [{"key": "nombre", "label": "Provincia", "kind": "strong", "sub": "provincia_sub"},
                        {"key": "kits", "label": "Kits", "kind": "num", "zero": "dash", "sub": "kits_sub"},
-                       {"key": "gestionados", "label": "Bono gestionado (núcleos)", "kind": "num", "zero": "dash", "sub": "gestionados_sub"},
+                       {"key": "gestionados", "label": "Bono gestionado (núcleos familiares)", "kind": "num", "zero": "dash", "sub": "gestionados_sub"},
                        {"key": "articulacion", "label": "En articulación (personas)", "kind": "num", "zero": "dash", "sub": "articulacion_sub"}]
             total = {"nombre": f"Total de {respuesta._n(len(rows), 'provincia')}", **{c["key"]: rows[c["key"]].sum() for c in columns[1:]}}
             ui.rich_table(columns, rows.to_dict("records"), total=total)
@@ -584,7 +584,7 @@ class RiskView:
                        f"{pd.Timestamp(self.response.cuts['bonos']):%d/%m/%Y}). Las acciones no se suman entre sí.")
         rows = self.action_rows()
         layout = [("Provincia", "nombre", "text", 26.0), ("Kits", "kits", "int", 12.0),
-                  ("Bono gestionado (núcleos)", "gestionados", "int", 22.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 22.0),
+                  ("Bono gestionado (núcleos familiares)", "gestionados", "int", 22.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 22.0),
                   ("En articulación (personas)", "articulacion", "int", 22.0), ("Monto en articulación (USD)", "monto_articulacion", "usd", 24.0)]
         download_table(rows, layout, title="Acciones del Ministerio por provincia", subtitle=self.response.scope_text(),
                        period_label=self.response.scope_text(), file_name=f"MTDH_riesgos_acciones_{self.response.cut:%Y-%m-%d}.xlsx",
