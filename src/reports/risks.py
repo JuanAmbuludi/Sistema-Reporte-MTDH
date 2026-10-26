@@ -204,7 +204,7 @@ def build_context(view, *, title: str) -> dict:
     note(kpis, 1, "Inundaciones o mov. en masa")
     if ctx["response"]:
         r = ctx["response"]
-        note(kpis, 2, f"{_n(r['units'], 'UA', 'UA')} · {_n(r['alert_provinces'], 'provincia')}" if r["alert_count"]
+        note(kpis, 2, f"{_n(r['units'], 'UA', 'UA')} con código · {_n(r['alert_provinces'], 'provincia')}" if r["alert_count"]
               else "Sin alertas en la consulta", "Alertas en servicios")
         note(kpis, 3, f"{_n(r['deliveries'], 'entrega')} · 24 y 25/10" if r["deliveries"] else "Sin entregas en la consulta")
         note(kpis, 4, f"USD {number(r['managed_amount'], 2)} · inundaciones" if r["managed_people"] else "Sin pagos en la consulta")
@@ -471,7 +471,7 @@ def _action_tiles(c, r: dict, x: float, top: float, width: float, height: float 
     from .pdf import C, INK, MIST, MUTED, NIGHT, _badge, _clip
     tiles = [("shield", theme.ORO, "Alertas en servicios MTDH", r["alert_count"], "alertas con afectación documentada",
               f"{r['pending']} pendientes · {r['following']} en seguimiento · {r['resolved']} resueltas",
-              f"{r['units']} UA · {_n(r['alert_provinces'], 'provincia')} · {_n(r['alert_cantons'], 'cantón', 'cantones')}"),
+              f"{r['units']} UA con código · {_n(r['alert_provinces'], 'provincia')} · {_n(r['alert_cantons'], 'cantón', 'cantones')}"),
              ("life-buoy", theme.VIOLETA_500, "Kits entregados", r["kits_total"], "kits en territorio",
               f"{_n(r['deliveries'], 'entrega')} · {_n(r['kit_provinces'], 'provincia')} · {_n(r['kit_cantons'], 'cantón', 'cantones')}",
               f"24 y 25 de octubre de 2026 · corte {r['kits_cut']}"),
@@ -592,27 +592,38 @@ def _pair_bars(c, rows: list[dict], x: float, top: float, width: float, step: fl
     return y
 
 
-def _scopes_height(ctx: dict, width: float) -> float:
+def _scope_columns(ctx):
     r = ctx["response"]
-    texts = [ctx["methodology"], f"Multiamenaza: {ctx['multi_note']}", f"Filtros. {r['notes']['filters']}", r["notes"]["alerts"],
-             r["notes"]["kits"], r["notes"]["bonus"],
-             f"Fuentes: {ctx['sources']} Respuesta: Subsecretaría Territorial, reporte ministerial de kits y ayuda memoria del bono."]
-    return 22 + sum(_paragraph_height(t, width, 7.1) + 4 for t in texts) + 18
+    return (["Multiamenaza. " + ctx["multi_note"], "Alertas. " + r["notes"]["alerts"]],
+            ["Filtros. " + r["notes"]["filters"], "Kits. " + r["notes"]["kits"],
+             "Bono de contingencia. " + r["notes"]["bonus"]])
+
+
+def _scope_sources(ctx):
+    return (f"Fuentes: {ctx['sources']} Respuesta: Subsecretaría Territorial (análisis de alertas), "
+            "reporte ministerial de kits y ayuda memoria del bono de contingencia.")
+
+
+def _scopes_height(ctx: dict, width: float) -> float:
+    half = (width - 18) / 2
+    columns = max(sum(_paragraph_height(t, half, 6.4) + 4 for t in col) for col in _scope_columns(ctx))
+    return 22 + _paragraph_height(ctx["methodology"], width, 6.4) + 6 + columns + _paragraph_height(_scope_sources(ctx), width, 6.4) + 22
 
 
 def _scopes(c, ctx: dict, top: float) -> float:
-    """Methodological note of the exposure, the scope of each action and the sources, with the link to the geoportal."""
+    """Keep the full methodology and source limits clear of the footer as the alert table grows."""
     from .pdf import M, W, C, _heading
     width = W - 2 * M
-    r = ctx["response"]
     _heading(c, "Nota metodológica y alcances", M, top - 12, width)
-    top -= 22
-    for label, text in [("", ctx["methodology"]), ("Multiamenaza. ", ctx["multi_note"]), ("Filtros. ", r["notes"]["filters"]),
-                        ("Alertas. ", r["notes"]["alerts"]),
-                        ("Kits. ", r["notes"]["kits"]), ("Bono de contingencia. ", r["notes"]["bonus"])]:
-        top = _paragraph(c, label + text, M, top, width, size=7.1) - 4
-    top = _paragraph(c, f"Fuentes: {ctx['sources']} Respuesta: Subsecretaría Territorial (análisis de alertas), reporte ministerial "
-                        "de kits y ayuda memoria del bono de contingencia.", M, top, width, size=7.1, color=C(theme.PIZARRA)) - 6
+    top = _paragraph(c, ctx["methodology"], M, top - 22, width, size=6.4) - 6
+    half = (width - 18) / 2
+    bottoms = []
+    for i, texts in enumerate(_scope_columns(ctx)):
+        y = top
+        for text in texts:
+            y = _paragraph(c, text, M + i * (half + 18), y, half, size=6.4) - 4
+        bottoms.append(y)
+    top = _paragraph(c, _scope_sources(ctx), M, min(bottoms), width, size=6.4, color=C(theme.PIZARRA)) - 6
     c.setFillColor(C(theme.MORADO))
     c.setFont("Text-Bold", 8)
     c.drawString(M, top - 6, "Consultar el geoportal de unidades de atención y amenazas del Ministerio")
@@ -729,7 +740,7 @@ def render_pdf(c, ctx: dict, pages: int) -> None:
                                            (r["resolved"], _n(r["resolved"], "resuelta"))] if count]
         _heading(c, "Alertas con afectación documentada a servicios MTDH", M, top - 12, FULL,
                  " · ".join([_n(r["alert_count"], "alerta")] + states))
-        top = _alert_rows(c, r["alerts"], M, top - 22, FULL, row_h=row_h) - 12
+        top = _alert_rows(c, r["alerts"], M, top - 22, FULL, row_h=row_h) - 8
     if acting:
         rows = [{**p, "position": ranked.index(p) + 1, "alerts_v": p["alerts"] or None, "kits_v": p["kits"] or None,
                  "managed_v": p["managed"] or None, "articulation_v": p["articulation"] or None} for p in acting]
@@ -741,8 +752,8 @@ def render_pdf(c, ctx: dict, pages: int) -> None:
             columns.append(("Muy\nalta", "very_high", 36, "int"))
         columns += [("Multi-\namenaza", "multihazard", 46, "int"), ("Alertas", "alerts_v", 40, "int"), ("Kits", "kits_v", 38, "int"),
                     ("Bono\ngestionado", "managed_v", 50, "int"), ("En\narticulación", "articulation_v", 54, "int")]
-        top = _table(c, M, top - 24, FULL, columns, rows, row_h=11.4, header_h=22) - 12
-    top = _response_tiles(c, r, M, top, FULL) - 12
+        top = _table(c, M, top - 24, FULL, columns, rows, row_h=11.4, header_h=22) - 8
+    top = _response_tiles(c, r, M, top, FULL) - 4
     # A short response (a province, a service) leaves room for more of the exposure: the services and the units with the
     # highest susceptibility, before the scopes.
     free = top - scopes_h - BOTTOM - 8
@@ -954,7 +965,7 @@ def render_pptx(prs, ctx: dict) -> None:
                                                (r["resolved"], _n(r["resolved"], "resuelta"))] if count]
             _title(s, f"{_n(r['alert_count'], 'alerta')} del {r['since']} al {r['cut']}", 0.55, 1.36, 12.2,
                    " · ".join(states + [_n(r['alert_provinces'], 'provincia'), "código y nombre de la UA según la fuente"]))
-            _table(s, 0.5, 2.05, 12.3, columns, rows, row_h=min(0.5, 3.9 / max(1, len(rows))), header_h=0.42, size=10.5)
+            _table(s, 0.5, 2.05, 12.3, columns, rows, row_h=min(0.5, 3.4 / max(1, len(rows))), header_h=0.42, size=8 if len(rows) > 10 else 10.5)
         else:
             _text(s, 0.55, 1.6, 12.2, 0.5, "No hay alertas con afectación documentada en el territorio de la consulta.", size=14,
                   color=theme.PIZARRA)
@@ -1013,7 +1024,7 @@ def render_pptx(prs, ctx: dict) -> None:
         columns = [("N.º", "position", 0.5, "int"), ("Provincia", "name", None, "text"), ("UA expuestas", "units", 1.05, "int"),
                    ("% expuesto", "exposure", 0.95, "pct"), ("Alertas", "alerts_v", 0.8, "int"), ("Kits", "kits_v", 0.7, "int"),
                    ("Bono gest.", "managed_v", 0.9, "int"), ("Articulación", "articulation_v", 1.05, "int")]
-        _table(s, 5.4, 1.42, 7.45, columns, rows, row_h=min(0.4, 4.7 / max(1, len(rows))), header_h=0.42, size=10.5)
+        _table(s, 5.4, 1.42, 7.45, columns, rows, row_h=min(0.4, 4.7 / max(1, len(rows))), header_h=0.42, size=8 if len(rows) > 10 else 10.5)
         _text(s, 5.4, 6.6, 7.45, 0.4, note_text, size=9.5, color=theme.PIZARRA)
     else:
         s = next_slide("Unidades expuestas por provincia")

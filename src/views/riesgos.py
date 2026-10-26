@@ -581,7 +581,7 @@ class RiskView:
                 self._actions_table(acting)
         if not r.alerts.empty:
             ui.section_heading("Alertas en servicios MTDH", f"{respuesta._n(len(r.alerts), 'alerta')} con afectación documentada · "
-                                                            f"{respuesta._n(r.units, 'UA', 'UA')} · {r.scope_text().lower()}", "shield")
+                                                            f"{respuesta._n(r.units, 'UA', 'UA')} con código · {r.scope_text().lower()}", "shield")
             with st.container(border=True, key="card_response_alert_table"):
                 ui.chart_title("Cada alerta con su unidad, territorio, afectación y estado",
                                "Código y nombre de la UA cuando constan en la fuente · de la más reciente a la más antigua")

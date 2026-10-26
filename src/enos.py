@@ -13,7 +13,8 @@ BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a 
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
              "Gestionado no acredita cobro; articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
 KIT_NOTE = "Entregas documentadas del 24 y 25 de octubre de 2026, corte 25/10 a las 19:00. No representan el acumulado desde el 14/09."
-QUALITY_NOTE = ("Se revisaron Detalle y Acciones realizadas de cada alerta. Los casos sin evidencia de afectación al servicio no se incorporan a indicadores ni exportables.")
+QUALITY_NOTE = ("Solo afectaciones documentadas al servicio. En el corte nacional, cinco alertas carecen de código UA. "
+                "En ALT-2026-000289 el nombre difiere entre Detalle y Acciones realizadas; requiere validación.")
 START = "2026-09-14"   # start of the follow-up: alerts registered from this date
 REFERENCE = "Ámbito: afectaciones a servicios MTDH y acciones institucionales de respuesta."
 
@@ -39,6 +40,9 @@ def frames(data, provinces=()):
             rows = [r for r in rows if r.get('afectacion_servicio_confirmada') is True]
         columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits'] if name == 'kits' else ['provincia','evento','personas','monto']
         frame = pd.DataFrame(rows, columns=columns)
+        if name == 'alertas':
+            dates = pd.to_datetime(frame.fecha, errors='coerce')
+            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
         if provinces:
             frame = frame.loc[frame.provincia.isin(provinces)]
         result[name] = frame.copy()

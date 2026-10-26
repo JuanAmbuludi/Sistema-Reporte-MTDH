@@ -1,7 +1,7 @@
 """Respuesta del Ministerio ante El Niño, junto a la exposición de las unidades de atención en Riesgos.
 
 Three actions with their own sources and cuts (see :mod:`src.enos`): alerts with a documented impact on MTDH services
-since 29 September 2026, kits delivered (the weekend of 24–25 October) and the contingency bonus (payments managed and
+since 14 September 2026, kits delivered (the weekend of 24–25 October) and the contingency bonus (payments managed and
 cases in articulation for floods, and the national plan for El Niño 2026–2027).  Each keeps its unit: alerts are alerts,
 kits are kits and bonus figures are people with a managed payment or in articulation; they are never added together.
 """

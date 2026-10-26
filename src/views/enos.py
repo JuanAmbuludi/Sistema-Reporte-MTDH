@@ -68,8 +68,8 @@ class EnosView:
         return [{'label': 'Alertas de servicios MTDH', 'value': len(self.alerts), 'icon': 'storm', 'note': 'Desde el 14/09/2026'},
                 {'label': 'Alertas abiertas', 'value': int(self.alerts.estado.ne('Resuelto').sum()), 'icon': 'clock',
                  'note': 'Pendientes o en seguimiento'},
-                {'label': 'UA con afectación documentada', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
-                 'icon': 'building', 'note': 'Códigos de unidad distintos'},
+                {'label': 'UA afectadas con código', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
+                 'icon': 'building', 'note': 'Solo códigos registrados en la fuente'},
                 {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Fin de semana 24–25/10'}]
 
     def hero_visual(self):

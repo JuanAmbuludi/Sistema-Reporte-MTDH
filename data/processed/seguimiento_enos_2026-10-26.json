@@ -2,7 +2,7 @@
   "schema": 2,
   "corte": "2026-10-26",
   "desde": "2026-09-14",
-  "generado_utc": "2026-10-26T18:05:54.029364+00:00",
+  "generado_utc": "2026-10-26T19:59:41.038426+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -115,6 +115,76 @@
       "servicio": "Creciendo con Nuestros Hijos (CNH)",
       "afectacion_servicio": "Acceso impedido para atención presencial; contacto telefónico temporal",
       "afectados_fuente": 6
+    },
+    {
+      "codigo": "ALT-2026-000291",
+      "fecha": "2026-09-27",
+      "provincia": "Guayas",
+      "canton": "Balao",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "CNH Cien Familias",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Creciendo con Nuestros Hijos (CNH)",
+      "afectacion_servicio": "Inundación que afecta la prestación del servicio",
+      "afectados_fuente": 45
+    },
+    {
+      "codigo": "ALT-2026-000288",
+      "fecha": "2026-09-24",
+      "provincia": "Manabí",
+      "canton": "Junín",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "CDI Divino Niño",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Filtración de agua en instalaciones; limpieza para continuar la atención",
+      "afectados_fuente": 30
+    },
+    {
+      "codigo": "ALT-2026-000289",
+      "fecha": "2026-09-24",
+      "provincia": "Manabí",
+      "canton": "Chone",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "CDI Mis Pequeños Traviesos",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Filtraciones e inundación; actividades suspendidas; nombre de UA por validar",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000283",
+      "fecha": "2026-09-24",
+      "provincia": "Manabí",
+      "canton": "Chone",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "CDI Gotitas de Miel",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Ingreso de agua; suspensión del servicio el 24/09 y limpieza; actividades retomadas",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000287",
+      "fecha": "2026-09-24",
+      "provincia": "Manabí",
+      "canton": "Chone",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "CDI Lucerito",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Filtraciones e ingreso de agua; limpieza sin suspensión del servicio",
+      "afectados_fuente": 31
     }
   ],
   "kits": [
@@ -228,17 +298,16 @@
   },
   "control": {
     "alertas_detalle_original": 31,
-    "alertas_desde_inicio": 17,
-    "alertas_con_afectacion_servicios": 8,
-    "alertas_excluidas": 9,
+    "alertas_desde_inicio": 31,
+    "alertas_con_afectacion_servicios": 13,
+    "alertas_excluidas": 18,
+    "alertas_revision_inicio_solicitado": "2026-09-14",
     "alertas_sin_revision": 0,
-    "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas.",
-    "alertas_revisadas_desde": "2026-09-29",
-    "ventana_desde": "2026-09-14"
+    "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas."
   },
   "fuentes": [
     {
-      "nombre": "05-analisis-alertas-2026-10-26-2-.xlsx",
+      "nombre": "01-analisis-alertas-2026-10-26-2-.xlsx",
       "sha256": "a4cc38fde6dc3ea1470dd16b9d4cb56dc848726cc6add3b1916ffdb8cf72a0d0"
     },
     {
@@ -251,7 +320,7 @@
     },
     {
       "nombre": "enos_revision_servicios_2026-10-26.csv",
-      "sha256": "23a46ce403d2cfcdb3c70cb21ebf18b83636f25a32aa857c8e711814fb767576"
+      "sha256": "5e36e0e5a36824133167b4372ec38587836f12093bdc8dc0b0c01765443787cf"
     }
   ]
 }

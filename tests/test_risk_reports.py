@@ -36,7 +36,7 @@ def test_filtered_risk_exports_preserve_counts_scope_methodology_and_codes():
     assert METHODOLOGY in text and "Inundaciones" in text and "287" in text
     # The response of the selection: its alerts (service filter included) and the kits and bonus of its territory.
     r = ctx["response"]
-    assert r["alert_count"] == 4 and {a["province"] for a in r["alerts"]} == {"Guayas"} and r["kits_total"] == 400
+    assert r["alert_count"] == 5 and {a["province"] for a in r["alerts"]} == {"Guayas"} and r["kits_total"] == 400
     assert "Respuesta del Ministerio" in text and "Exposición de las unidades de atención" in text
     pptx = generate_pptx(ctx)
     slides = Presentation(BytesIO(pptx)).slides
@@ -68,7 +68,7 @@ def test_service_filter_reaches_the_alerts_but_not_kits_or_bonus():
     r = ctx["response"]
     assert r["alert_count"] == 0 and r["kits_total"] == 802 and r["managed_people"] == 113
     national = view().report_context("Riesgos")["response"]
-    assert national["alert_count"] == 8
+    assert national["alert_count"] == 13
 
 
 def test_risk_report_scope_invalidates_download_and_rejects_empty_or_incomplete_detail():

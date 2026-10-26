@@ -1,6 +1,6 @@
 """Build a dated, minimal operational snapshot from the supplied territorial sources.
 
-python scripts/build_enos.py --alerts alertas.xlsx --bonos bono.docx --cut 2026-10-26
+python scripts/build_enos.py --alerts alertas.xlsx --bonos bono.docx --service-review revision.csv --start 2026-09-14 --cut 2026-10-26
 Kit rows are transcribed from Reporte_ministerial_kits_provincias_priorizadas_rev.pdf,
 cut 25/10/2026 19:00. Source narratives, addresses and staff names are not published.
 """
@@ -50,15 +50,19 @@ def alert_rows(path, start, cut, review_path):
             raise ValueError('Una alerta incluida requiere servicio y afectación documentada.')
         code = str(r['Código SIIMDH']).strip()
         code = '' if code in ('—', '-', 'nan', '') else re.sub(r'\.0$', '', code)
+        unit = str(r['Unidad de atención']).strip()
+        if unit in ('—', '-', 'nan', '', 'Sin unidad registrada'):
+            unit = decision.get('unidad_fuente') or 'Sin unidad registrada'
         rows.append({'codigo': str(r['Código']).strip(), 'fecha': str(r['Fecha'])[:10],
                      'provincia': names.place(r['Provincia']), 'canton': names.place(r['Cantón']),
                      'estado': r['Estado'], 'prioridad': r['Prioridad'], 'codigo_ua': code,
-                     'unidad': str(r['Unidad de atención']).strip() if code else 'Sin unidad registrada',
+                     'unidad': unit,
                      'afectacion_servicio_confirmada': True, 'servicio': decision['servicio'],
                      'afectacion_servicio': decision['afectacion_servicio'],
                      'afectados_fuente': int(r['Afectados']) if pd.notna(r['Afectados']) else None})
     return rows, {'alertas_detalle_original': len(frame), 'alertas_desde_inicio': len(chosen),
                   'alertas_con_afectacion_servicios': len(rows), 'alertas_excluidas': len(chosen)-len(rows),
+                  'alertas_revision_inicio_solicitado': start,
                   'alertas_sin_revision': sum(str(code).strip() not in decisions for code in chosen.Código)}
 
 
