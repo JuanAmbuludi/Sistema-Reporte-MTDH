@@ -132,7 +132,7 @@ def test_report_center_asks_for_the_territorial_level():
     level = app.segmented_control(key="report_level")
     assert level.options == ["Provincia", "Cantón", "Parroquia", "Todo"] and level.value == "todo"
     _generate_every_product(app)
-    level.set_value("canton").run()
+    app.segmented_control(key="report_level").set_value("canton").run()
     assert not app.exception
     html = _markdown(app)
     assert "Cantones" in html and "Nivel territorial" in html
@@ -222,3 +222,43 @@ def test_budget_offers_the_institutional_and_the_social_budget():
     app.multiselect(key="social_groups").set_value(["BDH_BDHV"]).run()
     assert not app.exception and "Bono de Desarrollo Humano (BDH y BDHV)" in _markdown(app)
     _generate_every_product(app)
+
+
+def test_executive_summary_of_every_section_fits_three_pages():
+    import pymupdf
+    app = _logged_in_app()
+    app.segmented_control(key="workspace").set_value("Reportes").run()
+    app.segmented_control(key="report_product").set_value("Resumen ejecutivo").run()
+    app.segmented_control(key="report_scope").set_value("todas").run()
+    assert not app.exception
+    next(b for b in app.button if b.label == "Generar resumen ejecutivo").click().run()
+    assert not app.exception
+    assert any(d.label == "Descargar resumen ejecutivo" for d in app.download_button)
+    content = app.session_state["generated_report"]["content"]
+    pdf = pymupdf.open(stream=content, filetype="pdf")
+    assert 1 < len(pdf) <= 3, "Tres páginas como máximo"
+    text = " ".join(page.get_text() for page in pdf)
+    for section in ["Transferencias monetarias", "Servicios de protección integral", "Riesgos", "Contingencias y compensaciones",
+                    "Jóvenes en Acción", "Gestión laboral", "Presupuesto institucional", "Presupuesto social"]:
+        assert section in text, section
+    assert "1.578.019" in text and "9.460" in text and "2.789.748" in text
+
+
+def test_risks_area_reads_exposure_by_threat_service_and_territory():
+    app = _logged_in_app()
+    app.segmented_control(key="module").set_value("riesgos").run()
+    assert not app.exception
+    html = _markdown(app)
+    for title in ["Exposición por amenaza", "Amenazas simultáneas", "Combinaciones de amenazas más frecuentes",
+                  "Exposición por servicio", "Servicio y amenaza", "Exposición por territorio", "Provincia y amenaza",
+                  "Unidades de atención expuestas", "Nota metodológica"]:
+        assert title in html, title
+    assert "9.460" in html and "6.220" in html and "1.341" in html
+    app.segmented_control(key="risk_levels").set_value(["Alta", "Muy alta"]).run()
+    assert not app.exception
+    app.multiselect(key="risk_threats").set_value(["susc_inundacion"]).run()
+    assert not app.exception
+    app.segmented_control(key="lvl_risk_rank").set_value("porcentaje").run()
+    assert not app.exception
+    app.segmented_control(key="risk_map_indicator").set_value("porcentaje").run()
+    assert not app.exception

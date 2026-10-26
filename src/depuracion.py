@@ -42,6 +42,16 @@ PROVINCE_NAMES = {
 # Words written short in the sources.
 _ABBREVIATIONS = {"STO": "SANTO", "STA": "SANTA", "FCO": "FRANCISCO", "GRAL": "GENERAL", "CRNEL": "CORONEL", "CRNL": "CORONEL",
                   "DR": "DOCTOR", "SN": "SAN", "PTO": "PUERTO"}
+# Numbers written in figures ("7 DE OCTUBRE") read as the words of the division ("SIETE DE OCTUBRE").
+_NUMBERS = dict(enumerate(
+    "UNO DOS TRES CUATRO CINCO SEIS SIETE OCHO NUEVE DIEZ ONCE DOCE TRECE CATORCE QUINCE DIECISEIS DIECISIETE DIECIOCHO "
+    "DIECINUEVE VEINTE VEINTIUNO VEINTIDOS VEINTITRES VEINTICUATRO VEINTICINCO VEINTISEIS VEINTISIETE VEINTIOCHO VEINTINUEVE "
+    "TREINTA TREINTA Y UNO".replace("TREINTA Y UNO", "TREINTA_Y_UNO").split(), start=1))
+_NUMBERS = {str(n): word.replace("_", " ") for n, word in _NUMBERS.items()}
+# Names of the urban centre of a canton: the head of the canton (code ending in 50) when no parish carries the name.
+_HEAD_NAMES = {"LA MATRIZ", "MATRIZ", "CABECERA CANTONAL", "CABECERA", "CENTRO", "CENTRAL", "URBANA", "PARROQUIA URBANA"}
+# Leading words a canton may be written without.
+_TITLES = {"EL", "LA", "LOS", "LAS", "CORONEL", "GENERAL", "DOCTOR", "CAPITAN"}
 # Province column values that are not provinces: the canton column decides.
 _NOT_PROVINCES = {"AZOGUEZ", "AZOGUES", "MILAGRO"}
 _PROVINCE_ALIASES = {"SANTO DOMINGO": "23", "SANTO DOMINGO DE TSACHILAS": "23", "SANTO DOMINGO DE LOS TSACHILAS": "23",
@@ -55,8 +65,11 @@ _CANTON_ALIASES = {"QUITO": "DISTRITO METROPOLITANO DE QUITO", "CHACO": "EL CHAC
                    "VELASCO IBARRA": "EL EMPALME", "MONTALVO": "MONTALVO", "RIOVERDE": "RIO VERDE",
                    "GENERAL VILLAMIL": "PLAYAS", "BUCAY": "GENERAL ANTONIO ELIZALDE", "PULILI": "PUJILI", "PUYO": "PASTAZA",
                    "JIMBURA": "ESPINDOLA", "CHALTURA": "ANTONIO ANTE", "PINTAG": "DISTRITO METROPOLITANO DE QUITO",
-                   "CALDERON": "PORTOVIEJO", "TARQUI": "MANTA", "NUEVA LOJA": "LAGO AGRIO", "MACAS": "MORONA",
-                   "TENA": "TENA", "PUERTO BAQUERIZO MORENO": "SAN CRISTOBAL"}
+                   "NUEVA LOJA": "LAGO AGRIO", "MACAS": "MORONA", "TENA": "TENA", "PUERTO BAQUERIZO MORENO": "SAN CRISTOBAL"}
+# Parishes written in the canton column whose name repeats in several provinces: the province decides the canton.
+_CANTON_ALIASES_BY_PROVINCE = {"13": {"CALDERON": "PORTOVIEJO", "TARQUI": "MANTA"},
+                               "17": {"CALDERON": "DISTRITO METROPOLITANO DE QUITO"},
+                               "01": {"TARQUI": "CUENCA"}, "09": {"TARQUI": "GUAYAQUIL"}, "16": {"TARQUI": "PASTAZA"}}
 
 
 def key(text: object) -> str:
@@ -66,7 +79,7 @@ def key(text: object) -> str:
     plain = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii").upper()
     plain = re.sub(r"[_\-./,;:()'\"]", " ", plain)
     plain = re.sub(r"[^A-Z0-9 ]", "", plain)
-    return " ".join(_ABBREVIATIONS.get(word, word) for word in plain.split())
+    return " ".join(_NUMBERS.get(word, _ABBREVIATIONS.get(word, word)) for word in plain.split())
 
 
 def similar(a: str, b: str) -> float:
@@ -98,6 +111,7 @@ class Gazetteer:
     canton_name: dict[str, str] = field(default_factory=dict)             # code -> display name
     cantons_of: dict[str, dict[str, str]] = field(default_factory=dict)   # province -> key -> code
     cantons_by_key: dict[str, list[str]] = field(default_factory=dict)    # key -> codes (whole country)
+    canton_variants: dict[str, set[str]] = field(default_factory=dict)    # other exact forms -> codes
     parish_key: dict[str, str] = field(default_factory=dict)              # code -> key
     parish_name: dict[str, str] = field(default_factory=dict)             # code -> display name
     parishes_of: dict[str, dict[str, str]] = field(default_factory=dict)  # canton -> key -> code
@@ -127,36 +141,81 @@ class Gazetteer:
             return scored[0][1]
         return None
 
-    def canton(self, province: str | None, name: object) -> str | None:
-        """Canton code: within the province first, then the whole country when the name is unique."""
+    def canton(self, province: str | None, name: object, *, country: bool = True) -> str | None:
+        """Canton code: within the province first, then the whole country when the name is unique.
+
+        With a known province, another province only lends a canton whose name is exactly that one (a canton
+        recorded under a neighbouring province); a partial name never moves a record to another province.
+        """
         k = key(name)
-        k = _CANTON_ALIASES.get(k, k)
+        k = _CANTON_ALIASES_BY_PROVINCE.get(province or "", {}).get(k) or _CANTON_ALIASES.get(k, k)
         if province:
             found = self._match(k, self.cantons_of.get(province, {}))
-            if found:
+            if found or not country:
                 return found
-        codes = self.cantons_by_key.get(k, [])
+        codes = set(self.cantons_by_key.get(k, [])) | self.canton_variants.get(k, set())
         if len(codes) == 1:
-            return codes[0]
-        # A canton recorded under another province (or an office) is found in the whole country when its name is unique.
+            return next(iter(codes))
+        if province:
+            return None
+        # Without a province (an office written in its column) the canton is found in the whole country.
         national = {candidate: code[0] for candidate, code in self.cantons_by_key.items() if len(code) == 1}
         contained = {code for candidate, code in national.items() if same_place(k, candidate, threshold=2.0)}
         if len(contained) == 1:
             return contained.pop()
-        return self._match(k, national) if not province else None
+        return self._match(k, national)
 
     def parish(self, canton: str | None, name: object) -> str | None:
         if not canton:
             return None
-        return self._match(key(name), self.parishes_of.get(canton, {}))
+        options = self.parishes_of.get(canton, {})
+        k = key(name)
+        found = self._match(k, options)
+        if found:
+            return found
+        # "SANTO DOMINGO CABECERA CANTONAL", "LA MATRIZ": the head of the canton.
+        stripped = re.sub(r"\b(CABECERA CANTONAL|CABECERA|PARROQUIA URBANA)\b", " ", k).split()
+        if stripped and " ".join(stripped) != k:
+            found = self._match(" ".join(stripped), options)
+            if found:
+                return found
+        head = f"{canton}50"
+        if (k in _HEAD_NAMES or not stripped) and head in self.parish_key:
+            return head
+        return None
+
+    def _parish_in_province(self, province: str | None, name: object) -> tuple[str | None, str | None]:
+        """Canton and parish of a parish name that only one canton of the province has."""
+        if not province:
+            return None, None
+        k = key(name)
+        hits = {(code[:4], code) for canton, options in self.parishes_of.items() if canton[:2] == province
+                for candidate, code in options.items() if candidate == k}
+        return hits.pop() if len(hits) == 1 else (None, None)
 
     def locate(self, province: object, canton: object = None, parish: object = None) -> tuple[str | None, str | None, str | None]:
-        """Province, canton and parish codes of a place written by name (each ``None`` when it cannot be told)."""
+        """Province, canton and parish codes of a place written by name (each ``None`` when it cannot be told).
+
+        When the canton column names no canton (a hamlet, a misspelling), the parish column decides: it may hold the
+        canton itself or a parish that only one canton of the province has.
+        """
         p = self.province(province)
-        k = self.canton(p, canton) if canton is not None else None
+        k = self.canton(p, canton, country=False) if canton is not None else None
+        q = None
+        if not k and parish is not None and p and key(parish) not in _HEAD_NAMES:
+            k = self._match(_CANTON_ALIASES.get(key(parish), key(parish)), self.cantons_of.get(p, {}))
+            if k:
+                # The parish column held the canton: the canton column may name its parish; otherwise its head.
+                head = f"{k}50"
+                q = self.parish(k, canton) or (head if head in self.parish_key else None)
+            else:
+                k, q = self._parish_in_province(p, parish)
+        if not k and canton is not None and p:
+            k = self.canton(p, canton)
         if k:
             p = k[:2]
-        q = self.parish(k, parish) if parish is not None else None
+        if parish is not None and not q:
+            q = self.parish(k, parish)
         return p, k, q
 
 
@@ -212,6 +271,15 @@ def gazetteer() -> Gazetteer:
         gaz.canton_name[code] = display_canton.get(code, name)
         gaz.cantons_of.setdefault(code[:2], {})[key(name)] = code
         gaz.cantons_by_key.setdefault(key(name), []).append(code)
+        # The same canton written without its title or article (EL TAMBO, CORONEL MARCELINO MARIDUEÑA) or without the
+        # second name the division adds (ALFREDO BAQUERIZO MORENO (JUJÁN)).
+        forms = {key(gaz.canton_name[code])}
+        for form in list(forms | {key(name)}):
+            words = form.split()
+            if len(words) > 1 and words[0] in _TITLES:
+                forms.add(" ".join(words[1:]))
+        for form in forms - {key(name)}:
+            gaz.canton_variants.setdefault(form, set()).add(code)
     for code, names in sorted(parishes.items()):
         name = _mode(names)
         gaz.parish_key[code] = key(name)

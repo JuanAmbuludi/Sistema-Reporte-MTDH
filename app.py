@@ -6,6 +6,7 @@ labour management or the budget; they are never mixed), and every export receive
 """
 from __future__ import annotations
 
+from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
@@ -157,6 +158,10 @@ PRODUCTS = {
 }
 
 
+SCOPES = {"seccion": "Esta sección", "todas": "Todas las secciones"}
+SECTION_ICONS = {"transferencias": "hand-coins", "servicios": "users", "riesgos": "storm", "contingencias": "shield",
+                 "jovenes": "graduation", "laboral": "briefcase", "presupuesto": "landmark"}
+
 # Documents of a single territorial level name it in the file; the complete set needs no suffix.
 LEVEL_SUFFIX = {"provincia": "_provincias", "canton": "_cantones", "parroquia": "_parroquias"}
 
@@ -178,22 +183,42 @@ def report_center() -> None:
         product = st.segmented_control("Producto", list(PRODUCTS), format_func=lambda k: PRODUCTS[k]["label"],
                                        default="Resumen ejecutivo", key="report_product", required=True, width="stretch")
         spec = PRODUCTS[product]
-        st.caption(view.products_notes()[spec["kind"]])
-        file_id = getattr(view, "file_id", view.id)
-        title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{file_id}").strip() or view.label
-        if hasattr(view, "report_options"):
-            view.report_options()
-        ui.scope_chips(view.scope_items())
+        everything = False
+        if spec["kind"] == "resumen":
+            if st.session_state.get("report_scope") not in SCOPES:
+                st.session_state["report_scope"] = "seccion"
+            scope = st.segmented_control("Alcance", list(SCOPES), format_func=SCOPES.get, key="report_scope", required=True,
+                                         width="stretch")
+            everything = scope == "todas"
+        file_id = "todas_las_secciones" if everything else getattr(view, "file_id", view.id)
+        if everything:
+            st.caption("Tres páginas como máximo: la cifra principal de cada sección y, para cada una, su corte, cuatro cifras "
+                       "clave y sus hallazgos, a nivel nacional.")
+            title = st.text_input("Título", value="Resumen de todas las secciones", max_chars=80,
+                                  key="report_title_all").strip() or "Resumen de todas las secciones"
+            ui.scope_chips([("Secciones", "Todas, cada una con su último corte"), ("Territorio", "Nacional"),
+                            ("Páginas", "Tres como máximo")])
+        else:
+            st.caption(view.products_notes()[spec["kind"]])
+            title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{file_id}").strip() or view.label
+            if hasattr(view, "report_options"):
+                view.report_options()
+            ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
-        digest = hashlib.sha256((view.digest() + json.dumps({"title": title, "product": product, "area": file_id},
-                                                             sort_keys=True)).encode("utf-8")).hexdigest()
+        selection = f"todas-{version}" if everything else view.digest()
+        digest = hashlib.sha256((selection + json.dumps({"title": title, "product": product, "area": file_id},
+                                                         sort_keys=True)).encode("utf-8")).hexdigest()
         name = product.lower()
         if st.button(f"Generar {name}", type="primary", icon=":material/auto_awesome:", width="stretch", key="generate_report"):
             with st.spinner("Preparando el documento…"):
                 try:
                     from src.reports import generate_pdf, generate_pptx, generate_xlsx
-                    context = view.report_context(title)
-                    generator = {"resumen": generate_pdf, "presentacion": generate_pptx, "datos": generate_xlsx}[spec["kind"]]
+                    if everything:
+                        from src.reports.panorama import build_panorama, generate_panorama_pdf
+                        context, generator = build_panorama(bases, title), generate_panorama_pdf
+                    else:
+                        context = view.report_context(title)
+                        generator = {"resumen": generate_pdf, "presentacion": generate_pptx, "datos": generate_xlsx}[spec["kind"]]
                     st.session_state.generated_report = {"digest": digest, "content": generator(context)}
                 except Exception as exc:  # noqa: BLE001 - shown to the operator with its reason
                     st.session_state.pop("generated_report", None)
@@ -201,15 +226,28 @@ def report_center() -> None:
         generated = st.session_state.get("generated_report", {})
         if generated.get("digest") == digest:
             ui.info_note("El documento conserva el periodo, el ámbito y la selección vigentes.", f"{product} listo", tone="ok")
-            level = LEVEL_SUFFIX.get(getattr(view, "report_level", ""), "") if hasattr(view, "report_options") else ""
+            level = LEVEL_SUFFIX.get(getattr(view, "report_level", ""), "") if hasattr(view, "report_options") and not everything else ""
+            stamp_id = datetime.now(corte.ECUADOR).strftime("%Y-%m-%d") if everything else period["id"]
             st.download_button(f"Descargar {name}", generated["content"],
-                               file_name=f'MTDH_{spec["slug"]}_{file_id}_{period["id"]}{level}.{spec["ext"]}', mime=spec["mime"],
+                               file_name=f'MTDH_{spec["slug"]}_{file_id}_{stamp_id}{level}.{spec["ext"]}', mime=spec["mime"],
                                icon=":material/download:", type="primary", width="stretch", key="download_report")
     with right:
-        kpis = [(card["label"], kpi_text(card), card["icon"]) for card in view.kpi_cards()]
-        ui.report_preview(spec["kind"], title, period["label"], view.territory_label, kpis, view.sheets(), view.preview_visual(),
-                          view.slide_titles(), pages=getattr(view, "summary_pages", 2))
-        ui.content_list(view.report_contents(spec["kind"]))
+        if everything:
+            from src import geo
+            silhouette = geo.svg_map({}, layer="provincia", width=300, pad=6, stroke="#FFFFFF", equator=None, locator=False,
+                                     empty_fill="#D8D0F4", context_fill="#F1EEF6", border_color="rgba(81,47,141,.45)",
+                                     frame_color="rgba(81,47,141,.35)", label_color="rgba(81,47,141,.6)", css_class="ec-map mini")
+            ui.report_preview("resumen", title, "Último corte de cada sección", "Nacional",
+                              [("Sección", AREAS[a]["short"], SECTION_ICONS.get(a, "chart")) for a in list(views)[:4]], [], silhouette,
+                              pages=3)
+            ui.content_list([("grid", "Cifra principal de cada sección", "Una por sección, con su propio corte"),
+                             *[(SECTION_ICONS.get(a, "chart"), AREAS[a]["label"], "Corte, cuatro cifras clave y hallazgos") for a in views],
+                             ("clock", "Cortes de la información", "Corte, actualización y frecuencia de cada sección")])
+        else:
+            kpis = [(card["label"], kpi_text(card), card["icon"]) for card in view.kpi_cards()]
+            ui.report_preview(spec["kind"], title, period["label"], view.territory_label, kpis, view.sheets(), view.preview_visual(),
+                              view.slide_titles(), pages=getattr(view, "summary_pages", 2))
+            ui.content_list(view.report_contents(spec["kind"]))
 
 
 if st.session_state.workspace == "Tablero":

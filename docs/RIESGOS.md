@@ -1,6 +1,15 @@
 # Riesgos en unidades de atención
 
-El ámbito **Riesgos** muestra el inventario de UA de septiembre de 2026, sus servicios, territorio y susceptibilidad a inundaciones, movimientos en masa, sequía e incendios forestales. Los filtros de corte, provincia, servicio, amenaza y nivel actualizan los indicadores, el mapa, los dos gráficos y la tabla. La búsqueda adicional afecta solo a la tabla y su descarga CSV. En Reportes se generan PDF, PowerPoint y Excel con la selección vigente y la línea gráfica institucional.
+El ámbito **Riesgos** muestra el inventario de UA de septiembre de 2026, sus servicios, territorio y susceptibilidad a inundaciones, movimientos en masa, sequía e incendios forestales. Los filtros de corte, provincia, servicio, amenazas (una o varias) y categorías de susceptibilidad (media, alta, muy alta; una o varias) actualizan todo el tablero:
+
+- **Mapa** por provincia con cuatro indicadores: UA expuestas, porcentaje del inventario expuesto, UA en susceptibilidad muy alta y registros de multiamenaza; las provincias elegidas se marcan en dorado.
+- **Cifras clave:** UA expuestas (con su porcentaje del inventario), multiamenaza, UA con alguna amenaza en muy alta, UA con dos o más amenazas y provincias con UA expuestas.
+- **Exposición por amenaza:** categorías de cada amenaza, amenazas simultáneas (1 a 4) y combinaciones más frecuentes.
+- **Exposición por servicio:** UA expuestas según su susceptibilidad más alta y la matriz servicio × amenaza.
+- **Exposición por territorio:** alcance territorial, ranking de provincias (UA, porcentaje del inventario o muy alta) y la matriz provincia × amenaza.
+- **Unidades de atención expuestas:** tabla con búsqueda y descarga en CSV o Excel; nota metodológica con definiciones y fuentes.
+
+En Reportes se generan PDF (dos páginas), PowerPoint (seis diapositivas con gráficos nativos) y Excel (seis hojas) con la selección vigente y la línea gráfica institucional. El contenido «Seguimiento y respuesta» (alertas, kits y bono) se documenta en [SEGUIMIENTO_ENOS.md](SEGUIMIENTO_ENOS.md).
 
 Fuente: `UA_SEP26_AMENAZAS(1).xlsx`, hoja `UA_SEPTIEMBRE_2026`, elaborado por DGID / SGDE / MTDH a partir del reporte territorial SIIMTDH. Capas espaciales: MAGAP 2015 (inundaciones y sequía), SNGR 2011 (movimientos en masa) y SNGR 2015 (incendios forestales). La fecha del inventario no cambia la antigüedad de estas capas.
 

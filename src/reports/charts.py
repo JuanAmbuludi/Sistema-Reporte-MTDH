@@ -258,7 +258,10 @@ def columns_png(labels: list[str], values: list[float], *, mode: str = "light", 
     with _LOCK:
         fig = Figure(figsize=(width, height), dpi=dpi, facecolor="none" if night else "#FFFFFF")
         FigureCanvasAgg(fig)
-        ax = fig.add_axes([0.02, 0.13, 0.96, 0.8])
+        # Labels of two lines (a name and its share) get the room they need under the columns.
+        lines = max((str(label).count("\n") + 1 for label in labels), default=1)
+        bottom = max(0.13, (lines * label_size * 1.3 / 72 + 0.05) / height)
+        ax = fig.add_axes([0.02, bottom, 0.96, 0.93 - bottom])
         ax.set_axis_off()
         peak = max(values or [1]) or 1
         color = theme.NIGHT_SEQUENTIAL[-2] if night else theme.SERIE_BONOS

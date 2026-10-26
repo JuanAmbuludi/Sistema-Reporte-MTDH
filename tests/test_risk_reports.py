@@ -24,7 +24,9 @@ def test_filtered_risk_exports_preserve_counts_scope_methodology_and_codes():
     v = view(("09",), ("DII",), "susc_inundacion", ("Alta",))
     ctx = v.report_context("Riesgos")
     assert len(ctx["units"]) == 287 == ctx["kpis"][0]["value"]
-    assert ctx["threats"] == [{"name": "Inundaciones", "media": 0, "alta": 287, "muy_alta": 0, "units": 287}]
+    assert [{k: t[k] for k in ("name", "media", "alta", "muy_alta", "units")} for t in ctx["threats"]] == \
+        [{"name": "Inundaciones", "media": 0, "alta": 287, "muy_alta": 0, "units": 287}]
+    assert round(ctx["threats"][0]["share"], 1) == round(287 / ctx["inventory"] * 100, 1)
     assert ctx["territory_label"] == "Guayas"
     assert ctx["kpis"][1]["label"] == "Multiamenaza" and ctx["kpis"][1]["value"] == 287
     assert ctx["provinces"][0]["multihazard"] == 287
@@ -34,9 +36,10 @@ def test_filtered_risk_exports_preserve_counts_scope_methodology_and_codes():
     assert METHODOLOGY in text and "Inundaciones" in text and "287" in text
     pptx = generate_pptx(ctx)
     slides = Presentation(BytesIO(pptx)).slides
-    assert len(slides) == 4
-    assert METHODOLOGY in " ".join(s.text for s in slides[3].shapes if s.has_text_frame)
-    assert len([n for n in ZipFile(BytesIO(pptx)).namelist() if n.startswith("ppt/charts/chart") and n.endswith(".xml")]) == 2
+    assert len(slides) == 6
+    assert METHODOLOGY in " ".join(s.text for s in slides[5].shapes if s.has_text_frame)
+    # Threats, threats at once, combinations, services and provinces: native, editable charts.
+    assert len([n for n in ZipFile(BytesIO(pptx)).namelist() if n.startswith("ppt/charts/chart") and n.endswith(".xml")]) == 5
     xlsx = generate_xlsx(ctx)
     wb = openpyxl.load_workbook(BytesIO(xlsx), data_only=True)
     assert wb.sheetnames == v.sheets()

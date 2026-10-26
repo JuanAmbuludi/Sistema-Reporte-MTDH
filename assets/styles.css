@@ -88,6 +88,15 @@ html{scroll-behavior:smooth}
 .st-key-consulta [data-testid="stButtonGroup"] button[aria-checked="true"] p{color:#fff!important}
 .st-key-consulta [data-testid="stButtonGroup"] button:disabled{background:var(--niebla)!important;border-color:#E4DEEE!important}
 .st-key-consulta [data-testid="stButtonGroup"] button:disabled p{color:#8A80A0!important}
+.st-key-consulta [data-testid="stButtonGroup"] [role="toolbar"]{display:flex;width:100%;gap:0}
+.st-key-consulta [data-testid="stButtonGroup"] [role="toolbar"] button{flex:1 1 0;min-height:40px;white-space:normal!important;line-height:1.15;
+  background:#fff!important;border-color:#DDD5EA!important}
+.st-key-consulta [data-testid="stButtonGroup"] [role="toolbar"] button p{font-size:13.5px;font-weight:600;color:#8A80A0!important}
+.st-key-risk_levels button[aria-pressed="true"]:nth-child(1){background:var(--lila-300)!important;border-color:var(--lila-300)!important}
+.st-key-risk_levels button[aria-pressed="true"]:nth-child(1) p{color:var(--morado-900)!important}
+.st-key-risk_levels button[aria-pressed="true"]:nth-child(2){background:var(--morado)!important;border-color:var(--morado)!important}
+.st-key-risk_levels button[aria-pressed="true"]:nth-child(3){background:var(--fucsia-700)!important;border-color:var(--fucsia-700)!important}
+.st-key-risk_levels button[aria-pressed="true"]:nth-child(n+2) p{color:#fff!important}
 .st-key-consulta [data-baseweb="select"]>div{border-radius:12px;border-color:#DDD5EA;min-height:44px;background:#FBFAFE}
 .st-key-consulta [data-baseweb="tag"]{background:var(--lila-50)!important;border:1px solid var(--lila-200);border-radius:999px!important}
 .st-key-consulta [data-baseweb="tag"] span{color:var(--morado-800)!important;font-weight:600}
@@ -401,17 +410,17 @@ html{scroll-behavior:smooth}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(248,192,24,.55)}70%{box-shadow:0 0 0 10px rgba(248,192,24,0)}100%{box-shadow:0 0 0 0 rgba(248,192,24,0)}}
 
 /* ---------- Band selectors of the new areas (same language as the map selectors) ---------- */
-.st-key-cont_map_program [data-testid="stWidgetLabel"] p,.st-key-cont_map_level [data-testid="stWidgetLabel"] p,
+.st-key-cont_map_program [data-testid="stWidgetLabel"] p,.st-key-cont_map_level [data-testid="stWidgetLabel"] p,.st-key-risk_map_indicator [data-testid="stWidgetLabel"] p,
 .st-key-labour_measure [data-testid="stWidgetLabel"] p,.st-key-labour_level [data-testid="stWidgetLabel"] p{color:#D9CFEA!important;font-family:var(--font-display)!important;font-weight:700!important;font-size:12.5px!important}
 .st-key-cont_map_program [role="radiogroup"],.st-key-cont_map_level [role="radiogroup"],.st-key-labour_measure [role="radiogroup"],
-.st-key-labour_level [role="radiogroup"]{display:flex;width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px;gap:4px}
-.st-key-cont_map_program button,.st-key-cont_map_level button,.st-key-labour_measure button,.st-key-labour_level button{flex:1 1 0;border:none!important;border-radius:999px!important;background:transparent!important;min-height:36px;padding:0 12px!important}
-.st-key-cont_map_program button p,.st-key-cont_map_level button p,.st-key-labour_measure button p,.st-key-labour_level button p{color:#E6DDF5!important;font-weight:600;font-size:13px;white-space:nowrap}
-.st-key-cont_map_program button:hover,.st-key-cont_map_level button:hover,.st-key-labour_measure button:hover,.st-key-labour_level button:hover{background:rgba(255,255,255,.1)!important}
+.st-key-labour_level [role="radiogroup"],.st-key-risk_map_indicator [role="radiogroup"]{display:flex;width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px;gap:4px}
+.st-key-cont_map_program button,.st-key-cont_map_level button,.st-key-labour_measure button,.st-key-labour_level button,.st-key-risk_map_indicator button{flex:1 1 0;border:none!important;border-radius:999px!important;background:transparent!important;min-height:36px;padding:0 12px!important}
+.st-key-cont_map_program button p,.st-key-cont_map_level button p,.st-key-labour_measure button p,.st-key-labour_level button p,.st-key-risk_map_indicator button p{color:#E6DDF5!important;font-weight:600;font-size:13px;white-space:nowrap}
+.st-key-cont_map_program button:hover,.st-key-cont_map_level button:hover,.st-key-labour_measure button:hover,.st-key-labour_level button:hover,.st-key-risk_map_indicator button:hover{background:rgba(255,255,255,.1)!important}
 .st-key-cont_map_program button[aria-checked="true"],.st-key-cont_map_level button[aria-checked="true"],.st-key-labour_measure button[aria-checked="true"],
-.st-key-labour_level button[aria-checked="true"]{background:#fff!important;box-shadow:0 4px 14px rgba(10,4,25,.25)}
+.st-key-labour_level button[aria-checked="true"],.st-key-risk_map_indicator button[aria-checked="true"]{background:#fff!important;box-shadow:0 4px 14px rgba(10,4,25,.25)}
 .st-key-cont_map_program button[aria-checked="true"] p,.st-key-cont_map_level button[aria-checked="true"] p,.st-key-labour_measure button[aria-checked="true"] p,
-.st-key-labour_level button[aria-checked="true"] p{color:var(--morado)!important}
+.st-key-labour_level button[aria-checked="true"] p,.st-key-risk_map_indicator button[aria-checked="true"] p{color:var(--morado)!important}
 .st-key-labour_level button:disabled{opacity:1!important}
 .st-key-labour_level button:disabled p{color:rgba(230,221,245,.42)!important}
 .st-key-labour_level button[aria-checked="true"]:disabled{background:rgba(255,255,255,.8)!important;box-shadow:none}
@@ -456,6 +465,21 @@ html{scroll-behavior:smooth}
   border-radius:12px;font-weight:700;white-space:nowrap}
 [class*="st-key-card_geoportal_"] [data-testid="stLinkButton"] a p{color:var(--morado-900)!important;font-weight:700}
 
+/* ---------- Risks: methodological note with its definitions ---------- */
+.method-card{margin:26px 0 6px;padding:22px 26px 18px;border-radius:var(--r-lg);background:#FFFFFF;border:1px solid var(--lila-100);
+  box-shadow:var(--shadow-1)}
+.method-card header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.method-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--lila-50);color:var(--morado);flex:0 0 auto}
+.method-card h3{font-family:var(--font-display)!important;font-size:18px!important;font-weight:800!important;color:var(--morado-900)!important;
+  margin:0!important;padding:0!important}
+.stApp .method-card p{font-size:14px;line-height:1.6;color:var(--tinta);margin:0 0 14px;max-width:none}
+.method-defs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 26px;margin:0 0 14px;padding:14px 0 0;border-top:1px solid var(--lila-100)}
+.method-defs dt{font-family:var(--font-display);font-weight:700;font-size:13.5px;color:var(--morado-800);margin:0 0 3px}
+.method-defs dd{margin:0;font-size:13.5px;line-height:1.5;color:#4C3A6A}
+.stApp .method-card p.method-source{font-size:12.5px;color:#6E6880;margin:0}
+.st-key-risk_downloads{margin-top:4px}
+.st-key-risk_reset_filters button{margin-top:-4px}
+
 /* ---------- Profile of the contracts ---------- */
 .stApp .profile-label{margin:8px 0 -10px;font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--morado-800)}
 
@@ -490,9 +514,9 @@ html{scroll-behavior:smooth}
   .st-key-consulta{padding:16px 14px 14px}
   .st-key-consulta [data-testid="stButtonGroup"] button p{font-size:12.5px}
   .st-key-module [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;gap:6px!important}
-  .st-key-cont_map_program [role="radiogroup"],.st-key-cont_map_level [role="radiogroup"],.st-key-labour_measure [role="radiogroup"],.st-key-labour_level [role="radiogroup"]{border-radius:18px}
-  .st-key-cont_map_program button,.st-key-cont_map_level button,.st-key-labour_measure button,.st-key-labour_level button{min-height:44px;padding:0 6px!important;border-radius:14px!important}
-  .st-key-cont_map_program button p,.st-key-cont_map_level button p,.st-key-labour_measure button p,.st-key-labour_level button p{font-size:11.5px;white-space:normal;line-height:1.15}
+  .st-key-cont_map_program [role="radiogroup"],.st-key-cont_map_level [role="radiogroup"],.st-key-labour_measure [role="radiogroup"],.st-key-labour_level [role="radiogroup"],.st-key-risk_map_indicator [role="radiogroup"]{border-radius:18px}
+  .st-key-cont_map_program button,.st-key-cont_map_level button,.st-key-labour_measure button,.st-key-labour_level button,.st-key-risk_map_indicator button{min-height:44px;padding:0 6px!important;border-radius:14px!important}
+  .st-key-cont_map_program button p,.st-key-cont_map_level button p,.st-key-labour_measure button p,.st-key-labour_level button p,.st-key-risk_map_indicator button p{font-size:11.5px;white-space:normal;line-height:1.15}
   [class*="st-key-card_geoportal_"]{flex-direction:column!important;align-items:stretch!important;padding:18px 16px!important}
   .geo-card{align-items:flex-start}
   .foot-slogan b{font-size:17px}
@@ -522,6 +546,8 @@ html{scroll-behavior:smooth}
   .st-key-detail_level button p,.st-key-budget_level button p{font-size:12.5px}
   .modebar-container{display:none!important}
   .reach-strip,.reach-strip.n2{grid-template-columns:1fr;gap:10px}
+  .method-defs{grid-template-columns:1fr}
+  .method-card{padding:18px 16px 14px}
   .reach{padding:13px 15px 14px;border-radius:18px}
   .reach .ri{width:36px;height:36px;border-radius:11px}
   .reach .rv{font-size:22px}

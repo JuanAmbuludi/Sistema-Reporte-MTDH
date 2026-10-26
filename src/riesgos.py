@@ -115,15 +115,34 @@ def count_records(data: pd.DataFrame) -> int:
     return int(data.registros.sum())
 
 
-def exposed(data: pd.DataFrame, threat: str | None = None, levels=LEVELS) -> pd.DataFrame:
+def threat_keys(threat=None) -> list[str]:
+    """Columns of the chosen threats: one (``"susc_sequia"``), several (a list) or the four when none is chosen."""
+    if not threat:
+        return list(THREATS)
+    chosen = [threat] if isinstance(threat, str) else list(threat)
+    return [key for key in THREATS if key in chosen]
+
+
+def threat_label(threat=None) -> str:
+    """«Todas las amenazas», «Sequía» or «Inundaciones y sequía»."""
+    keys = threat_keys(threat)
+    if len(keys) == len(THREATS):
+        return "Todas las amenazas"
+    names = [THREATS[k] for k in keys]
+    if len(names) == 1:
+        return names[0]
+    return ", ".join(names[:-1]) + " y " + names[-1].lower()
+
+
+def exposed(data: pd.DataFrame, threat=None, levels=LEVELS) -> pd.DataFrame:
     """A UA is counted once if any selected threat has a selected reported level."""
-    keys = [threat] if threat else list(THREATS)
+    keys = threat_keys(threat)
     return data.loc[data[keys].isin(levels).any(axis=1)].copy()
 
 
-def threat_counts(data: pd.DataFrame, threat: str | None = None, levels=LEVELS) -> pd.DataFrame:
+def threat_counts(data: pd.DataFrame, threat=None, levels=LEVELS) -> pd.DataFrame:
     rows = []
-    for key in ([threat] if threat else THREATS):
+    for key in threat_keys(threat):
         for level in LEVELS:
             if level in levels:
                 rows.append({"amenaza": THREATS[key], "nivel": level,
@@ -131,8 +150,94 @@ def threat_counts(data: pd.DataFrame, threat: str | None = None, levels=LEVELS) 
     return pd.DataFrame(rows, columns=["amenaza", "nivel", "unidades"])
 
 
-def detail_counts(data: pd.DataFrame, threat: str | None = None, levels=LEVELS) -> pd.DataFrame:
-    keys = [threat] if threat else list(THREATS)
+def max_level(data: pd.DataFrame, threat=None, levels=LEVELS) -> pd.Series:
+    """Highest of the chosen categories among the chosen threats of each row (empty text when none applies)."""
+    if data.empty:
+        return pd.Series("", index=data.index, dtype=object)
+    ranks = pd.concat([data[key].map(RANK).where(data[key].isin(levels), 0) for key in threat_keys(threat)], axis=1).max(axis=1)
+    return ranks.astype(int).map({1: "Media", 2: "Alta", 3: "Muy alta"}).fillna("")
+
+
+def threat_count(data: pd.DataFrame, levels=LEVELS) -> pd.Series:
+    """How many of the four threats each row faces in the chosen categories (0 to 4)."""
+    return data[list(THREATS)].isin(levels).sum(axis=1)
+
+
+def by_threat(scoped: pd.DataFrame, threat=None, levels=LEVELS) -> pd.DataFrame:
+    """Each chosen threat: its units by category, the exposed units and their share of the inventory of the selection."""
+    inventory = count_units(scoped)
+    rows = []
+    for key in threat_keys(threat):
+        row = {"clave": key, "amenaza": THREATS[key]}
+        for level in LEVELS:
+            row[level] = count_units(scoped.loc[scoped[key].eq(level)]) if level in levels else 0
+        row["expuestas"] = sum(row[level] for level in LEVELS)
+        row["porcentaje"] = row["expuestas"] / inventory * 100 if inventory else None
+        rows.append(row)
+    return pd.DataFrame(rows, columns=["clave", "amenaza", *LEVELS, "expuestas", "porcentaje"])
+
+
+def concurrency(selected: pd.DataFrame, levels=LEVELS) -> pd.DataFrame:
+    """Exposed units by how many of the four threats they face at once, in the chosen categories."""
+    counts = selected.assign(amenazas=threat_count(selected, levels)).groupby("amenazas").unidades.sum()
+    out = pd.DataFrame({"amenazas": [1, 2, 3, 4]})
+    out["unidades"] = out.amenazas.map(counts).fillna(0).astype(int)
+    total = out.unidades.sum()
+    out["porcentaje"] = out.unidades / total * 100 if total else 0.0
+    return out
+
+
+def combinations(selected: pd.DataFrame, levels=LEVELS, limit: int | None = None) -> pd.DataFrame:
+    """Threats that coincide in the exposed units (each unit in exactly one combination), largest first."""
+    if selected.empty:
+        return pd.DataFrame(columns=["combinacion", "amenazas", "unidades", "porcentaje"])
+    flags = selected[list(THREATS)].isin(levels)
+    names = [" + ".join(THREATS[key] for key in THREATS if row[key]) for row in flags.to_dict("records")]
+    frame = pd.DataFrame({"combinacion": names, "amenazas": flags.sum(axis=1).to_numpy(), "unidades": selected.unidades.to_numpy()})
+    frame = frame.loc[frame.amenazas.gt(0)]
+    out = frame.groupby(["combinacion", "amenazas"], as_index=False).unidades.sum().sort_values(
+        ["unidades", "amenazas"], ascending=[False, True]).reset_index(drop=True)
+    total = out.unidades.sum()
+    out["porcentaje"] = out.unidades / total * 100 if total else 0.0
+    return out.head(limit) if limit else out
+
+
+def _place_columns(frame: pd.DataFrame, by: str) -> list[str]:
+    return ["provincia_codigo", "provincia"] if by == "provincia" else ["programa_id", "servicio"]
+
+
+def profile(scoped: pd.DataFrame, selected: pd.DataFrame, by: str = "provincia", threat=None, levels=LEVELS,
+            multihazard_rows: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Provinces (``by="provincia"``) or services (``by="servicio"``) of the selection, largest exposure first.
+
+    Columns: the inventory of units, the exposed units and their share of that inventory, the exposed units by their
+    highest category among the chosen threats (Media, Alta, Muy alta), the share of all exposed units, the units of
+    each threat in the chosen categories and, with ``multihazard_rows``, the multihazard records of the source matrix.
+    """
+    keys = _place_columns(scoped, by)
+    inventory = scoped.groupby(keys, observed=True).unidades.sum().rename("inventario")
+    out = inventory.to_frame()
+    exposed_units = selected.groupby(keys, observed=True).unidades.sum()
+    out["expuestas"] = exposed_units.reindex(out.index).fillna(0).astype(int)
+    out["porcentaje"] = out.expuestas / out.inventario.where(out.inventario > 0) * 100
+    top = selected.assign(nivel_maximo=max_level(selected, threat, levels))
+    for level in LEVELS:
+        part = top.loc[top.nivel_maximo.eq(level)].groupby(keys, observed=True).unidades.sum()
+        out[level] = part.reindex(out.index).fillna(0).astype(int)
+    total = out.expuestas.sum()
+    out["participacion"] = out.expuestas / total * 100 if total else 0.0
+    for key, name in THREATS.items():
+        part = scoped.loc[scoped[key].isin(levels)].groupby(keys, observed=True).unidades.sum()
+        out[name] = part.reindex(out.index).fillna(0).astype(int)
+    if multihazard_rows is not None:
+        part = multihazard_rows.groupby(keys, observed=True).registros.sum()
+        out["multiamenaza"] = part.reindex(out.index).fillna(0).astype(int)
+    out = out.reset_index().sort_values(["expuestas", "inventario"], ascending=False).reset_index(drop=True)
+    return out
+
+
+def detail_counts(data: pd.DataFrame, threat=None, levels=LEVELS) -> pd.DataFrame:
+    keys = threat_keys(threat)
     long = data.melt(id_vars=["provincia", "servicio", "unidades"], value_vars=keys,
                      var_name="amenaza", value_name="susceptibilidad")
     long = long.loc[long.susceptibilidad.isin(levels)]

@@ -23,7 +23,7 @@ El detalle operativo de septiembre continúa en `data/processed/`, con su estruc
 
 Se mantuvieron separados CDI directos, convenios y emblemáticos usando `modalidad_descripcion`; la etiqueta amplia de CDI los habría mezclado. Se retiraron las descripciones redundantes y los prefijos numéricos.
 
-**Control territorial de VIE:** 518 filas pertenecen a combinaciones mes/nivel/código asociadas a más de un nombre de lugar. Eso no implica que las 518 sean erróneas; identifica los grupos que no deben cruzarse a un mapa solo por código. Por ejemplo, en enero el código provincial `14` aparece asociado a Morona Santiago y también a Chimborazo, Galápagos, Pastaza y Pichincha. Se conserva la información recibida, separada por código y nombre, con `codigo_ambiguo=True`. No se reasignan beneficiarios basándose en una suposición ni se alteran los totales nacionales. VIS no presenta estas colisiones.
+**Control territorial de VIE:** 518 filas pertenecen a combinaciones mes/nivel/código asociadas a más de un nombre de lugar (`codigo_ambiguo=True`). La serie se conserva tal como se recibió; al leerla, `src/depuracion.py` mantiene el código cuando los nombres corresponden a su territorio y reasigna la fila cuando provincia, cantón y parroquia identifican sin duda otra unidad de la división político-administrativa: 49 combinaciones (38.101 beneficiarios), principalmente Sevilla Don Bosco, registrada con los códigos de Morona hasta abril de 2026. Los totales nacionales no cambian y `cleaning_log()` lista cada reasignación. VIS no presenta estas colisiones.
 
 ## Presupuesto y ejecución
 

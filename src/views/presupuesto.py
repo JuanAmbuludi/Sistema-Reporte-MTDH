@@ -47,6 +47,16 @@ class BudgetView:
     def catalog(self) -> list[dict]:
         return self._catalog
 
+    def select(self, period: dict, zones=(), programs=()) -> None:
+        """A cut and a selection without widgets (scripts, tests and the summary of every section)."""
+        self.period = period
+        self.scoped = self.frame.loc[self.frame.periodo_id.eq(period["id"])]
+        zones_frame = self.scoped.drop_duplicates("zona_orden").sort_values("zona_orden")
+        self.zone_names = dict(zip(zones_frame.zona_orden, zones_frame.zona_nombre))
+        self.program_names = self.scoped.drop_duplicates("programa_codigo").set_index("programa_codigo").programa_corto.to_dict()
+        self.program_full = self.scoped.drop_duplicates("programa_codigo").set_index("programa_codigo").programa_nombre.to_dict()
+        self.zones, self.programs = list(zones), list(programs)
+
     def controls(self, period: dict) -> None:
         self.period = period
         self.scoped = self.frame.loc[self.frame.periodo_id.eq(period["id"])]

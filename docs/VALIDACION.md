@@ -1,26 +1,28 @@
 # Validación de la actualización de datos
 
-Actualización revisada el 23 de octubre de 2026 (Ecuador). Véase [ACTUALIZACION_DATOS.md](ACTUALIZACION_DATOS.md) para decisiones, comparación y límites de las fuentes.
+Revisión del 26 de octubre de 2026 (Ecuador). Véase [ACTUALIZACION_DATOS.md](ACTUALIZACION_DATOS.md) para decisiones, comparación y límites de las fuentes, y [REVISION_BASES_2026.md](REVISION_BASES_2026.md) para las conciliaciones de las bases.
 
 ## Datos y compatibilidad
 
-Se mantienen `indicadores.parquet`, los 296 agregados por programa/provincia y las 17 columnas originales. La cobertura nueva suma 1.578.019 beneficiarios de bonos, 456.356 usuarios de servicios y 11.215 unidades. Los usuarios de cobertura y presupuesto concilian por programa/parroquia. El codificado VIS se distribuye sin sumar el total distrital repetido.
+Se mantienen `indicadores.parquet`, los 296 agregados por programa/provincia y las 17 columnas originales. La base operativa de septiembre suma 456.356 usuarios de servicios como conteo agregado por modalidad; el tablero lee la serie mensual depurada, con usuarios únicos por programa y territorio: **1.578.019 beneficiarios de bonos y pensiones, 453.994 usuarios de servicios y 11.215 unidades de atención** en septiembre de 2026. Las series VIS y VIE cubren enero a septiembre de 2026, con 1.300 parroquias con información en septiembre.
 
-Los acumulados anteriores coinciden exactamente, fila por fila, con el Excel original. `historico_referencia.parquet` se conserva idéntico. La base financiera nacional se procesa por separado, con 5.206 filas y 11 repeticiones marcadas y conservadas. Su corte de septiembre de 2026 fue confirmado por el responsable; no se dedujo del encabezado antiguo de programación.
+La depuración territorial ocurre al leer las series (`src/depuracion.py`) y no altera los totales: 49 combinaciones de VIE (38.101 beneficiarios, sobre todo Sevilla Don Bosco registrada con códigos de Morona hasta abril de 2026) pasan al territorio que nombran. En contingencias, todos los registros se ubican en su cantón; 462 de 10.628 (4,3 %) quedan sin parroquia identificable. En eventos antrópicos, 64 registros habilitados quedan sin cantón y se conservan en su provincia.
+
+Contingencias y compensaciones publican solo meses cerrados (enero de 2023 a septiembre de 2026); octubre se incorporará cuando se cierre. Los contratos laborales conservan su corte diario (23 de octubre de 2026, 02:21).
+
+Riesgos: 9.869 registros de la matriz y 9.860 UA únicas; 9.460 expuestas (95,9 %), 6.220 registros de multiamenaza según la matriz fuente, 1.341 UA con alguna amenaza en susceptibilidad muy alta y 6.344 UA con dos o más amenazas. El detalle de unidades reconcilia exactamente con los agregados para cada combinación de filtros.
 
 ## Comprobaciones ejecutadas
 
-**78 pruebas aprobadas**, sin omisiones, más 30 subpruebas. Incluyen:
+**116 pruebas aprobadas** y 30 subpruebas (una prueba heredada se omite sin el Excel original). Incluyen:
 
-- Reconstrucción del Excel anterior y del conjunto actualizado, manteniendo importes decimales.
-- Conciliación de cobertura y presupuesto, códigos territoriales, distribución distrital, ausencia de multiplicación por modalidad, nulos y porcentajes calculados desde los totales.
-- Conservación de nombres, claves y acumulados históricos; reproducción de los Parquet a partir de las fuentes entregadas.
-- Reproducción de la base laboral con la evidencia guardada en la misma ejecución, sin cambiar la fecha de consulta.
-- Rechazo de cobertura repetida, parroquias presupuestarias faltantes, fechas incoherentes y distribución inválida; ante fallo se conservan los archivos previamente entregados.
-- Filtros, periodos, autenticación y separación de los cuatro ámbitos (transferencias, servicios, gestión laboral y presupuesto institucional).
-- Cartografía: cada provincia, cantón, parroquia y zona con su polígono; cada parroquia de las bases encuentra su polígono (salvo la zona en estudio); los anillos se cierran al disolver cualquier grupo de parroquias.
-- Selectores Provincia · Cantón · Parroquia en el mapa y en cada gráfico territorial; en los años de referencia quedan en provincia y deshabilitados.
-- Nivel territorial de los reportes (Provincia, Cantón, Parroquia o Todo): resumen ejecutivo de dos páginas como máximo (una en gestión laboral), presentación con una diapositiva por nivel y libro de datos con una hoja por nivel, valores numéricos, fórmulas y ficha técnica.
+- Reconstrucción del Excel anterior y del conjunto actualizado, manteniendo importes decimales; conciliación de cobertura y presupuesto, códigos territoriales, distribución distrital, nulos y porcentajes calculados desde los totales.
+- Depuración territorial con totales intactos; ubicación de bases nominales por nombre; meses abiertos excluidos de contingencias.
+- Filtros, periodos, autenticación y separación de los ámbitos: transferencias, servicios, riesgos (exposición y seguimiento), contingencias, Jóvenes en Acción, gestión laboral y presupuesto institucional y social.
+- Riesgos: unidades únicas, categorías, multiamenaza por provincia según la matriz fuente, filtros de amenaza y susceptibilidad, mapa, matrices y tabla; exportables con el mismo recorte y con código y nombre de cada UA.
+- Cartografía: cada provincia, cantón, parroquia y zona con su polígono; selectores Provincia · Cantón · Parroquia en el mapa y en cada gráfico territorial.
+- Centro de reportes: nivel territorial (Provincia, Cantón, Parroquia o Todo), resumen ejecutivo de dos páginas como máximo (una en Jóvenes en Acción), presentación y libro de datos de cada ámbito, y el **resumen de todas las secciones en tres páginas como máximo**.
+- Arranque concurrente de sesiones sin descargar módulos en uso.
 
 Comando utilizado:
 
@@ -28,16 +30,16 @@ Comando utilizado:
 MTDH_SOURCE_EXCEL=data/source/Acumulado_VIS_VIE/ python -m pytest -q
 ```
 
-En Windows puede definir esa variable de entorno previamente o ejecutar `python -m pytest -q`; en este último caso se omite únicamente la prueba heredada opcional del Excel original. Las pruebas de actualización sí reconstruyen los nuevos insumos.
+En Windows puede definir esa variable de entorno previamente o ejecutar `python -m pytest -q`; en este último caso se omite únicamente la prueba heredada opcional del Excel original.
 
-Se comprobó la aplicación en Chromium, en escritorio (1.440 px) y en teléfono (390 px): los cuatro ámbitos, los tres niveles territoriales del mapa y de cada gráfico, la selección de una provincia y el centro de reportes. Cero excepciones de la aplicación y ningún desbordamiento horizontal del documento en el teléfono. Se revisaron visualmente los resúmenes ejecutivos, las presentaciones y los libros de datos de cada ámbito y nivel; los importes, unidades y textos se muestran sin solapamientos.
+Se comprobó la aplicación en Chromium, en escritorio (1.440 px) y en teléfono (390 px): todos los ámbitos, los niveles territoriales del mapa y de cada gráfico, la selección de provincias y el centro de reportes, sin excepciones ni desbordamiento horizontal. Se revisaron visualmente los resúmenes ejecutivos, las presentaciones y los libros de datos de cada ámbito: importes con su unidad («USD 21,3 M»), conteos con lo que cuentan y sin espacios desaprovechados.
 
 Los avisos de openpyxl corresponden a extensiones de formato de Excel no soportadas durante la lectura. Los Excel de origen se copiaron sin modificarlos. No se usan macros ni se evalúan vínculos externos.
 
 ## Límites de la validación
 
-Los conteos son agregados reportados, no personas o unidades deduplicadas. Las fuentes actualizadas no aportan una serie mensual VIS/VIE anterior a septiembre. Las referencias 2024 y 2025 siguen sin mes documentado.
+Las referencias 2024 y 2025 siguen sin mes documentado. Los totales de la base financiera reproducen las filas suministradas; queda pendiente confirmar las 11 repeticiones señaladas y el universo necesario para conciliar el presupuesto de la tabla 4 del boletín. No se declara equivalencia entre ese presupuesto, el institucional y el social.
 
-Los totales de la base financiera reproducen las filas suministradas; queda pendiente confirmar las 11 repeticiones y el universo necesario para conciliar el presupuesto de la tabla 4 del boletín. No se declara equivalencia entre ese presupuesto, el institucional nuevo y VIS/VIE. La tabla 3 queda pendiente por instrucción del usuario.
+La matriz de Riesgos se publica por provincia: el mapa por cantón y parroquia requiere volver a procesar la matriz fuente con sus códigos de cantón y parroquia. La susceptibilidad territorial no equivale a una afectación confirmada.
 
-El comando principal y sus opciones anteriores siguen funcionando. El inicio de sesión y su configuración permanecen intactos. Los cambios de esta entrega no incluyen secretos ni cuentas de pruebas.
+El comando principal y sus opciones anteriores siguen funcionando. Los cambios de esta entrega no incluyen secretos ni datos nominales de personas.
