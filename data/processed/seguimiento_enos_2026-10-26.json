@@ -3,7 +3,7 @@
   "criterio_alertas": "codigo_ua",
   "corte": "2026-10-26",
   "desde": "2026-09-14",
-  "generado_utc": "2026-10-26T21:44:24.595239+00:00",
+  "generado_utc": "2026-10-26T22:32:30.504301+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -148,46 +148,716 @@
   ],
   "kits": [
     {
-      "fecha": "2026-10-24",
-      "provincia": "Manabí",
-      "canton": "Portoviejo",
-      "kits": 30
+      "id_kobo": "901551778",
+      "fecha": "2026-08-31",
+      "provincia": "Carchi",
+      "canton": "Tulcán",
+      "kits": 399,
+      "familias": 399
     },
     {
-      "fecha": "2026-10-24",
-      "provincia": "Manabí",
-      "canton": "Portoviejo",
-      "kits": 25
+      "id_kobo": "901550651",
+      "fecha": "2026-08-31",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 3,
+      "familias": 3
     },
     {
+      "id_kobo": "901552756",
+      "fecha": "2026-08-31",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901564587",
+      "fecha": "2026-09-03",
+      "provincia": "Cotopaxi",
+      "canton": "Latacunga",
+      "kits": 250,
+      "familias": 249
+    },
+    {
+      "id_kobo": "901551065",
+      "fecha": "2026-09-03",
+      "provincia": "Pichincha",
+      "canton": "San Miguel de los Bancos",
+      "kits": 10,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901557320",
+      "fecha": "2026-09-03",
+      "provincia": "Pichincha",
+      "canton": "Pedro Vicente Maldonado",
+      "kits": 10,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901553792",
+      "fecha": "2026-09-04",
+      "provincia": "Pichincha",
+      "canton": "Rumiñahui",
+      "kits": 7,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901555281",
+      "fecha": "2026-09-09",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "kits": 20,
+      "familias": 3
+    },
+    {
+      "id_kobo": "901564540",
+      "fecha": "2026-09-09",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 2,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901565225",
+      "fecha": "2026-09-09",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901566792",
+      "fecha": "2026-09-09",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901555574",
+      "fecha": "2026-09-10",
+      "provincia": "Santa Elena",
+      "canton": "Salinas",
+      "kits": 1,
+      "familias": 2
+    },
+    {
+      "id_kobo": "901556230",
+      "fecha": "2026-09-10",
+      "provincia": "Santa Elena",
+      "canton": "Salinas",
+      "kits": 2,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901557880",
+      "fecha": "2026-09-10",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901567356",
+      "fecha": "2026-09-10",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901562908",
+      "fecha": "2026-09-15",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901552833",
+      "fecha": "2026-09-18",
+      "provincia": "Carchi",
+      "canton": "Tulcán",
+      "kits": 66,
+      "familias": 66
+    },
+    {
+      "id_kobo": "901560462",
+      "fecha": "2026-09-18",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901553593",
+      "fecha": "2026-09-24",
+      "provincia": "Carchi",
+      "canton": "Mira",
+      "kits": 182,
+      "familias": 182
+    },
+    {
+      "id_kobo": "901542208",
+      "fecha": "2026-09-24",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 130,
+      "familias": 65
+    },
+    {
+      "id_kobo": "901576248",
+      "fecha": "2026-09-24",
+      "provincia": "Guayas",
+      "canton": "Salitre",
+      "kits": 1500,
+      "familias": 1500
+    },
+    {
+      "id_kobo": "901579821",
+      "fecha": "2026-09-25",
+      "provincia": "Guayas",
+      "canton": "Salitre",
+      "kits": 700,
+      "familias": 700
+    },
+    {
+      "id_kobo": "901550793",
+      "fecha": "2026-09-28",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 140,
+      "familias": 140
+    },
+    {
+      "id_kobo": "901573492",
+      "fecha": "2026-09-28",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "kits": 400,
+      "familias": 400
+    },
+    {
+      "id_kobo": "901592080",
+      "fecha": "2026-09-29",
+      "provincia": "Azuay",
+      "canton": "Camilo Ponce Enríquez",
+      "kits": 60,
+      "familias": 23
+    },
+    {
+      "id_kobo": "901536493",
+      "fecha": "2026-09-29",
+      "provincia": "Chimborazo",
+      "canton": "Riobamba",
+      "kits": 7,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901572601",
+      "fecha": "2026-09-29",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "kits": 300,
+      "familias": 300
+    },
+    {
+      "id_kobo": "901539658",
+      "fecha": "2026-09-30",
+      "provincia": "Manabí",
+      "canton": "SANTA ANA",
+      "kits": 10,
+      "familias": 3
+    },
+    {
+      "id_kobo": "901554707",
+      "fecha": "2026-10-01",
+      "provincia": "Carchi",
+      "canton": "Tulcán",
+      "kits": 5,
+      "familias": 5
+    },
+    {
+      "id_kobo": "901545837",
+      "fecha": "2026-10-01",
+      "provincia": "Esmeraldas",
+      "canton": "Quinindé",
+      "kits": 120,
+      "familias": 120
+    },
+    {
+      "id_kobo": "901552094",
+      "fecha": "2026-10-01",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 540,
+      "familias": 270
+    },
+    {
+      "id_kobo": "901566395",
+      "fecha": "2026-10-01",
+      "provincia": "Esmeraldas",
+      "canton": "Quinindé",
+      "kits": 80,
+      "familias": 80
+    },
+    {
+      "id_kobo": "901559100",
+      "fecha": "2026-10-01",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901561720",
+      "fecha": "2026-10-01",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901555267",
+      "fecha": "2026-10-02",
+      "provincia": "Carchi",
+      "canton": "Bolívar",
+      "kits": 87,
+      "familias": 87
+    },
+    {
+      "id_kobo": "901549885",
+      "fecha": "2026-10-02",
+      "provincia": "Esmeraldas",
+      "canton": "Quinindé",
+      "kits": 85,
+      "familias": 85
+    },
+    {
+      "id_kobo": "901581205",
+      "fecha": "2026-10-02",
+      "provincia": "Imbabura",
+      "canton": "Ibarra",
+      "kits": 85,
+      "familias": 85
+    },
+    {
+      "id_kobo": "901544659",
+      "fecha": "2026-10-03",
+      "provincia": "Esmeraldas",
+      "canton": "Eloy Alfaro",
+      "kits": 772,
+      "familias": 772
+    },
+    {
+      "id_kobo": "901567706",
+      "fecha": "2026-10-03",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 18,
+      "familias": 18
+    },
+    {
+      "id_kobo": "901571302",
+      "fecha": "2026-10-05",
+      "provincia": "Guayas",
+      "canton": "Guayaquil",
+      "kits": 1500,
+      "familias": 1500
+    },
+    {
+      "id_kobo": "901540327",
+      "fecha": "2026-10-05",
+      "provincia": "Manabí",
+      "canton": "Pichincha",
+      "kits": 10,
+      "familias": 10
+    },
+    {
+      "id_kobo": "901547586",
+      "fecha": "2026-10-06",
+      "provincia": "Esmeraldas",
+      "canton": "Esmeraldas",
+      "kits": 1270,
+      "familias": 1270
+    },
+    {
+      "id_kobo": "901557200",
+      "fecha": "2026-10-06",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 50,
+      "familias": 50
+    },
+    {
+      "id_kobo": "901507614",
+      "fecha": "2026-10-08",
+      "provincia": "Bolívar",
+      "canton": "LAS NAVES",
+      "kits": 141,
+      "familias": 141
+    },
+    {
+      "id_kobo": "901543240",
+      "fecha": "2026-10-08",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 125,
+      "familias": 125
+    },
+    {
+      "id_kobo": "901554036",
+      "fecha": "2026-10-08",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 40,
+      "familias": 40
+    },
+    {
+      "id_kobo": "901556593",
+      "fecha": "2026-10-08",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 75,
+      "familias": 75
+    },
+    {
+      "id_kobo": "901583657",
+      "fecha": "2026-10-08",
+      "provincia": "Imbabura",
+      "canton": "Ibarra",
+      "kits": 40,
+      "familias": 40
+    },
+    {
+      "id_kobo": "901555799",
+      "fecha": "2026-10-09",
+      "provincia": "Carchi",
+      "canton": "Tulcán",
+      "kits": 11,
+      "familias": 11
+    },
+    {
+      "id_kobo": "901587375",
+      "fecha": "2026-10-10",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 70,
+      "familias": 30
+    },
+    {
+      "id_kobo": "901517296",
+      "fecha": "2026-10-10",
+      "provincia": "Loja",
+      "canton": "ESPINDOLA",
+      "kits": 29,
+      "familias": 30
+    },
+    {
+      "id_kobo": "901585831",
+      "fecha": "2026-10-12",
+      "provincia": "Imbabura",
+      "canton": "Ibarra",
+      "kits": 22,
+      "familias": 22
+    },
+    {
+      "id_kobo": "901560279",
+      "fecha": "2026-10-12",
+      "provincia": "Zamora Chinchipe",
+      "canton": "Centinela del Cóndor",
+      "kits": 6,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901546105",
+      "fecha": "2026-10-13",
+      "provincia": "Los Ríos",
+      "canton": "Babahoyo",
+      "kits": 64,
+      "familias": 32
+    },
+    {
+      "id_kobo": "901583474",
+      "fecha": "2026-10-13",
+      "provincia": "Napo",
+      "canton": "Tena",
+      "kits": 24,
+      "familias": 6
+    },
+    {
+      "id_kobo": "901584975",
+      "fecha": "2026-10-14",
+      "provincia": "Imbabura",
+      "canton": "Ibarra",
+      "kits": 135,
+      "familias": 135
+    },
+    {
+      "id_kobo": "901568692",
+      "fecha": "2026-10-15",
+      "provincia": "Santa Elena",
+      "canton": "La Libertad",
+      "kits": 7,
+      "familias": 7
+    },
+    {
+      "id_kobo": "901581829",
+      "fecha": "2026-10-16",
+      "provincia": "Azuay",
+      "canton": "Oña",
+      "kits": 200,
+      "familias": 200
+    },
+    {
+      "id_kobo": "901557017",
+      "fecha": "2026-10-16",
+      "provincia": "Carchi",
+      "canton": "Tulcán",
+      "kits": 30,
+      "familias": 30
+    },
+    {
+      "id_kobo": "901561745",
+      "fecha": "2026-10-16",
+      "provincia": "Pastaza",
+      "canton": "Mera",
+      "kits": 4,
+      "familias": 4
+    },
+    {
+      "id_kobo": "901562262",
+      "fecha": "2026-10-16",
+      "provincia": "Pastaza",
+      "canton": "Pastaza",
+      "kits": 3,
+      "familias": 3
+    },
+    {
+      "id_kobo": "901583940",
+      "fecha": "2026-10-16",
+      "provincia": "Sucumbíos",
+      "canton": "Shushufindi",
+      "kits": 44,
+      "familias": 44
+    },
+    {
+      "id_kobo": "901513499",
+      "fecha": "2026-10-17",
+      "provincia": "Loja",
+      "canton": "PINDAL",
+      "kits": 20,
+      "familias": 20
+    },
+    {
+      "id_kobo": "901584802",
+      "fecha": "2026-10-19",
+      "provincia": "Napo",
+      "canton": "Archidona",
+      "kits": 36,
+      "familias": 9
+    },
+    {
+      "id_kobo": "901568044",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "kits": 300,
+      "familias": 300
+    },
+    {
+      "id_kobo": "901568941",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "kits": 800,
+      "familias": 800
+    },
+    {
+      "id_kobo": "901578515",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Guayaquil",
+      "kits": 1000,
+      "familias": 1000
+    },
+    {
+      "id_kobo": "901584335",
+      "fecha": "2026-10-20",
+      "provincia": "Imbabura",
+      "canton": "Ibarra",
+      "kits": 216,
+      "familias": 216
+    },
+    {
+      "id_kobo": "901577508",
+      "fecha": "2026-10-21",
+      "provincia": "Santo Domingo de los Tsáchilas",
+      "canton": "Santo Domingo",
+      "kits": 17,
+      "familias": 17
+    },
+    {
+      "id_kobo": "901558414",
+      "fecha": "2026-10-21",
+      "provincia": "Tungurahua",
+      "canton": "Ambato",
+      "kits": 3,
+      "familias": 5
+    },
+    {
+      "id_kobo": "901560779",
+      "fecha": "2026-10-21",
+      "provincia": "Zamora Chinchipe",
+      "canton": "El Pangui",
+      "kits": 5,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901556545",
+      "fecha": "2026-10-22",
+      "provincia": "Pichincha",
+      "canton": "Pedro Vicente Maldonado",
+      "kits": 11,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901550693",
+      "fecha": "2026-10-22",
+      "provincia": "Santa Elena",
+      "canton": "Salinas",
+      "kits": 3,
+      "familias": 3
+    },
+    {
+      "id_kobo": "901580384",
+      "fecha": "2026-10-23",
+      "provincia": "Guayas",
+      "canton": "Salitre",
+      "kits": 250,
+      "familias": 250
+    },
+    {
+      "id_kobo": "901558042",
+      "fecha": "2026-10-24",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 100,
+      "familias": 35
+    },
+    {
+      "id_kobo": "901559224",
+      "fecha": "2026-10-24",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 97,
+      "familias": 30
+    },
+    {
+      "id_kobo": "901505118",
+      "fecha": "2026-10-24",
+      "provincia": "El Oro",
+      "canton": "Pasaje",
+      "kits": 66,
+      "familias": 66
+    },
+    {
+      "id_kobo": "901522010",
       "fecha": "2026-10-24",
       "provincia": "Esmeraldas",
       "canton": "Esmeraldas",
-      "kits": 150
+      "kits": 150,
+      "familias": 150
     },
     {
+      "id_kobo": "901581046",
       "fecha": "2026-10-24",
       "provincia": "Guayas",
       "canton": "Palestina",
-      "kits": 100
+      "kits": 100,
+      "familias": 100
     },
     {
+      "id_kobo": "901516522",
       "fecha": "2026-10-24",
-      "provincia": "Azuay",
-      "canton": "Cuenca",
-      "kits": 97
+      "provincia": "Loja",
+      "canton": "QUILANGA",
+      "kits": 15,
+      "familias": 15
     },
     {
+      "id_kobo": "901542091",
       "fecha": "2026-10-24",
-      "provincia": "Azuay",
-      "canton": "Cuenca",
-      "kits": 100
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 30,
+      "familias": 20
     },
     {
+      "id_kobo": "901542544",
+      "fecha": "2026-10-24",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 25,
+      "familias": 20
+    },
+    {
+      "id_kobo": "901528037",
       "fecha": "2026-10-25",
-      "provincia": "Guayas",
-      "canton": "Milagro",
-      "kits": 300
+      "provincia": "Loja",
+      "canton": "Loja",
+      "kits": 15,
+      "familias": 15
+    },
+    {
+      "id_kobo": "901571868",
+      "fecha": "2026-10-25",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "kits": 2,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901588163",
+      "fecha": "2026-10-25",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901588943",
+      "fecha": "2026-10-25",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901589658",
+      "fecha": "2026-10-25",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901590720",
+      "fecha": "2026-10-25",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901553284",
+      "fecha": "2026-10-26",
+      "provincia": "Esmeraldas",
+      "canton": "Eloy Alfaro",
+      "kits": 225,
+      "familias": 225
     }
   ],
   "bonos": {
@@ -251,7 +921,7 @@
   },
   "cortes": {
     "alertas": "2026-10-26",
-    "kits": "2026-10-25",
+    "kits": "2026-10-26T22:26:42",
     "bonos": "2026-10-23",
     "bonos_desde": "2026-08-29"
   },
@@ -275,12 +945,22 @@
       "sha256": "951b1e5575f5e5534a49ebaa2b41bc5bfa948678f01e16deb668997639d53d45"
     },
     {
-      "nombre": "enos_kits_2026-10-25.csv",
-      "sha256": "625112e470b3d30adb13137233bc7b97fd68994303c83ed9e819b694782fdd58"
-    },
-    {
       "nombre": "enos_revision_servicios_2026-10-26.csv",
       "sha256": "1b0c381e2e0aad7dfba2bf7424f346c37eb350dd561048d75b8114aae9c83975"
+    },
+    {
+      "nombre": "01-Corte_procesado_Kobo_26oct2026_2226.xlsx",
+      "sha256": "f3b445e250c3f32f4767f6ed1d50dc6f05557c07a8a385b285f233ee5ab4210f"
     }
-  ]
+  ],
+  "kits_metadatos": {
+    "fuente": "01-Corte_procesado_Kobo_26oct2026_2226.xlsx",
+    "corte": "26/10/2026 22:26:42 (hora del nombre del archivo exportado)",
+    "desde": "2026-08-31",
+    "hasta": "2026-10-26",
+    "registros": 89,
+    "kits": 13390,
+    "familias_reportadas": 12681,
+    "reemplaza_corte_anterior": true
+  }
 }

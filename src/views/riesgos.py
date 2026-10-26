@@ -469,13 +469,13 @@ class RiskView:
             {"label": "Alertas con código UA", "value": len(r.alerts), "icon": "shield", "tone": "oro",
              "note": f"Registros distintos · desde {r.since:%d/%m/%Y}"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
-             "note": f"{kit_provinces} provincias priorizadas · 24 y 25/10"},
+             "note": f"{kit_provinces} provincias priorizadas · corte 26/10, 22:26"},
             {"label": "Núcleos con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
              "note": "Por inundaciones · gestión del bono"},
             {"label": "Monto de bonos gestionados", "value": float(r.managed.monto.sum()), "prefix": "USD", "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
-            {"label": "Unidades de atención cerradas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
-             "note": "Atención suspendida · base territorial 26/10, 16:00"},
+            {"label": "Unidades cerradas / suspendidas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
+             "note": r.suspension_caption() + " · corte 26/10, 16:00"},
         ]
 
     def kpi_cards(self) -> list[dict]:
@@ -504,11 +504,14 @@ class RiskView:
         acting = self.action_rows()
         ui.section_heading("Continuidad de los servicios", "Base territorial de afectaciones por lluvias · corte 26/10/2026, 16:00", "shield")
         left, right = self._pair()
-        for column, key, title in [(left, "by_province", "Unidades cerradas por provincia"),
-                                   (right, "by_status", "Estado de atención reportado")]:
+        for column, key, title in [(left, "by_province", "UA suspendidas por provincia"),
+                                   (right, "by_service", "UA suspendidas por servicio")]:
             with column, st.container(border=True, key=f"card_continuity_{key}"):
                 ui.chart_title(title, "Unidades reportadas en la base territorial")
                 show_chart(respuesta.continuity_chart(r, key), f"continuity_{key}")
+        with st.container(border=True, key="card_suspended_units_detail"):
+            ui.chart_title("Detalle de las unidades suspendidas", "Provincia, cantón, servicio y nombre · códigos UA no disponibles en la base")
+            respuesta.suspended_table(r)
         ui.info_note(enos.CONTINUITY_NOTE, "Alcance del reporte territorial")
         if self.programs:
             ui.info_note(f"Las alertas corresponden a las UA de {self.programs_label.lower() if len(self.programs) > 1 else self.programs_label}; "
@@ -545,7 +548,8 @@ class RiskView:
         left, right = self._pair((1.2, 1))
         if not r.kits.empty:
             with left, st.container(border=True, key="card_response_kit_table"):
-                ui.chart_title("Kits entregados en provincias priorizadas", f"Fecha, provincia, cantón y kits de cada entrega · corte {r.cut_text('kits')}")
+                ui.chart_title("Kits entregados en provincias priorizadas", f"{r.kit_records} registros Kobo · fechas del 31/08 al 26/10 · corte 26/10, 22:26")
+                show_chart(respuesta.kits_chart(r), "kits_kobo_provinces")
                 respuesta.kits_table(r)
         with right if not r.kits.empty else left, st.container(border=True, key="card_response_plan"):
             ui.chart_title("Planificación El Niño 2026–2027", "Bono de contingencia · proyección nacional")
@@ -727,7 +731,7 @@ class RiskView:
         items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in scopes)
         st.markdown(f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span>'
                     f'<h3>Nota metodológica</h3></header><dl class="method-defs">{items}</dl>'
-                    '<p class="method-source">Fuentes: Subsecretaría Territorial (análisis de alertas), reporte ministerial de kits '
+                    '<p class="method-source">Fuentes: Subsecretaría Territorial (análisis de alertas), corte Kobo de kits '
                     'y ayuda memoria del bono de contingencia.</p></section>', unsafe_allow_html=True)
 
     @staticmethod
@@ -746,7 +750,7 @@ class RiskView:
                 "datos": "Excel con indicadores, evolución, alertas, acciones, kits, planificación y ficha técnica."}
 
     def sheets(self) -> list[str]:
-        return ["Resumen", "Evolución", "Alertas", "Provincias", "Kits y bono", "Ficha técnica"]
+        return ["Resumen", "Evolución", "Alertas", "Provincias", "Kits y bono", "Unidades suspendidas", "Ficha técnica"]
 
     def report_contents(self, kind: str) -> list[tuple[str, str, str]]:
         return [("grid", "Cifras clave", "Alertas, kits, núcleos y monto gestionado"),

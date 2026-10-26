@@ -11,7 +11,9 @@ ALERT_NOTE = ("Se muestran únicamente alertas revisadas con código UA registra
 BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
              "Articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
-KIT_NOTE = "Kits entregados en provincias priorizadas el 24–25/10/2026; corte 25/10, 19:00. No es el acumulado desde el 14/09."
+KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 26/10/2026, 22:26:42. Entregas del 31/08 al 26/10; "
+            "incluye fechas anteriores al inicio de las alertas. Reemplaza el corte anterior. "
+            "Familias reportadas es una suma por entrega, no familias únicas. Datos declarados, pendientes de validación territorial.")
 QUALITY_NOTE = ("En el corte nacional hay 10 alertas con 10 códigos UA distintos: 8 con afectación documentada y 2 por confirmar. "
                 "ALT-2026-000315 y ALT-2026-000316 (Tenguel) tienen código UA, pero el relato solo describe inundación territorial; "
                 "no se presentan como daños confirmados al servicio.")
@@ -45,7 +47,7 @@ def frames(data, provinces=()):
                        ('gestionados', data['bonos']['gestionados']), ('articulacion', data['bonos']['articulacion'])]:
         if name == 'alertas':
             rows = [r for r in rows if included(r, data)]
-        columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits'] if name == 'kits' else ['provincia','evento','personas','monto']
+        columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits','familias','id_kobo'] if name == 'kits' else ['provincia','evento','personas','monto']
         frame = pd.DataFrame(rows, columns=columns)
         if name == 'alertas':
             dates = pd.to_datetime(frame.fecha, errors='coerce')
@@ -62,10 +64,10 @@ def summary(frame, group, value=None):
 
 
 CONTINUITY_PATH = ROOT / "data/processed/continuidad_servicios_2026-10-26.json"
-CONTINUITY_NOTE = ("Fuente: base territorial de afectaciones por lluvias, corte 26/10/2026, 16:00. "
-                   "Cerradas corresponde al estado Suspendida (18 CDI y 1 CNH). Los 63 CNH con suspensión presencial "
-                   "y los 11 CDI en atención virtual se muestran por separado. Son cifras reportadas, sin códigos UA "
-                   "en esta base; no se suman a las 10 alertas ni constituyen un censo nacional de cierres.")
+CONTINUITY_NOTE = ("Base territorial del 26/10/2026, 16:00, actualizada con la confirmación operativa posterior de Guayas: "
+                   "99 UA suspendidas (35 CDI y 64 CNH). Las 17 CDI de Guayas se incluyen como suspendidas por confirmación "
+                   "recibida; su estado original se conserva para trazabilidad. Los 63 CNH de El Oro no tienen nombre ni cantón "
+                   "en la base. No constan códigos UA ni se suma este registro a las 10 alertas.")
 
 def continuity():
     return json.loads(CONTINUITY_PATH.read_text(encoding="utf-8"))

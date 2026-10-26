@@ -1,7 +1,7 @@
 """Respuesta del Ministerio ante El Niño, junto a la exposición de las unidades de atención en Riesgos.
 
 Three actions with their own sources and cuts (see :mod:`src.enos`): reviewed alerts linked to identified MTDH units
-since 14 September 2026, kits delivered (the weekend of 24–25 October) and the contingency bonus (payments managed and
+since 14 September 2026, kits delivered (the supplied Kobo cut) and the contingency bonus (payments managed and
 cases in articulation for floods, and the national plan for El Niño 2026–2027).  Each keeps its unit: alerts are alerts,
 kits are kits and bonus figures are nuclei with a managed payment or people in articulation; they are never added together.
 """
@@ -10,6 +10,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 import pandas as pd
+import streamlit as st
 import plotly.graph_objects as go
 
 from src import charts, depuracion, enos, theme, ui
@@ -79,20 +80,52 @@ class Response:
         if programs and "DII" not in programs:
             continuity = continuity.iloc[:0]
         self.continuity = continuity
+        detail = pd.DataFrame(enos.continuity().get("detalle", []))
+        if not detail.empty:
+            detail["provincia_codigo"] = detail.provincia.map(_code)
+            if chosen: detail = detail.loc[detail.provincia_codigo.isin(chosen)]
+            if programs and "DII" not in programs: detail = detail.iloc[:0]
+        self.continuity_detail = detail
 
     @property
     def closed_units(self) -> int:
-        return int(self.continuity.loc[self.continuity.estado.eq("Suspendida"), "unidades"].sum())
+        return int(self.continuity.loc[self.continuity.estado.isin(["Suspendida", "Suspendida presencial"]), "unidades"].sum())
 
     def continuity_summary(self) -> dict:
         f = self.continuity
-        closed = f.loc[f.estado.eq("Suspendida")]
-        labels = {"Suspendida": "Cerradas / suspendidas", "Suspendida presencial": "CNH: suspensión presencial",
-                  "Atención virtual": "CDI: atención virtual", "Afectada; modalidad por confirmar": "Modalidad por confirmar"}
+        closed = f.loc[f.estado.isin(["Suspendida", "Suspendida presencial"])].copy()
+        statuses = f.copy()
+        statuses["lectura"] = statuses.estado
+        suspended = statuses.estado.isin(["Suspendida", "Suspendida presencial"])
+        statuses.loc[suspended, "lectura"] = statuses.loc[suspended, "servicio"] + ": atención suspendida"
+        statuses["lectura"] = statuses.lectura.replace({"Atención virtual": "CDI: atención virtual",
+            "Operativa con afectación": "CDI: operativos con afectación", "Afectada; modalidad por confirmar": "CDI: modalidad por confirmar"})
         return {"closed": self.closed_units, "by_province": enos.summary(closed, "provincia", "unidades"),
-                "by_status": [{"name": labels[a["name"]], "value": a["value"]} for a in enos.summary(f, "estado", "unidades")],
+                "by_service": enos.summary(closed, "servicio", "unidades"),
+                "by_status": enos.summary(statuses, "lectura", "unidades"),
                 "note": enos.CONTINUITY_NOTE, "cut": "26/10/2026 · 16:00"}
 
+    def suspended_groups(self) -> list[dict]:
+        f = self.continuity_detail
+        if f.empty: return []
+        f = f.loc[f.estado.isin(["Suspendida", "Suspendida presencial"])]
+        rows = []
+        for (province, canton, service), part in f.groupby(["provincia", "canton", "servicio"], sort=True):
+            names = [n for n in part.unidad if n and n != "Sin nombre"]
+            rows.append({"province": province, "canton": canton, "service": service, "units": int(part.unidades.sum()),
+                         "names": "; ".join(names) if names else "Unidades sin nombre en la base", "code": "No consta en la fuente"})
+        return rows
+
+    def suspension_caption(self) -> str:
+        return " · ".join(f"{a['value']} {a['name']}" for a in self.continuity_summary()["by_service"]) or "Sin suspensiones reportadas en la selección"
+
+    @property
+    def kit_records(self) -> int:
+        return len(self.kits)
+
+    def kits_summary(self) -> list[dict]:
+        rows = self.kits.groupby("provincia").agg(kits=("kits", "sum"), familias=("familias", "sum"), registros=("kits", "size")).reset_index()
+        return rows.sort_values("kits", ascending=False).to_dict("records")
 
     def count_note(self) -> str:
         confirmed = int(self.alerts.afectacion_servicio_confirmada.sum())
@@ -123,6 +156,8 @@ class Response:
         return int(self.kits.kits.sum())
 
     def places(self, frame: pd.DataFrame) -> tuple[int, int]:
+        if "cantones" in frame and frame.cantones.notna().all():
+            return int(frame.provincia.nunique()), int(frame.cantones.sum())
         return int(frame.provincia.nunique()), int(frame[["provincia", "canton"]].drop_duplicates().shape[0]) if "canton" in frame else 0
 
     def by_province(self, national: bool = False) -> pd.DataFrame:
@@ -265,10 +300,33 @@ def alerts_table(r: Response) -> None:
 
 
 def kits_table(r: Response) -> None:
-    rows = r.kits.sort_values(["fecha", "kits"], ascending=[True, False]).to_dict("records")
-    ui.rich_table([{"key": "fecha", "label": "Fecha", "kind": "date"}, {"key": "provincia", "label": "Provincia", "kind": "strong"},
-                   {"key": "canton", "label": "Cantón"}, {"key": "kits", "label": "Kits entregados", "kind": "bar"}],
-                  rows, total={"fecha": None, "provincia": "Total", "canton": f"{len(rows)} entregas", "kits": r.kits_total})
+    summary = r.kits_summary()
+    ui.rich_table([{"key": "provincia", "label": "Provincia", "kind": "strong"},
+                   {"key": "kits", "label": "Kits", "kind": "bar"},
+                   {"key": "familias", "label": "Familias reportadas", "kind": "num"},
+                   {"key": "registros", "label": "Registros", "kind": "num"}], summary,
+                  total={"provincia": "Total", "kits": r.kits_total, "familias": int(r.kits.familias.sum()), "registros": r.kit_records})
+    st.caption("Familias reportadas por entrega; no representan familias únicas. El resumen PDF muestra el consolidado provincial; Excel conserva todas las entregas.")
+    with st.expander(f"Detalle de las {r.kit_records} entregas Kobo"):
+        rows = r.kits.sort_values(["fecha", "kits"], ascending=[True, False]).to_dict("records")
+        ui.rich_table([{"key": "fecha", "label": "Fecha", "kind": "date"}, {"key": "provincia", "label": "Provincia", "kind": "strong"},
+                       {"key": "canton", "label": "Cantón"}, {"key": "kits", "label": "Kits", "kind": "num"},
+                       {"key": "familias", "label": "Familias reportadas", "kind": "num"}], rows)
+
+
+def kits_chart(r: Response) -> go.Figure:
+    rows = r.kits_summary()
+    items = [(a["provincia"], a["kits"]) for a in rows[:4]]
+    rest = sum(a["kits"] for a in rows[4:])
+    if rest: items.append(("Otras provincias", rest))
+    items.reverse()
+    fig = go.Figure(go.Bar(x=[v for _, v in items], y=[n for n, _ in items], orientation="h",
+                          marker=dict(color=theme.VIOLETA_500, cornerradius=4), text=[ui.number(v) for _, v in items],
+                          textposition="outside", cliponaxis=False, hovertemplate="<b>%{y}</b><br>%{x} kits<extra></extra>"))
+    charts.base(fig, 230, dict(l=8, r=45, t=12, b=16))
+    fig.update_xaxes(showgrid=False, showticklabels=False, range=[0, max([v for _, v in items] or [1]) * 1.25])
+    fig.update_yaxes(showgrid=False, tickfont=dict(size=11)); fig.update_layout(showlegend=False)
+    return fig
 
 
 def plan_tiles(r: Response) -> None:
@@ -289,3 +347,11 @@ def continuity_chart(r: Response, key: str) -> go.Figure:
     fig.update_yaxes(showgrid=False, tickfont=dict(size=11))
     fig.update_layout(showlegend=False, bargap=.4)
     return fig
+
+
+def suspended_table(r: Response) -> None:
+    rows = r.suspended_groups()
+    ui.rich_table([{"key": "province", "label": "Provincia", "kind": "strong"}, {"key": "canton", "label": "Cantón"},
+                   {"key": "service", "label": "Servicio"}, {"key": "units", "label": "UA suspendidas", "kind": "num"},
+                   {"key": "names", "label": "Unidades identificadas"}, {"key": "code", "label": "Código UA"}], rows,
+                  total={"province": "Total", "units": r.closed_units})

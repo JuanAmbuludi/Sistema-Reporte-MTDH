@@ -70,7 +70,7 @@ class EnosView:
                  'note': 'Pendientes o en seguimiento'},
                 {'label': 'UA identificadas con código', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
                  'icon': 'building', 'note': 'Solo códigos registrados en la fuente'},
-                {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Provincias priorizadas · 24–25/10'}]
+                {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Provincias priorizadas · Kobo 26/10, 22:26'}]
 
     def hero_visual(self):
         inventory = pd.read_parquet(ROOT/'data/processed/riesgos_ua.parquet')
@@ -142,11 +142,11 @@ class EnosView:
             with box, st.container(border=True, key=f'card_enos_{key}'):
                 ui.chart_title(title, f"{ui.number(frame.personas.sum())} personas · USD {ui.number(frame.monto.sum(),2)} · corte 23/10/2026")
                 self._table(frame,{'provincia':'Provincia','evento':'Evento','personas':'Personas','monto':'Monto (USD)'},'enos_'+key)
-        st.caption('Fuentes: Subsecretaría Territorial, análisis de alertas del 26/10; reporte ministerial de kits al 25/10; ayuda memoria del bono al 23/10.')
+        st.caption('Fuentes: Subsecretaría Territorial, análisis de alertas del 26/10; Kobo de kits al 26/10, 22:26; ayuda memoria del bono al 23/10.')
 
     def scope_items(self):
         return [('Ámbito','Alertas revisadas con código UA'),('Alertas desde','14/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
-                ('Kits','24–25/10/2026'),('Bonos','Referencia al 23/10; sin atribución ENOS confirmada')]
+                ('Kits','Kobo: 31/08–26/10/2026; corte 26/10, 22:26'),('Bonos','Referencia al 23/10; sin atribución ENOS confirmada')]
 
     def digest(self):
         return fingerprint(self.data,self.provinces)

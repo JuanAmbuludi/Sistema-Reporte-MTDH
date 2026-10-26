@@ -248,9 +248,9 @@ def _response(r) -> dict:
         "alert_states": [{"name": p, **{state: int(states.loc[p, state]) if state in states else 0
                                         for state in ["Pendiente", "En seguimiento", "Resuelto"]},
                           "value": int(states.loc[p].sum())} for p in states.sum(axis=1).sort_values(ascending=False).index],
-        "kits": [{"date": f"{pd.Timestamp(k['fecha']):%d/%m/%Y}", "province": k["provincia"], "canton": k["canton"], "kits": int(k["kits"])}
+        "kits": [{"date": "31/08–26/10/2026" if r.data.get("kits_nivel") == "provincia" else f"{pd.Timestamp(k['fecha']):%d/%m/%Y}", "province": k["provincia"], "canton": k["canton"], "kits": int(k["kits"]), "families": int(k["familias"]) if pd.notna(k.get("familias")) else 0, "id": str(k.get("id_kobo", ""))}
                  for k in r.kits.sort_values(["fecha", "kits"], ascending=[True, False]).to_dict("records")],
-        "kits_total": r.kits_total, "deliveries": len(r.kits), "kit_provinces": kit_provinces, "kit_cantons": kit_cantons,
+        "kits_total": r.kits_total, "deliveries": r.kit_records, "kit_provinces": kit_provinces, "kit_cantons": kit_cantons,
         "kits_by_place": [{"name": f"{row['canton']} · {row['provincia']}" if row["canton"] != row["provincia"] else row["canton"],
                            "value": int(row["kits"])} for row in by_place.to_dict("records")],
         "kits_cut": f"{pd.Timestamp(r.cuts['kits']):%d/%m/%Y}",

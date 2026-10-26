@@ -26,6 +26,12 @@ def build_context(view, *, title: str) -> dict:
                          for (d, n), c in zip(daily.items(), daily.cumsum())]
     response["count_note"] = r.count_note()
     response["continuity"] = r.continuity_summary()
+    response["continuity"]["caption"] = r.suspension_caption()
+    response["continuity"]["groups"] = r.suspended_groups()
+    response["continuity"]["detail"] = r.continuity_detail.to_dict("records")
+    response["kits_provinces"] = r.kits_summary()
+    response["families_total"] = int(r.kits.familias.sum())
+    response["kits_cut_full"] = "26/10/2026 · 22:26:42"
     response["actions"] = [{"name": row["nombre"], "cantons": row["provincia_sub"].removeprefix("Cantones: "),
                             "kits": int(row["kits"]), "managed": int(row["gestionados"]),
                             "managed_amount": float(row["monto_gestionado"]), "articulation": int(row["articulacion"]),
@@ -40,8 +46,8 @@ def build_context(view, *, title: str) -> dict:
                pdf_pages=3, selected_codes=list(view.provinces),
                map_values=view.map_values("alertas")[0], kits_map_values=view.map_values("kits")[0],
                scope=view.scope_items(), selection=view.programs_label, geoportal=ui.GEOPORTAL_URL,
-               source="Fuente: MTDH · Subsecretaría Territorial · reportes de kits y bono de contingencia",
-               sources="Subsecretaría Territorial (análisis de alertas); reporte ministerial de kits; ayuda memoria del bono de contingencia; base territorial de afectaciones por lluvias.",
+               source="Fuente: MTDH · Subsecretaría Territorial · Kobo de kits y bono de contingencia",
+               sources="Subsecretaría Territorial (análisis de alertas); corte Kobo de kits; ayuda memoria del bono de contingencia; base territorial de afectaciones por lluvias.",
                insights=[{"icon": "shield", "text": r.count_note()},
                          {"icon": "life-buoy", "text": f"{r.kits_total} kits en {response['kit_provinces']} provincias priorizadas; corte {response['kits_cut']}."},
                          {"icon": "hand-coins", "text": f"{response['managed_people']} núcleos con bono gestionado: USD {number(response['managed_amount'], 2)}."}])
@@ -207,101 +213,82 @@ def render_pdf(c, ctx, pages):
     c.setFillColor(C(theme.LILA_50)); c.roundRect(M, top - 34, full, 34, 6, fill=1, stroke=0)
     c.setFillColor(C(theme.MORADO_900)); c.setFont("Display", 21)
     c.drawString(M + 12, top - 24, number(r["continuity"]["closed"]))
-    c.setFont("Text-Bold", 9); c.drawString(M + 60, top - 13, "Unidades de atención cerradas")
-    c.setFont("Text", 7.5); c.drawString(M + 60, top - 25, "Atención suspendida · base territorial · corte 26/10/2026, 16:00")
+    c.setFont("Text-Bold", 9); c.drawString(M + 60, top - 13, "Unidades cerradas / suspendidas")
+    c.setFont("Text", 7.5); c.drawString(M + 60, top - 25, r["continuity"]["caption"] + " · incluye suspensión presencial · 26/10/2026, 16:00")
     top -= 55
-    rows_h = 0
-    for i, (key, title) in enumerate([("by_province", "Alertas por provincia"), ("by_service", "Alertas por servicio")]):
+    for i, (key, title) in enumerate([("by_province", "UA suspendidas por provincia"), ("by_service", "UA suspendidas por servicio")]):
         x = M + i * (half + 22)
-        rows = r[key]
-        peak = max([v["value"] for v in rows] or [1]) or 1
-        _heading(c, title, x, top, half, f"{r['alert_count']} alertas")
-        _bars(c, [{"name": v["name"], "text": f"{v['value']} alerta" + ("" if v["value"] == 1 else "s"), "fraction": v["value"] / peak}
-                  for v in rows], x, top - 24, half, 22)
-        rows_h = max(rows_h, len(rows))
-    top -= 24 + rows_h * 22 + 10
-    top = _pdf_evolution(c, r["daily"], top, full) - 16
-    map_h = half * 0.81
-    for i, (key, title, label) in enumerate([("map_values", "Alertas con código UA", "Alertas"),
-                                              ("kits_map_values", "Kits en provincias priorizadas", "Kits")]):
-        x = M + i * (half + 22)
-        _heading(c, title, x, top, half, "Por provincia" + (" · en dorado, la selección" if selected else ""))
-        pic = map_png(ctx[key], layer="provincia", selected=selected, mode="light", label=label, marks=False,
-                      width=half / 72, height=map_h / 72, dpi=200)
-        _picture(c, pic, x, top - 20, half, map_h / half)
-    top -= 20 + map_h + 12
-    c.setFillColor(C(theme.LILA_50)); c.roundRect(M, top - 34, full, 34, 6, fill=1, stroke=0)
-    c.setFillColor(C(theme.MORADO)); c.roundRect(M, top - 34, 3, 34, 1.5, fill=1, stroke=0)
-    _paragraph(c, "Cada alerta se cuenta una vez por su código. Los mapas muestran todo el país y destacan el territorio "
-                  "seleccionado. " + ctx["update"]["line"] + ".", M + 12, top - 8, full - 24, size=7.6)
-    check(top - 34)
+        rows = r["continuity"][key]; peak = max([a["value"] for a in rows] or [1])
+        _heading(c, title, x, top, half)
+        _bars(c, [{"name": a["name"], "text": number(a["value"]), "fraction": a["value"] / peak} for a in rows], x, top - 24, half, 25)
+    top -= 24 + max(len(r["continuity"]["by_province"]), len(r["continuity"]["by_service"])) * 25 + 13
+    _heading(c, "Detalle de las unidades suspendidas", M, top, full, "Suspensión total o presencial")
+    groups = r["continuity"]["groups"]
+    rows = [[Markup(f"<b>{escape(a['province'])}</b><br/>{escape(a['canton'])}"), a["service"], number(a["units"]), a["names"]] for a in groups]
+    rows.append(["Total", "CDI / CNH", number(r["continuity"]["closed"]), "Código UA: no consta en la base territorial."])
+    top = _pdf_table(c, top - 20, ["Provincia / cantón", "Servicio", "UA", "Unidades identificadas"], rows,
+                     [114, 43, 34, full - 191], size=8, padding=4, align=["L", "L", "R", "L"], total=True) - 17
+    top = _paragraph(c, r["continuity"]["note"], M, top, full, size=7.7) - 18
+    check(top)
     _next_page(c, ctx, 1, 3)
 
     # Page 2: every record, with wrapped names and impacts rather than abbreviated or clipped fields.
     top = _slim_band(c, ctx, "Alertas con código UA", f"Registro completo · {r['alert_count']} alertas · {ctx['territory_label']}") - 16
-    c.setFillColor(C(theme.ORO_100)); c.roundRect(M, top - 44, full, 44, 6, fill=1, stroke=0)
-    c.setFillColor(C(theme.ORO)); c.roundRect(M, top - 44, 3, 44, 1.5, fill=1, stroke=0)
+    c.setFillColor(C(theme.ORO_100)); c.roundRect(M, top - 36, full, 36, 6, fill=1, stroke=0)
+    c.setFillColor(C(theme.ORO)); c.roundRect(M, top - 36, 3, 36, 1.5, fill=1, stroke=0)
     _paragraph(c, r["count_note"], M + 12, top - 10, full - 24, size=8.4)
-    top -= 58
+    top -= 50
     rows = _alert_cells(r["alerts"])
     top = _pdf_table(c, top, ["Alerta / registro", "Unidad de atención y servicio", "Territorio", "Afectación al servicio", "Estado"],
                      [[a["identity"], a["unit_full"], a["place_full"], a["impact"], a["state"]] for a in rows],
-                     [86, 150, 66, full - 380, 78], size=7.5, padding=3) - 16
+                     [86, 150, 66, full - 380, 78], size=7.5, padding=2.5) - 12
     top = note("Criterio de inclusión y lectura", r["notes"]["alerts"], M, top, full, size=8)
     top = note("Verificación de la afectación", r["notes"]["quality"], M, top, full, size=8)
-    for i, (key, title) in enumerate([("by_province", "Unidades cerradas por provincia"), ("by_status", "Estado de atención reportado")]):
-        x = M + i * (half + 22)
-        rows = r["continuity"][key]; peak = max([v["value"] for v in rows] or [1])
+    for i, (key, title) in enumerate([("by_province", "Alertas por provincia"), ("by_service", "Alertas por servicio")]):
+        x = M + i * (half + 22); rows = r[key]; peak = max([a["value"] for a in rows] or [1])
         _heading(c, title, x, top, half)
-        _bars(c, [{"name": a["name"], "text": str(a["value"]), "fraction": a["value"] / peak} for a in rows], x, top - 20, half, 17)
-    top -= 20 + max(len(r["continuity"]["by_province"]), len(r["continuity"]["by_status"])) * 17 + 4
-    top = _paragraph(c, r["continuity"]["note"], M, top, full, size=7) - 5
+        _bars(c, [{"name": a["name"], "text": str(a["value"]), "fraction": a["value"] / peak} for a in rows], x, top - 20, half, 18)
+    top -= 24 + max(len(r["by_province"]), len(r["by_service"])) * 18
+    top = _pdf_evolution(c, r["daily"], top, full)
     check(top)
     _next_page(c, ctx, 2, 3)
 
-    # Page 3: provincial response, deliveries and national planning share the available width.
-    top = _slim_band(c, ctx, "Acciones del Ministerio", "Kits en provincias priorizadas y bono de contingencia") - 22
-    _heading(c, "Acciones del Ministerio en cada provincia", M, top, full)
-    actions = _money_rows(r["actions"] + [_action_totals(r["actions"])])
-    top = _pdf_table(c, top - 16, ["Provincia / cantones", "Kits", "Bono gestionado (núcleos)", "Monto (USD)", "En articulación (personas)", "Monto (USD)"],
-                     [[Markup(f"<b>{escape(a['name'])}</b>" + (f"<br/><font color='#6E6880'>{escape(a['cantons'])}</font>" if a["cantons"] else "")),
-                       _dash(number(a["kits"])), _dash(number(a["managed"])), _dash(a["managed_text"]), _dash(number(a["articulation"])),
-                       _dash(a["articulation_text"])] for a in actions[:-1]]
-                     + [["Total", number(actions[-1]["kits"]), number(actions[-1]["managed"]), actions[-1]["managed_text"],
-                         number(actions[-1]["articulation"]), actions[-1]["articulation_text"]]],
-                     [full - 353, 38, 75, 80, 80, 80], size=7.5, align=["L", "R", "R", "R", "R", "R"], total=True) - 26
-    kit_w = full * .63
-    plan_x = M + kit_w + 18
-    plan_w = full - kit_w - 18
-    _heading(c, "Kits en provincias priorizadas", M, top, kit_w)
-    _heading(c, "Planificación del bono", plan_x, top, plan_w)
-    c.setFillColor(C(theme.PIZARRA)); c.setFont("Text", 7.5)
-    c.drawString(plan_x, top - 18, "El Niño 2026–2027 · nacional")
-    bottom = _pdf_table(c, top - 16, ["Fecha", "Provincia", "Cantón", "Kits"],
-                     [[a["date"], a["province"], a["canton"], number(a["kits"])] for a in r["kits"]]
-                     + [["Total", f"{len(r['kits'])} entregas", "", number(r["kits_total"])]], [65, 85, kit_w - 184, 34], size=7.7,
-                     padding=5, align=["L", "L", "L", "R"], total=True)
+    # Page 3: every provincial total; delivery-level rows remain in the data export.
+    top = _slim_band(c, ctx, "Acciones del Ministerio", "Kits: Kobo al 26/10/2026, 22:26 · bono: corte 23/10/2026") - 20
+    _heading(c, "Respuesta por provincia", M, top, full,
+             f"{r['deliveries']} registros · {number(r['kits_total'])} kits")
+    families = {a["provincia"]: a["familias"] for a in r["kits_provinces"]}
+    actions = _money_rows(r["actions"])
+    rows = [[a["name"], number(a["kits"]), number(families.get(a["name"], 0)), _dash(number(a["managed"])),
+             _dash(a["managed_text"]), _dash(number(a["articulation"])), _dash(a["articulation_text"])] for a in actions]
+    totals = _money_rows([_action_totals(r["actions"])])[0]
+    rows.append(["Total", number(r["kits_total"]), number(r["families_total"]), number(totals["managed"]), totals["managed_text"],
+                 number(totals["articulation"]), totals["articulation_text"]])
+    top = _pdf_table(c, top - 18, ["Provincia", "Kits", "Familias*", "Bono: núcleos", "Monto USD", "Articulación: personas", "Monto USD"],
+                     rows, [full - 366, 43, 49, 55, 75, 69, 75], size=7.2, padding=2.7,
+                     align=["L", "R", "R", "R", "R", "R", "R"], total=True) - 17
+    kitrows = [{"name": a["provincia"], "value": a["kits"]} for a in r["kits_provinces"][:4]]
+    rest = sum(a["kits"] for a in r["kits_provinces"][4:])
+    if rest: kitrows.append({"name": "Otras provincias", "value": rest})
+    peak = max([a["value"] for a in kitrows] or [1])
+    _heading(c, "Kits en provincias priorizadas", M, top, half)
+    _bars(c, [{"name": a["name"], "text": number(a["value"]), "fraction": a["value"] / peak} for a in kitrows], M, top - 20, half, 18)
+    x = M + half + 22
+    _heading(c, "Planificación del bono", x, top, half, "Nacional · 2026–2027")
     plan = r["plan"]
-    y = top - 29
-    tiles = [("Personas potenciales", number(plan["personas"])),
-             ("Núcleos familiares potenciales", number(plan["nucleos"])),
-             ("Inversión estimada", "USD " + number(plan["monto"], 2))]
-    for label, value in tiles:
-        c.setFillColor(C(theme.ORO_100)); c.roundRect(plan_x, y - 48, plan_w, 48, 5, fill=1, stroke=0)
-        c.setFillColor(C(theme.MORADO_900)); c.setFont("Text-Semi", 7.5); c.drawString(plan_x + 10, y - 13, label)
-        c.setFont("Display", _fit(value, "Display", 16, plan_w - 20, 10)); c.drawString(plan_x + 10, y - 35, value)
-        y -= 54
-    y = _paragraph(c, "Planificación, no ejecución.", plan_x, y - 1, plan_w, size=7.5)
-    top = min(bottom, y) - 24
-    _heading(c, "Alcances y fuentes", M, top, full)
-    top -= 22
-    left_bottom = note("Entregas de kits", r["notes"]["kits"], M, top, half, size=7.8)
-    left_bottom = note("Filtros de la consulta", r["notes"]["filters"], M, left_bottom, half, size=7.8)
-    left_bottom = note("Fuentes", ctx["sources"], M, left_bottom, half, size=7.6)
-    right_bottom = note("Bono de contingencia", r["notes"]["bonus"], M + half + 22, top, half, size=7.8)
-    right_bottom = note("Geoportal institucional", ctx["geoportal"], M + half + 22, right_bottom, half, size=7.8)
-    c.linkURL(ctx["geoportal"], (M + half + 22, right_bottom, M + full, right_bottom + 28), relative=0)
-    check(min(left_bottom, right_bottom))
+    text = f"{number(plan['personas'])} personas potenciales · {number(plan['nucleos'])} núcleos familiares potenciales. " \
+           f"Inversión estimada: USD {number(plan['monto'], 2)}. Planificación, no ejecución."
+    _paragraph(c, text, x, top - 23, half, size=9)
+    top -= max(110, 20 + len(kitrows) * 18)
+    _paragraph(c, f"* {number(r['families_total'])} familias reportadas por entrega; no son familias únicas. "
+                  "Detalle de fechas y cantones en el dashboard y en Excel (Kits y bono).", M, top, full, size=7.2)
+    top -= 30
+    left = note("Kits · alcance del corte", r["notes"]["kits"], M, top, half, size=7.4)
+    left = note("Filtros", r["notes"]["filters"], M, left, half, size=7.4)
+    right = note("Bono de contingencia", r["notes"]["bonus"], x, top, half, size=7.4)
+    right = note("Fuentes y geoportal", ctx["sources"] + " " + ctx["geoportal"], x, right, half, size=7.1)
+    c.linkURL(ctx["geoportal"], (x, right, M + full, right + 20), relative=0)
+    check(min(left, right))
     assert pages == 3
 
 
@@ -311,7 +298,7 @@ def render_pptx(prs, ctx):
     from .pptx_areas import _table, _title
     r = ctx["response"]
     chunks = [r["alerts"][i:i + 5] for i in range(0, len(r["alerts"]), 5)] or [[]]
-    total = 7 + len(chunks)
+    total = 8 + len(chunks)
     _cover(prs, ctx, emblem_png(set(ctx["selected_codes"])), total, share_word="")
     def slide(title):
         s = prs.slides.add_slide(prs.slide_layouts[6])
@@ -330,14 +317,19 @@ def render_pptx(prs, ctx):
     active = [d for d in r["daily"] if d["daily"]]
     if active:
         _bar_chart(s, [d["short"] for d in active], [d["daily"] for d in active], "Alertas por fecha", x=.55, y=1.45, w=6, h=2.1)
-    _text(s, 7, 1.65, 5.5, .6, f"{r['continuity']['closed']} Unidades de atención cerradas", size=22, bold=True, color=theme.MORADO)
+    _text(s, 7, 1.65, 5.5, .6, f"{r['continuity']['closed']} Unidades cerradas / suspendidas", size=22, bold=True, color=theme.MORADO)
     _text(s, 7, 2.35, 5.5, .55, "Atención suspendida · corte 26/10/2026, 16:00", size=12)
-    for i, (key, title) in enumerate([("by_province", "Unidades cerradas por provincia"), ("by_status", "Estado de atención reportado")]):
+    for i, (key, title) in enumerate([("by_province", "UA suspendidas por provincia"), ("by_service", "UA suspendidas por servicio")]):
         rows = r["continuity"][key]
         _title(s, title, .55 + i * 6.25, 3.6, 5.8)
         if rows:
             _bar_chart(s, [a["name"] for a in rows], [a["value"] for a in rows], "Unidades", x=.55 + i * 6.25, y=4, w=5.8, h=2.1)
     _text(s, .55, 6.25, 12.2, .65, r["continuity"]["note"], size=9)
+    s = slide("Detalle de las unidades suspendidas")
+    _table(s, .55, 1.5, 12.2, [("Provincia", "province", 1.5, "text"), ("Cantón", "canton", 1.8, "text"),
+           ("Servicio", "service", .8, "text"), ("UA", "units", .55, "int"), ("Unidades identificadas", "names", None, "text")],
+           r["continuity"]["groups"], row_h=.61, header_h=.5, size=9)
+    _text(s, .55, 6.5, 12.2, .35, "Código UA: no consta en la base. Los 63 CNH de El Oro no tienen nombre ni cantón registrados.", size=11)
     for i, chunk in enumerate(chunks, 1):
         s = slide(f"Alertas con código UA · {i}/{len(chunks)}")
         _table(s, .55, 1.5, 12.2, [("Alerta / registro", "identity", 1.4, "text"), ("Unidad y servicio", "unit_full", 3, "text"),
@@ -345,16 +337,22 @@ def render_pptx(prs, ctx):
                ("Prioridad", "priority", .8, "text")], _alert_cells(chunk, markup=False), row_h=.87, header_h=.5, size=9)
         _text(s, .55, 6.43, 12.2, .4, r["notes"]["quality"], size=9)
     s = slide("Acciones del Ministerio en cada provincia")
-    _table(s, .55, 1.5, 12.2, [("Provincia / cantones", "place", None, "text"), ("Kits", "kits", .75, "int"),
-           ("Bono gestionado (núcleos)", "managed", 1.5, "int"), ("Monto (USD)", "managed_text", 1.6, "text"),
-           ("En articulación (personas)", "articulation", 1.7, "int"), ("Monto (USD)", "articulation_text", 1.7, "text")],
-           [{**a, "place": a["name"] + "\n" + a["cantons"]} for a in _money_rows(r["actions"] + [_action_totals(r["actions"])])], row_h=.5, size=10)
-    _text(s, .55, 6.15, 12.2, .65, r["notes"]["bonus"], size=10)
+    actions = _money_rows(r["actions"])
+    for i in range(0, len(actions), 11):
+        part = actions[i:i + 11]
+        _table(s, .55 + (i // 11) * 6.25, 1.5, 5.9,
+               [("Provincia", "name", None, "text"), ("Kits", "kits", .6, "int"), ("Bono núcleos", "managed", .65, "int"),
+                ("USD gestionado", "managed_text", 1.05, "text"), ("Artic. personas", "articulation", .7, "int"),
+                ("USD articulación", "articulation_text", 1.05, "text")], part, row_h=.36, header_h=.65, size=8)
+    _text(s, .55, 6.25, 12.2, .5, r["notes"]["bonus"], size=9)
     s = slide("Kits y planificación del bono")
     _title(s, "Kits en provincias priorizadas", .55, 1.4, 7)
-    _table(s, .55, 1.95, 7, [("Fecha", "date", 1.15, "text"), ("Provincia", "province", 2, "text"),
-           ("Cantón", "canton", None, "text"), ("Kits", "kits", .8, "int")], r["kits"] + [{"date": "Total", "province": "", "canton": "", "kits": r["kits_total"]}], row_h=.43, size=10)
-    _text(s, .55, 6.15, 7, .5, r["notes"]["kits"], size=10)
+    for i in range(0, len(r["kits_provinces"]), 10):
+        _table(s, .55 + (i // 10) * 3.65, 1.95, 3.5,
+               [("Provincia", "provincia", None, "text"), ("Kits", "kits", .65, "int"), ("Familias*", "familias", .7, "int")],
+               r["kits_provinces"][i:i + 10], row_h=.34, header_h=.5, size=8)
+    _text(s, .55, 6.05, 7.1, .65, f"{number(r['kits_total'])} kits · {number(r['families_total'])} familias reportadas* · {r['deliveries']} registros. "
+          "*No son familias únicas. Corte Kobo: 26/10/2026, 22:26.", size=11)
     plan = r["plan"]
     _title(s, "Planificación El Niño 2026–2027", 8, 1.4, 4.8)
     _text(s, 8, 2.1, 4.8, 3.8, [f"{number(plan['personas'])} personas potenciales", f"{number(plan['nucleos'])} núcleos familiares potenciales",
@@ -381,8 +379,8 @@ def render_workbook(book):
     from .charts import map_png
     ctx = book.ctx; r = ctx["response"]
     ws, row = _summary(book, "")
-    row = book.kpi_row(ws, row, [("Unidades de atención cerradas", r["continuity"]["closed"], "#,##0", "Atención suspendida · corte 26/10/2026, 16:00", theme.MORADO)])
-    for key, title in [("by_province", "Unidades cerradas por provincia"), ("by_status", "Estado de atención reportado")]:
+    row = book.kpi_row(ws, row, [("Unidades cerradas / suspendidas", r["continuity"]["closed"], "#,##0", "Atención suspendida · corte 26/10/2026, 16:00", theme.MORADO)])
+    for key, title in [("by_province", "UA suspendidas por provincia"), ("by_service", "UA suspendidas por servicio")]:
         rows = r["continuity"][key]
         first, end, row = _block(book, ws, row + 1, title, [("Categoría", "name", "text"), ("Unidades", "value", "int")], rows, last=12)
         if rows:
@@ -414,12 +412,17 @@ def render_workbook(book):
            ("Kits", "kits", "int"), ("Bono gestionado (núcleos)", "managed", "int"), ("Monto gestionado (USD)", "managed_amount", "usd"),
            ("En articulación (personas)", "articulation", "int"), ("Monto en articulación (USD)", "articulation_amount", "usd")], r["actions"], last=7,
            total={"name": "Total", **{k: sum(a[k] for a in r["actions"]) for k in ("kits", "managed", "managed_amount", "articulation", "articulation_amount")}})
-    ws, row = _sheet(book, "Kits y bono", theme.VIOLETA_500, "Kits y planificación del bono", [2.4, 24, 35, 35, 28, 2.4])
-    _, _, row = _block(book, ws, row, "Kits entregados en provincias priorizadas", [("Fecha", "date", "text"), ("Provincia", "province", "text"),
-           ("Cantón", "canton", "text"), ("Kits", "kits", "int")], r["kits"], note=r["notes"]["kits"], last=4, total={"date": "Total", "kits": r["kits_total"]})
+    ws, row = _sheet(book, "Kits y bono", theme.VIOLETA_500, "Kits y planificación del bono", [2.4, 24, 35, 35, 20, 22, 24, 2.4])
+    _, _, row = _block(book, ws, row, "Kits entregados en provincias priorizadas", [("Período", "date", "text"), ("Provincia", "province", "text"),
+           ("Cantón", "canton", "text"), ("Kits", "kits", "int"), ("Familias reportadas", "families", "int"), ("ID Kobo", "id", "text")], r["kits"], note=r["notes"]["kits"], last=6, total={"date": "Total", "kits": r["kits_total"], "families": r["families_total"]})
     _block(book, ws, row + 2, "Planificación El Niño 2026–2027", [("Personas potenciales", "personas", "int"),
            ("Núcleos familiares potenciales", "nucleos", "int"), ("Inversión estimada (USD)", "monto", "usd")], [r["plan"]],
            note="Proyección nacional; planificación, no ejecución", last=4)
+    ws, row = _sheet(book, "Unidades suspendidas", theme.MORADO, "Detalle territorial de unidades", [2.4, 24, 30, 20, 52, 25, 42, 16, 2.4])
+    _block(book, ws, row, "99 suspendidas · base 26/10/2026, 16:00 + confirmación operativa de Guayas",
+           [("Provincia", "provincia", "text"), ("Cantón", "canton", "text"), ("Servicio", "servicio", "text"),
+            ("Unidad", "unidad", "text"), ("Código UA", "codigo_ua", "text"), ("Estado de atención", "estado", "text"),
+            ("Unidades", "unidades", "int")], r["continuity"]["detail"], note=r["continuity"]["note"], last=7, autofilter=True)
     ws, row = _sheet(book, "Ficha técnica", theme.PIZARRA, "Nota metodológica y fuentes", [2.4, 34, 112, 2.4], landscape=False)
     for label, text in ctx["scope"] + [("Fuentes", ctx["sources"]), ("Conteo", r["count_note"]), ("Geoportal", ctx["geoportal"]), ("Continuidad de atención", r["continuity"]["note"])] + _notes(ctx):
         ws.set_row(row, max(32, math.ceil(len(text) / 95) * 15 + 12))
