@@ -56,7 +56,7 @@ def build_context(view, *, title: str) -> dict:
 
 def _notes(ctx):
     r = ctx["response"]
-    return [("Alertas", r["notes"]["alerts"]), ("Revisión de alertas", r["notes"]["quality"]),
+    return [("Alertas", r["notes"]["alerts"]),
             ("Kits", r["notes"]["kits"]), ("Bono de contingencia", r["notes"]["bonus"]),
             ("Filtros", r["notes"]["filters"])]
 
@@ -182,6 +182,22 @@ def _pdf_evolution(c, rows, top, width):
     return last_bottom - 25
 
 
+def _risk_bars(c, rows, x, top, width, row_h=27):
+    from .pdf import C, _fit
+    total = sum(a["value"] for a in rows)
+    for i, a in enumerate(rows):
+        y = top - i * row_h
+        pct = 100 * a["value"] / total if total else 0
+        value = f"{number(a['value'])}  ·  {number(pct,1)} %"
+        c.setFillColor(C(theme.MORADO_900)); c.setFont("Text-Semi", _fit(a["name"], "Text-Semi", 8.4, width-87, 6.7))
+        c.drawString(x, y, a["name"])
+        c.setFont("Text-Bold", 8.5); c.drawRightString(x + width, y, value)
+        c.setFillColor(C(theme.LILA_50)); c.roundRect(x, y-12, width, 6.5, 3.25, fill=1, stroke=0)
+        if pct > 0:
+            c.setFillColor(C(theme.MORADO if i == 0 else theme.VIOLETA_500))
+            c.roundRect(x, y-12, width * pct/100, 6.5, min(3.25, width*pct/200), fill=1, stroke=0)
+
+
 def render_pdf(c, ctx, pages):
     """Three-page bulletin: overview; complete alert register; actions, kits and methodological scope."""
     from .charts import map_png
@@ -223,12 +239,12 @@ def render_pdf(c, ctx, pages):
         x = M + i * (half + 22)
         rows = r["continuity"][key]; peak = max([a["value"] for a in rows] or [1])
         _heading(c, title, x, top, half)
-        _bars(c, [{"name": a["name"], "text": number(a["value"]), "fraction": a["value"] / peak} for a in rows], x, top - 24, half, 25)
-    top -= 24 + max(len(r["continuity"]["by_province"]), len(r["continuity"]["by_service"])) * 25 + 13
+        _risk_bars(c, rows, x, top - 24, half, 27)
+    top -= 24 + max(len(r["continuity"]["by_province"]), len(r["continuity"]["by_service"])) * 27 + 13
     _heading(c, "Detalle de las unidades suspendidas", M, top, full, "Suspensión total o presencial")
     groups = r["continuity"]["groups"]
     rows = [[Markup(f"<b>{escape(a['province'])}</b><br/>{escape(a['canton'])}"), a["service"], number(a["units"]), a["names"]] for a in groups]
-    rows.append(["Total", "CDI / CNH", number(r["continuity"]["closed"]), "Código UA: no consta en la base territorial."])
+    rows.append(["Total", "CDI / CNH", number(r["continuity"]["closed"]), ""])
     top = _pdf_table(c, top - 20, ["Provincia / cantón", "Servicio", "UA", "Unidades identificadas"], rows,
                      [114, 43, 34, full - 191], size=8, padding=4, align=["L", "L", "R", "L"], total=True) - 17
     top = _paragraph(c, r["continuity"]["note"], M, top, full, size=7.7) - 18
@@ -246,12 +262,11 @@ def render_pdf(c, ctx, pages):
                      [[a["identity"], a["unit_full"], a["place_full"], a["impact"], a["state"]] for a in rows],
                      [86, 150, 66, full - 380, 78], size=7.5, padding=2.5) - 12
     top = note("Criterio de inclusión y lectura", r["notes"]["alerts"], M, top, full, size=8)
-    top = note("Verificación de la afectación", r["notes"]["quality"], M, top, full, size=8)
     for i, (key, title) in enumerate([("by_province", "Alertas por provincia"), ("by_service", "Alertas por servicio")]):
         x = M + i * (half + 22); rows = r[key]; peak = max([a["value"] for a in rows] or [1])
         _heading(c, title, x, top, half)
-        _bars(c, [{"name": a["name"], "text": str(a["value"]), "fraction": a["value"] / peak} for a in rows], x, top - 20, half, 18)
-    top -= 24 + max(len(r["by_province"]), len(r["by_service"])) * 18
+        _risk_bars(c, rows, x, top - 22, half, 27)
+    top -= 24 + max(len(r["by_province"]), len(r["by_service"])) * 27 + 8
     top = _pdf_evolution(c, r["daily"], top, full)
     check(top)
     _next_page(c, ctx, 2, 3)
@@ -275,14 +290,14 @@ def render_pdf(c, ctx, pages):
     if rest: kitrows.append({"name": "Otras provincias", "value": rest})
     peak = max([a["value"] for a in kitrows] or [1])
     _heading(c, "Kits en provincias priorizadas", M, top, half)
-    _bars(c, [{"name": a["name"], "text": number(a["value"]), "fraction": a["value"] / peak} for a in kitrows], M, top - 20, half, 18)
+    _risk_bars(c, kitrows, M, top - 22, half, 23)
     x = M + half + 22
     _heading(c, "Planificación del bono", x, top, half, "Nacional · 2026–2027")
     plan = r["plan"]
     text = f"{number(plan['personas'])} personas potenciales · {number(plan['nucleos'])} núcleos familiares potenciales. " \
            f"Inversión estimada: USD {number(plan['monto'], 2)}. Planificación, no ejecución."
     _paragraph(c, text, x, top - 23, half, size=9)
-    top -= max(110, 20 + len(kitrows) * 18)
+    top -= max(110, 22 + len(kitrows) * 23)
     _paragraph(c, f"* {number(r['families_total'])} núcleos familiares reportados por entrega; no son núcleos familiares únicos. "
                   "Detalle de fechas y cantones en el dashboard y en Excel (Kits y bono).", M, top, full, size=7.2)
     top -= 30
@@ -297,8 +312,15 @@ def render_pdf(c, ctx, pages):
 
 def render_pptx(prs, ctx):
     from .charts import emblem_png, map_png
-    from .pptx import _cover, _header, _footer, _text, _bar_chart, _line_chart, _picture
+    from .pptx import _cover, _header, _footer, _text, _bar_chart as _native_bar_chart, _line_chart, _picture
     from .pptx_areas import _table, _title
+    def _bar_chart(slide, categories, values, name, **kwargs):
+        from pptx.util import Pt
+        chart = _native_bar_chart(slide, categories, values, name, maximum=max(sum(values),1), **kwargs)
+        chart.plots[0].gap_width = 190
+        chart.plots[0].series[0].format.line.fill.background()
+        chart.category_axis.tick_labels.font.size = Pt(11)
+        return chart
     r = ctx["response"]
     chunks = [r["alerts"][i:i + 5] for i in range(0, len(r["alerts"]), 5)] or [[]]
     total = 8 + len(chunks)
@@ -332,7 +354,6 @@ def render_pptx(prs, ctx):
     _table(s, .55, 1.5, 12.2, [("Provincia", "province", 1.5, "text"), ("Cantón", "canton", 1.8, "text"),
            ("Servicio", "service", .8, "text"), ("UA", "units", .55, "int"), ("Unidades identificadas", "names", None, "text")],
            r["continuity"]["groups"], row_h=.61, header_h=.5, size=9)
-    _text(s, .55, 6.5, 12.2, .35, "Código UA: no consta en la base. Los 63 CNH de El Oro no tienen nombre ni cantón registrados.", size=11)
     for i, chunk in enumerate(chunks, 1):
         s = slide(f"Alertas con código UA · {i}/{len(chunks)}")
         _table(s, .55, 1.5, 12.2, [("Alerta / registro", "identity", 1.4, "text"), ("Unidad y servicio", "unit_full", 3, "text"),
@@ -422,7 +443,7 @@ def render_workbook(book):
            ("Núcleos familiares potenciales", "nucleos", "int"), ("Inversión estimada (USD)", "monto", "usd")], [r["plan"]],
            note="Proyección nacional; planificación, no ejecución", last=4)
     ws, row = _sheet(book, "Unidades suspendidas", theme.MORADO, "Detalle territorial de unidades", [2.4, 24, 30, 20, 52, 25, 42, 16, 2.4])
-    _block(book, ws, row, "99 suspendidas · base 26/10/2026, 16:00 + confirmación operativa de Guayas",
+    _block(book, ws, row, "99 suspendidas · corte 26/10/2026, 16:00",
            [("Provincia", "provincia", "text"), ("Cantón", "canton", "text"), ("Servicio", "servicio", "text"),
             ("Unidad", "unidad", "text"), ("Código UA", "codigo_ua", "text"), ("Estado de atención", "estado", "text"),
             ("Unidades", "unidades", "int")], r["continuity"]["detail"], note=r["continuity"]["note"], last=7, autofilter=True)

@@ -88,7 +88,7 @@ def render_pptx(prs,ctx):
     rows=ctx['provinces'][::-1]
     if rows:_bar_chart(s,[r['name'] for r in rows],[r['value'] for r in rows],'Alertas',x=.5,y=1.4,w=7.3,h=4.55)
     _table(s,8.1,1.7,4.6,[('Estado','name',None,'text'),('Alertas','value',1.1,'int')],ctx['states'],row_h=.5)
-    _text(s,8.1,4,4.6,1.6,'Alertas revisadas con código UA. Tener código no confirma afectación; los casos de Tenguel requieren validación. El campo Afectados mezcla unidades y no se suma.',size=15)
+    _text(s,8.1,4,4.6,1.6,'Alertas con código UA. El seguimiento utiliza la fecha de registro de cada alerta.',size=15)
     _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 14/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
     s=slide('Kits en provincias priorizadas','Kobo: corte 26/10/2026, 22:26 · '+ctx['territory_label'])
     _text(s,.65,1.4,12,.6,f"{number(sum(r['kits'] for r in ctx['kits']))} kits documentados",size=28,bold=True,color=theme.MORADO)

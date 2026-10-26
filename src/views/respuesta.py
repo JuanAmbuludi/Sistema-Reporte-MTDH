@@ -128,11 +128,9 @@ class Response:
         return rows.sort_values("kits", ascending=False).to_dict("records")
 
     def count_note(self) -> str:
-        confirmed = int(self.alerts.afectacion_servicio_confirmada.sum())
         parts = [f"{count} {service}" for service, count in self.alerts.groupby("servicio").size().sort_values(ascending=False).items()]
         return (f"{len(self.alerts)} alertas con {self.units} códigos UA distintos" + (": " + "; ".join(parts) if parts else "")
-                + f". {confirmed} con afectación documentada y {len(self.alerts) - confirmed} por confirmar. "
-                "Se excluyen los registros sin código UA.")
+                + ". Se excluyen los registros sin código UA.")
 
     # ------------------------------------------------------------------------------------------- figures
     @property
@@ -201,17 +199,43 @@ class Response:
 
 
 # --------------------------------------------------------------------------------------------------- charts
-def alerts_breakdown(r: Response, field: str) -> go.Figure:
-    counts = r.alerts.groupby(field).size().sort_values(ascending=True)
-    labels = [str(x).replace("Creciendo con Nuestros Hijos (CNH)", "Creciendo con Nuestros Hijos<br>(CNH)") for x in counts.index]
-    fig = go.Figure(go.Bar(x=counts.values, y=labels, orientation="h", marker=dict(color=theme.MORADO, cornerradius=4),
-                          text=counts.values, textposition="outside", cliponaxis=False,
-                          hovertemplate="<b>%{y}</b><br>%{x} alertas<extra></extra>"))
-    charts.base(fig, 240, dict(l=8, r=36, t=12, b=16))
-    fig.update_xaxes(showgrid=False, showticklabels=False, range=[0, max(counts.max() if len(counts) else 0, 1) * 1.25])
-    fig.update_yaxes(showgrid=False, tickfont=dict(size=12), categoryorder="array", categoryarray=labels)
-    fig.update_layout(showlegend=False, bargap=0.4)
+def distribution_bars(rows: list[dict], unit: str, color=theme.MORADO) -> go.Figure:
+    """Compact rows with a readable label, exact count and share on one common scale."""
+    from html import escape
+    rows = sorted(rows, key=lambda a: (-a["value"], a["name"]))
+    total = sum(a["value"] for a in rows)
+    fig = go.Figure()
+    if not rows:
+        charts.base(fig, 150, dict(l=8, r=8, t=8, b=8))
+        fig.add_annotation(text="Sin registros en la selección", x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
+                           font=dict(size=12, color=theme.PIZARRA))
+        fig.update_xaxes(visible=False); fig.update_yaxes(visible=False)
+        return fig
+    n = len(rows); height = 46 * n + 18
+    ys = list(range(n - 1, -1, -1))
+    shades = [color] + [theme.VIOLETA_500] * (n - 1)
+    fig.add_trace(go.Bar(x=[100] * n, y=ys, orientation="h", width=.18,
+                        marker=dict(color=theme.LILA_50, cornerradius=4), hoverinfo="skip", showlegend=False))
+    shares = [100 * a["value"] / total if total else 0 for a in rows]
+    fig.add_trace(go.Bar(x=shares, y=ys, orientation="h", width=.18,
+                        marker=dict(color=shades, cornerradius=4), customdata=[[a["name"],ui.number(a["value"])] for a in rows],
+                        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]} " + unit + " · %{x:.1f}%<extra></extra>"))
+    for y, a, pct in zip(ys, rows, shares):
+        label = a["name"].replace("Creciendo con Nuestros Hijos (CNH)", "Creciendo con Nuestros Hijos · CNH")
+        fig.add_annotation(x=0, xref="paper", y=y+.22, text=escape(label), showarrow=False, xanchor="left", yanchor="bottom",
+                           font=dict(size=12, color=theme.MORADO_900))
+        fig.add_annotation(x=1, xref="paper", y=y+.22,
+                           text=f"<b>{ui.number(a['value'])}</b> <span style='color:{theme.PIZARRA}'>· {ui.number(pct,1)} %</span>",
+                           showarrow=False, xanchor="right", yanchor="bottom", font=dict(size=12, color=theme.MORADO_900))
+    charts.base(fig, height, dict(l=8, r=8, t=12, b=8))
+    fig.update_xaxes(range=[0,100], visible=False, fixedrange=True)
+    fig.update_yaxes(range=[-.35,n-.35], visible=False, fixedrange=True)
+    fig.update_layout(barmode="overlay", showlegend=False, hovermode="closest", dragmode=False)
     return fig
+
+
+def alerts_breakdown(r: Response, field: str) -> go.Figure:
+    return distribution_bars(enos.summary(r.alerts, field), "alertas")
 
 
 def alerts_evolution(r: Response) -> go.Figure:
@@ -316,17 +340,10 @@ def kits_table(r: Response) -> None:
 
 def kits_chart(r: Response) -> go.Figure:
     rows = r.kits_summary()
-    items = [(a["provincia"], a["kits"]) for a in rows[:4]]
+    items = [{"name": a["provincia"], "value": a["kits"]} for a in rows[:4]]
     rest = sum(a["kits"] for a in rows[4:])
-    if rest: items.append(("Otras provincias", rest))
-    items.reverse()
-    fig = go.Figure(go.Bar(x=[v for _, v in items], y=[n for n, _ in items], orientation="h",
-                          marker=dict(color=theme.VIOLETA_500, cornerradius=4), text=[ui.number(v) for _, v in items],
-                          textposition="outside", cliponaxis=False, hovertemplate="<b>%{y}</b><br>%{x} kits<extra></extra>"))
-    charts.base(fig, 230, dict(l=8, r=45, t=12, b=16))
-    fig.update_xaxes(showgrid=False, showticklabels=False, range=[0, max([v for _, v in items] or [1]) * 1.25])
-    fig.update_yaxes(showgrid=False, tickfont=dict(size=11)); fig.update_layout(showlegend=False)
-    return fig
+    if rest: items.append({"name": "Otras provincias", "value": rest})
+    return distribution_bars(items, "kits", theme.MORADO)
 
 
 def plan_tiles(r: Response) -> None:
@@ -337,16 +354,7 @@ def plan_tiles(r: Response) -> None:
 
 
 def continuity_chart(r: Response, key: str) -> go.Figure:
-    rows = list(reversed(r.continuity_summary()[key]))
-    fig = go.Figure(go.Bar(x=[a["value"] for a in rows], y=[a["name"] for a in rows], orientation="h",
-                          marker=dict(color=theme.MORADO if key == "by_province" else theme.ORO, cornerradius=4),
-                          text=[a["value"] for a in rows], textposition="outside", cliponaxis=False,
-                          hovertemplate="<b>%{y}</b><br>%{x} unidades reportadas<extra></extra>"))
-    charts.base(fig, 220, dict(l=8, r=36, t=12, b=16))
-    fig.update_xaxes(showgrid=False, showticklabels=False, range=[0, max([a["value"] for a in rows] or [1]) * 1.25])
-    fig.update_yaxes(showgrid=False, tickfont=dict(size=11))
-    fig.update_layout(showlegend=False, bargap=.4)
-    return fig
+    return distribution_bars(r.continuity_summary()[key], "UA suspendidas", theme.MORADO)
 
 
 def suspended_table(r: Response) -> None:

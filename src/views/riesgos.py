@@ -507,7 +507,7 @@ class RiskView:
         for column, key, title in [(left, "by_province", "UA suspendidas por provincia"),
                                    (right, "by_service", "UA suspendidas por servicio")]:
             with column, st.container(border=True, key=f"card_continuity_{key}"):
-                ui.chart_title(title, "Unidades reportadas en la base territorial")
+                ui.chart_title(title, "Cantidad y participación de las unidades suspendidas")
                 show_chart(respuesta.continuity_chart(r, key), f"continuity_{key}")
         with st.container(border=True, key="card_suspended_units_detail"):
             ui.chart_title("Detalle de las unidades suspendidas", "Provincia, cantón, servicio y nombre · códigos UA no disponibles en la base")
@@ -530,7 +530,7 @@ class RiskView:
             left, right = self._pair()
             for column, field, title in [(left, "provincia", "Alertas por provincia"), (right, "servicio", "Alertas por servicio")]:
                 with column, st.container(border=True, key=f"card_response_{field}_chart"):
-                    ui.chart_title(title, "Número de alertas vinculadas a unidades con código")
+                    ui.chart_title(title, "Cantidad y participación de las alertas con código UA")
                     show_chart(respuesta.alerts_breakdown(r, field), f"response_{field}_chart")
             ui.info_note(r.count_note(), "Cómo se cuenta")
             with st.container(border=True, key="card_response_provinces"):
@@ -728,7 +728,7 @@ class RiskView:
 
     def methodology(self) -> None:
         scopes = RESPONSE_SCOPES + [("Revisión de alertas", enos.QUALITY_NOTE), ("Continuidad de atención", enos.CONTINUITY_NOTE)]
-        items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in scopes)
+        items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in scopes if text)
         st.markdown(f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span>'
                     f'<h3>Nota metodológica</h3></header><dl class="method-defs">{items}</dl>'
                     '<p class="method-source">Fuentes: Subsecretaría Territorial (análisis de alertas), corte Kobo de kits '

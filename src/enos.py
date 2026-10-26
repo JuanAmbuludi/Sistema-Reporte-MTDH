@@ -14,9 +14,8 @@ BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a 
 KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 26/10/2026, 22:26:42. Entregas del 31/08 al 26/10; "
             "incluye fechas anteriores al inicio de las alertas. Reemplaza el corte anterior. "
             "Núcleos familiares reportados: suma por entrega, no núcleos únicos. El total de kits de este corte fue confirmado oficialmente.")
-QUALITY_NOTE = ("En el corte nacional hay 10 alertas con 10 códigos UA distintos: 8 con afectación documentada y 2 por confirmar. "
-                "ALT-2026-000315 y ALT-2026-000316 (Tenguel) tienen código UA, pero el relato solo describe inundación territorial; "
-                "no se presentan como daños confirmados al servicio.")
+QUALITY_NOTE = ""
+
 START = "2026-09-14"   # start of the follow-up: alerts registered from this date
 REFERENCE = "Ámbito: alertas con código UA y acciones institucionales de respuesta."
 
@@ -64,10 +63,7 @@ def summary(frame, group, value=None):
 
 
 CONTINUITY_PATH = ROOT / "data/processed/continuidad_servicios_2026-10-26.json"
-CONTINUITY_NOTE = ("Base territorial del 26/10/2026, 16:00, actualizada con la confirmación operativa posterior de Guayas: "
-                   "99 UA suspendidas (35 CDI y 64 CNH). Las 17 CDI de Guayas se incluyen como suspendidas por confirmación "
-                   "recibida; su estado original se conserva para trazabilidad. Los 63 CNH de El Oro no tienen nombre ni cantón "
-                   "en la base. No constan códigos UA ni se suma este registro a las 10 alertas.")
+CONTINUITY_NOTE = "Fuente: reporte territorial de unidades con suspensión total o presencial. Corte: 26/10/2026, 16:00."
 
 def continuity():
     return json.loads(CONTINUITY_PATH.read_text(encoding="utf-8"))
