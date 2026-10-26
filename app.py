@@ -55,6 +55,7 @@ from src.views.jovenes import YouthView  # noqa: E402
 from src.views.laboral import LabourView  # noqa: E402
 from src.views.presupuesto import BudgetArea, BudgetView, SocialBudgetView  # noqa: E402
 from src.views.territorial import TerritorialView  # noqa: E402
+from src.views.riesgos import RiskView  # noqa: E402
 
 ui.inject_styles()
 user = require_login()
@@ -101,6 +102,9 @@ except (FileNotFoundError, ValueError, OSError):
 
 views = {module_id: TerritorialView(module_id, bases["data"], bases["catalog"], bases["territory"], bases["program_budget"])
          for module_id in MODULES}
+risk_view = RiskView()
+if risk_view.catalog():
+    views["riesgos"] = risk_view
 if bases["contingency_catalog"]:
     views["contingencias"] = ContingencyView(bases["contingencies"], bases["contingency_places"], bases["contingency_catalog"])
 youth = YouthView()
@@ -227,6 +231,8 @@ def report_center() -> None:
 
 if st.session_state.workspace == "Tablero":
     view.dashboard()
+elif area == "riesgos":
+    view.table()
 else:
     report_center()
 

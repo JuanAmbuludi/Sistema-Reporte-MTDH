@@ -131,6 +131,7 @@ MODULES: dict[str, Module] = {
 AREAS: dict[str, dict] = {
     "transferencias": {"label": "Transferencias monetarias", "short": "Transferencias", "kind": "territorial"},
     "servicios": {"label": "Servicios de protección integral", "short": "Servicios", "kind": "territorial"},
+    "riesgos": {"label": "Riesgos", "short": "Riesgos", "kind": "riesgos"},
     "contingencias": {"label": "Contingencias y compensaciones", "short": "Contingencias", "kind": "contingencias",
                       "description": "Bonos por orfandad por femicidio, cobertura de contingencias y eventos de origen natural o "
                                      "antrópico, y mecanismos de compensación: personas, montos y presupuesto de cada mes."},

@@ -1,0 +1,20 @@
+{
+  "generado_utc": "2026-10-26T14:58:20.781041+00:00",
+  "periodo_id": "2026-09",
+  "archivo_fuente": "01-UA_SEP26_AMENAZAS-1-.xlsx",
+  "hoja": "UA_SEPTIEMBRE_2026",
+  "sha256_fuente": "c4a3c5224a556c13517b572cf3529fe2bc4a245ff35c00b2c35c2f9f6460eacd",
+  "registros_fuente": 9869,
+  "unidades_unicas": 9860,
+  "repeticiones_consolidadas": 9,
+  "unidades_expuestas_alguna_amenaza": 9460,
+  "inundaciones_o_movimientos_masa": 6211,
+  "fuente": "SIIMTDH; elaboración DGID / SGDE / MTDH",
+  "capas": {
+    "inundaciones": "MAGAP 2015",
+    "movimientos_masa": "SNGR 2011",
+    "sequia": "MAGAP 2015",
+    "incendios_forestales": "SNGR 2015"
+  },
+  "criterio": "Una UA por corte y código. Media, alta o muy alta en al menos una amenaza. No representa afectación confirmada. Guiones y vacíos no acreditan ausencia de riesgo."
+}
