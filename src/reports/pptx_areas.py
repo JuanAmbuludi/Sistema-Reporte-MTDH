@@ -564,6 +564,7 @@ def social_budget(prs, ctx: dict) -> None:
 
 
 from .risks import render_pptx as risk_presentation
+from .enos import render_pptx as enos_presentation
 
 RENDERERS = {"contingencias": contingency, "jovenes": youth, "laboral": labour, "presupuesto_social": social_budget,
-             "riesgos": risk_presentation}
+             "riesgos": risk_presentation, "seguimiento_enos": enos_presentation}

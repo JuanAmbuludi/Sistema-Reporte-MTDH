@@ -1,0 +1,323 @@
+{
+  "schema": 1,
+  "corte": "2026-10-26",
+  "desde": "2026-09-29",
+  "generado_utc": "2026-10-26T17:26:25.515471+00:00",
+  "alertas": [
+    {
+      "codigo": "ALT-2026-000346",
+      "fecha": "2026-10-23",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 2
+    },
+    {
+      "codigo": "ALT-2026-000325",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "62210",
+      "unidad": "GOTITA DEL AMOR",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000324",
+      "fecha": "2026-10-20",
+      "provincia": "Cotopaxi",
+      "canton": "Pangua",
+      "estado": "Resuelto",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 6
+    },
+    {
+      "codigo": "ALT-2026-000323",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "14294",
+      "unidad": "MIS PEQUEÑOS ANGELITOS",
+      "afectados_fuente": 45
+    },
+    {
+      "codigo": "ALT-2026-000322",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "13916",
+      "unidad": "NIÑOS JUGUETONES",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000321",
+      "fecha": "2026-10-20",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "62208",
+      "unidad": "PEQUEÑOS JILGUERITOS",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000320",
+      "fecha": "2026-10-20",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "estado": "En seguimiento",
+      "prioridad": "Media",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 180
+    },
+    {
+      "codigo": "ALT-2026-000319",
+      "fecha": "2026-10-20",
+      "provincia": "El Oro",
+      "canton": "El Guabo",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "60221",
+      "unidad": "CENTRO DE DESARROLLO INFANTIL ESTRELLITA DE MAR",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000318",
+      "fecha": "2026-10-20",
+      "provincia": "El Oro",
+      "canton": "El Guabo",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "60220",
+      "unidad": "CENTRO DE DESARROLLO INFANTIL SUPER NIÑO",
+      "afectados_fuente": 36
+    },
+    {
+      "codigo": "ALT-2026-000317",
+      "fecha": "2026-10-20",
+      "provincia": "El Oro",
+      "canton": "Pasaje",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 91
+    },
+    {
+      "codigo": "ALT-2026-000316",
+      "fecha": "2026-10-19",
+      "provincia": "Guayas",
+      "canton": "Guayaquil",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "58337",
+      "unidad": "CDI NIÑOS DE SAN RAFAEL",
+      "afectados_fuente": 45
+    },
+    {
+      "codigo": "ALT-2026-000315",
+      "fecha": "2026-10-19",
+      "provincia": "Guayas",
+      "canton": "Guayaquil",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "58336",
+      "unidad": "CDI LOS NIÑOS DEL CISNE",
+      "afectados_fuente": 45
+    },
+    {
+      "codigo": "ALT-2026-000312",
+      "fecha": "2026-10-19",
+      "provincia": "Esmeraldas",
+      "canton": "Eloy Alfaro",
+      "estado": "En seguimiento",
+      "prioridad": "Media",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 150
+    },
+    {
+      "codigo": "ALT-2026-000310",
+      "fecha": "2026-10-16",
+      "provincia": "Manabí",
+      "canton": "Flavio Alfaro",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "56744",
+      "unidad": "CNH ESTRELLITAS DEL AMANECER",
+      "afectados_fuente": 29
+    },
+    {
+      "codigo": "ALT-2026-000309",
+      "fecha": "2026-10-16",
+      "provincia": "Manabí",
+      "canton": "Flavio Alfaro",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "56204",
+      "unidad": "CORREO INFANTIL",
+      "afectados_fuente": 6
+    },
+    {
+      "codigo": "ALT-2026-000303",
+      "fecha": "2026-10-16",
+      "provincia": "Pichincha",
+      "canton": "Distrito Metropolitano de Quito",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 4
+    },
+    {
+      "codigo": "ALT-2026-000301",
+      "fecha": "2026-10-16",
+      "provincia": "Guayas",
+      "canton": "Nobol",
+      "estado": "En seguimiento",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "Sin unidad registrada",
+      "afectados_fuente": 45
+    }
+  ],
+  "kits": [
+    {
+      "fecha": "2026-10-24",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 30
+    },
+    {
+      "fecha": "2026-10-24",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 25
+    },
+    {
+      "fecha": "2026-10-24",
+      "provincia": "Esmeraldas",
+      "canton": "Esmeraldas",
+      "kits": 150
+    },
+    {
+      "fecha": "2026-10-24",
+      "provincia": "Guayas",
+      "canton": "Palestina",
+      "kits": 100
+    },
+    {
+      "fecha": "2026-10-24",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 97
+    },
+    {
+      "fecha": "2026-10-24",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 100
+    },
+    {
+      "fecha": "2026-10-25",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "kits": 300
+    }
+  ],
+  "bonos": {
+    "gestionados": [
+      {
+        "provincia": "Azuay",
+        "evento": "Inundación",
+        "personas": 1,
+        "monto": 303.99
+      },
+      {
+        "provincia": "Guayas",
+        "evento": "Inundación",
+        "personas": 67,
+        "monto": 19264.51
+      },
+      {
+        "provincia": "Manabí",
+        "evento": "Inundación",
+        "personas": 45,
+        "monto": 13632.3
+      }
+    ],
+    "articulacion": [
+      {
+        "provincia": "El Oro",
+        "evento": "Inundación",
+        "personas": 181,
+        "monto": 55022.19
+      },
+      {
+        "provincia": "Esmeraldas",
+        "evento": "Inundación",
+        "personas": 530,
+        "monto": 160558.2
+      },
+      {
+        "provincia": "Guayas",
+        "evento": "Inundación",
+        "personas": 344,
+        "monto": 104246.01
+      },
+      {
+        "provincia": "Imbabura",
+        "evento": "Inundación",
+        "personas": 5,
+        "monto": 1519.95
+      },
+      {
+        "provincia": "Los Ríos",
+        "evento": "Inundación",
+        "personas": 109,
+        "monto": 33033.06
+      }
+    ],
+    "planificacion": {
+      "personas": 145523,
+      "nucleos": 44098,
+      "monto": 13405351.02
+    }
+  },
+  "cortes": {
+    "alertas": "2026-10-26",
+    "kits": "2026-10-25",
+    "bonos": "2026-10-23",
+    "bonos_desde": "2026-08-29"
+  },
+  "control": {
+    "alertas_detalle_original": 31,
+    "alertas_desde_inicio": 17,
+    "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas."
+  },
+  "fuentes": [
+    {
+      "nombre": "05-analisis-alertas-2026-10-26-2-.xlsx",
+      "sha256": "a4cc38fde6dc3ea1470dd16b9d4cb56dc848726cc6add3b1916ffdb8cf72a0d0"
+    },
+    {
+      "nombre": "06-Bono-de-Contingencia-Feno-meno-del-Nin-o.docx",
+      "sha256": "951b1e5575f5e5534a49ebaa2b41bc5bfa948678f01e16deb668997639d53d45"
+    },
+    {
+      "nombre": "enos_kits_2026-10-25.csv",
+      "sha256": "625112e470b3d30adb13137233bc7b97fd68994303c83ed9e819b694782fdd58"
+    }
+  ]
+}

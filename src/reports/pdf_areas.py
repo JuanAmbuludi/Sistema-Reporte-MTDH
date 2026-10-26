@@ -767,6 +767,7 @@ def _social_detail(c, ctx: dict) -> None:
 
 
 from .risks import render_pdf as risk_summary
+from .enos import render_pdf as enos_summary
 
 RENDERERS = {"contingencias": contingency, "jovenes": youth, "laboral": labour, "presupuesto_social": social_budget,
-             "riesgos": risk_summary}
+             "riesgos": risk_summary, "seguimiento_enos": enos_summary}

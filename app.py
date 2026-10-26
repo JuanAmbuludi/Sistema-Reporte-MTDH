@@ -56,6 +56,7 @@ from src.views.laboral import LabourView  # noqa: E402
 from src.views.presupuesto import BudgetArea, BudgetView, SocialBudgetView  # noqa: E402
 from src.views.territorial import TerritorialView  # noqa: E402
 from src.views.riesgos import RiskView  # noqa: E402
+from src.views.enos import RiskArea  # noqa: E402
 
 ui.inject_styles()
 user = require_login()
@@ -104,7 +105,7 @@ views = {module_id: TerritorialView(module_id, bases["data"], bases["catalog"], 
          for module_id in MODULES}
 risk_view = RiskView()
 if risk_view.catalog():
-    views["riesgos"] = risk_view
+    views["riesgos"] = RiskArea(risk_view)
 if bases["contingency_catalog"]:
     views["contingencias"] = ContingencyView(bases["contingencies"], bases["contingency_places"], bases["contingency_catalog"])
 youth = YouthView()

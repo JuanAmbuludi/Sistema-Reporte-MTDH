@@ -421,6 +421,7 @@ def social_budget_book(book) -> None:
 
 
 from .risks import render_workbook as risk_book
+from .enos import render_workbook as enos_book
 
 BOOKS = {"contingencias": contingency_book, "jovenes": youth_book, "laboral": labour_book, "presupuesto_social": social_budget_book,
-         "riesgos": risk_book}
+         "riesgos": risk_book, "seguimiento_enos": enos_book}
