@@ -444,6 +444,19 @@ html{scroll-behavior:smooth}
 .focus-tile .fv{font-family:var(--font-display);font-weight:800;font-size:clamp(24px,2.2vw,32px);color:var(--morado-900);line-height:1.05;letter-spacing:-.01em}
 .stApp .focus-tile p{margin:8px 0 0;font-size:13.5px;color:var(--tinta);line-height:1.5}
 
+/* Kits and bonus planning: let the two panels grow with their actual content. */
+.st-key-card_response_kit_table,.st-key-card_response_plan{
+  height:auto!important;min-height:min-content!important;max-width:100%;
+  flex:0 0 auto!important;box-sizing:border-box;padding:20px!important;gap:12px!important;
+}
+:is(.st-key-card_response_kit_table,.st-key-card_response_plan) [data-testid="stElementContainer"]{
+  height:auto!important;min-height:min-content;flex:0 0 auto!important;min-width:0;max-width:100%;
+}
+.st-key-card_response_kit_table .rt-wrap{max-width:100%;margin:0;box-sizing:border-box}
+.st-key-card_response_plan .focus-tile{width:100%;max-width:100%;box-sizing:border-box;margin:0}
+.st-key-card_response_plan .focus-tile>div{min-width:0}
+.st-key-card_response_plan .fv{overflow-wrap:anywhere;line-height:1.15}
+
 /* ---------- Key figures: fewer cards share the row ---------- */
 .kpi-grid.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .kpi-grid.n1{grid-template-columns:minmax(0,1fr)}
