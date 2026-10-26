@@ -4,7 +4,8 @@ import json
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-ALERT_NOTE = ("Alertas de desastre natural registradas desde el 29 de septiembre de 2026. "
+ALERT_NOTE = ("Solo se incluyen alertas con afectación documentada a instalaciones, acceso, continuidad o modalidad de atención de los servicios MTDH, registradas desde el 29 de septiembre de 2026. "
+              "Se excluyen daños externos o a viviendas de familias usuarias sin impacto documentado en el servicio. Un código UA por sí solo no acredita afectación. "
               "La fecha corresponde al registro de la alerta; una alerta no equivale necesariamente a un evento único. "
               "El campo Afectados mezcla personas, familias y usuarios, por lo que no se presenta un total de personas únicas. "
               "La base no certifica atribución causal a ENOS.")
@@ -12,10 +13,11 @@ BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a 
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
              "Gestionado no acredita cobro; articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
 KIT_NOTE = "Entregas documentadas del 24 y 25 de octubre de 2026, corte 25/10 a las 19:00. No representan el acumulado desde el 29/09."
-QUALITY_NOTE = ("Se usó la hoja Detalle: los resúmenes del Excel abarcan otras fechas y categorías. "
-                "El registro ALT-2026-000301 consigna Nobol, pero su descripción menciona Balao; se conserva el territorio de la fuente, pendiente de validación.")
-REFERENCE = ("Estructura de referencia: reporte de monitoreo N.º 0044 del Ministerio de Educación, Deporte y Cultura, 25/10/2026. "
-             "Sus cifras educativas y su pronóstico con vigencia hasta el 25/10 no se incorporan a los resultados del MTDH.")
+QUALITY_NOTE = ("Se revisaron Detalle y Acciones realizadas de cada alerta. Los casos sin evidencia de afectación al servicio no se incorporan a indicadores ni exportables.")
+REFERENCE = "Ámbito: afectaciones a servicios MTDH y acciones institucionales de respuesta."
+
+ALERT_COLUMNS = ['codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad',
+                 'afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio']
 
 
 def snapshots():
@@ -23,14 +25,19 @@ def snapshots():
 
 
 def load(path):
-    return json.loads(Path(path).read_text(encoding='utf-8'))
+    data = json.loads(Path(path).read_text(encoding='utf-8'))
+    data['alertas'] = [r for r in data['alertas'] if r.get('afectacion_servicio_confirmada') is True]
+    return data
 
 
 def frames(data, provinces=()):
     result = {}
     for name, rows in [('alertas', data['alertas']), ('kits', data['kits']),
                        ('gestionados', data['bonos']['gestionados']), ('articulacion', data['bonos']['articulacion'])]:
-        frame = pd.DataFrame(rows)
+        if name == 'alertas':
+            rows = [r for r in rows if r.get('afectacion_servicio_confirmada') is True]
+        columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits'] if name == 'kits' else ['provincia','evento','personas','monto']
+        frame = pd.DataFrame(rows, columns=columns)
         if provinces:
             frame = frame.loc[frame.provincia.isin(provinces)]
         result[name] = frame.copy()

@@ -1,0 +1,18 @@
+codigo,incluir,servicio,afectacion_servicio,motivo_revision
+ALT-2026-000346,no,,,Daños a familias usuarias sin afectación documentada a la prestación del servicio
+ALT-2026-000325,si,Desarrollo Infantil,Ingreso de agua en la unidad; sin energía ni agua,Afectación expresa a la unidad en Detalle
+ALT-2026-000324,no,,,La fuente indica que los servicios operan con normalidad
+ALT-2026-000323,si,Desarrollo Infantil,Ingreso de agua y goteras en la unidad,Afectación expresa a la unidad en Detalle
+ALT-2026-000322,si,Desarrollo Infantil,Agua dentro y fuera de la unidad,Afectación expresa a la unidad en Detalle
+ALT-2026-000321,si,Desarrollo Infantil,Acumulación de agua en la entrada de la unidad,Afectación expresa a la unidad en Detalle
+ALT-2026-000320,no,,,La fuente indica que los servicios no registran afectaciones
+ALT-2026-000319,si,Desarrollo Infantil,Ingreso de agua; cambio temporal a modalidad virtual,Afectación y cambio de modalidad documentados en Detalle y Acciones realizadas
+ALT-2026-000318,si,Desarrollo Infantil,Ingreso de agua; cambio temporal a modalidad virtual,Afectación y cambio de modalidad documentados en Detalle y Acciones realizadas
+ALT-2026-000317,no,,,Afectación territorial sin impacto documentado en servicios
+ALT-2026-000316,no,,,El código UA identifica una unidad pero el relato solo describe inundaciones del sector
+ALT-2026-000315,no,,,El código UA identifica una unidad pero el relato solo describe inundaciones del sector
+ALT-2026-000312,no,,,Afectación a cultivos sin impacto documentado en servicios
+ALT-2026-000310,si,Creciendo con Nuestros Hijos (CNH),Acceso impedido para atención presencial; contacto telefónico temporal,Afectación a las unidades y atención telefónica documentadas en Detalle y Acciones realizadas
+ALT-2026-000309,si,Creciendo con Nuestros Hijos (CNH),Acceso impedido para atención presencial; contacto telefónico temporal,Afectación a las unidades y atención telefónica documentadas en Detalle y Acciones realizadas
+ALT-2026-000303,no,,,Daño a vivienda de familia usuaria sin afectación documentada a la prestación del servicio
+ALT-2026-000301,no,,,Afectación territorial y verificación de usuarios sin impacto documentado en servicios

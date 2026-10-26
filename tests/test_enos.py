@@ -16,13 +16,13 @@ def view(provinces=()):
 
 def test_alert_window_and_source_units():
     v=view();a=v.alerts
-    assert len(a)==17 and a.codigo.nunique()==17
+    assert len(a)==8 and a.codigo.nunique()==8
     assert pd.to_datetime(a.fecha).ge('2026-09-29').all()
-    assert a.estado.value_counts().to_dict()=={'Pendiente':9,'En seguimiento':7,'Resuelto':1}
-    assert a.provincia.nunique()==7
-    assert a.loc[a.codigo_ua.ne(''),'codigo_ua'].nunique()==10
-    assert [k['value'] for k in v.kpi_cards()]==[17,16,10,802]
-    assert set(a.columns)=={'codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad','afectados_fuente'}
+    assert a.estado.value_counts().to_dict()=={'Pendiente':6,'En seguimiento':2}
+    assert a.provincia.nunique()==3
+    assert a.loc[a.codigo_ua.ne(''),'codigo_ua'].nunique()==8
+    assert [k['value'] for k in v.kpi_cards()]==[8,8,8,802]
+    assert set(a.columns)=={'codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad','afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio'}
     assert v.data['control']['alertas_detalle_original']==31
 
 
@@ -37,7 +37,7 @@ def test_kit_deliveries_bono_scopes_and_merged_province():
     assert b.loc[b.provincia.eq('Los Ríos'),'personas'].item()==109
     assert set(a.evento)|set(b.evento)=={'Inundación'}
     assert v.data['bonos']['planificacion']=={'personas':145523,'nucleos':44098,'monto':13405351.02}
-    g=view(['Guayas']);assert len(g.alerts)==7 and g.kits.kits.sum()==400
+    g=view(['Guayas']);assert len(g.alerts)==4 and g.kits.kits.sum()==400
     assert g.frames['gestionados'].personas.sum()==67
     assert g.digest()!=v.digest()
 
@@ -54,3 +54,22 @@ def test_three_products_keep_counts_and_explicit_limits():
     assert 802 in [c.value for row in wb['Resumen'] for c in row]
     assert 'Los Ríos' in [c.value for row in wb['Bonos'] for c in row]
     assert enos.BONO_NOTE in [c.value for row in wb['Ficha técnica'] for c in row]
+
+
+def test_only_documented_service_impacts_reach_exports():
+    v=view()
+    expected={'ALT-2026-000'+n for n in ['325','323','322','321','319','318','310','309']}
+    assert set(v.alerts.codigo)==expected
+    assert v.alerts.afectacion_servicio_confirmada.all()
+    assert v.alerts.afectacion_servicio.str.len().gt(0).all()
+    assert v.data['control']['alertas_excluidas']==9
+    # A code alone is not evidence; legacy/unreviewed rows cannot reach any product.
+    data=json.loads(json.dumps(v.data))
+    data['alertas'].append({'codigo':'NEW','codigo_ua':'123','provincia':'Guayas'})
+    assert set(enos.frames(data)['alertas'].codigo)==expected
+    data['alertas']=[]
+    assert enos.frames(data,['Guayas'])['alertas'].empty
+    wb=load_workbook(BytesIO(generate_xlsx(v.report_context('Servicios MTDH'))),data_only=True)
+    cells=[c.value for row in wb['Alertas'] for c in row]
+    assert expected.issubset(set(cells)) and 'ALT-2026-000346' not in cells
+    assert 'Afectación al servicio' in cells

@@ -15,7 +15,7 @@ def build_context(view,title):
                reference=enos.REFERENCE, sources=view.data['fuentes'],
                bonos=[{**r,'stage':label} for key,label in [('gestionados','Gestionado'),('articulacion','En articulación')]
                        for r in view.frames[key].to_dict('records')],
-               insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas registradas desde el 29/09 en {view.alerts.provincia.nunique()} provincias."},
+               insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con afectación a servicios MTDH desde el 29/09 en {view.alerts.provincia.nunique()} provincias."},
                          {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits documentados en el fin de semana del 24–25/10."}])
     return ctx
 
@@ -43,7 +43,7 @@ def render_pdf(c,ctx,pages):
         p=Paragraph(escape(text),ParagraphStyle('enos',fontName='Text',fontSize=size,leading=size*1.4,textColor=INK))
         _,h=p.wrap(width,1000);p.drawOn(c,M,y-h);return y-h-10
     y=_kpis(c,ctx,_band(c,ctx,H,emblem_png())-12)
-    _heading(c,'Alertas registradas por provincia',M,y-12,width)
+    _heading(c,'Alertas de servicios MTDH por provincia',M,y-12,width)
     y-=37;_bars(c,_ranked(ctx['provinces'],'value'),M,y,width,row_h=26);y-=26*len(ctx['provinces'])+16
     _heading(c,'Estado de las alertas',M,y,width)
     y=_table(c,M,y-16,width,[('Estado','name',None,'text'),('Alertas','value',100,'int')],ctx['states'],row_h=20)
@@ -75,11 +75,11 @@ def render_pptx(prs,ctx):
         s=prs.slides.add_slide(prs.slide_layouts[6]);_header(s,title,subtitle);_footer(s,ctx,len(prs.slides),4)
         s.notes_slide.notes_text_frame.text='\n'.join(f'{k}: {v}' for k,v in ctx['scope'])+'\n'+ctx['alert_note']+'\n'+ctx['bono_note']
         return s
-    s=slide('Alertas territoriales',ctx['period_label']+' · '+ctx['territory_label'])
+    s=slide('Afectaciones a servicios MTDH',ctx['period_label']+' · '+ctx['territory_label'])
     rows=ctx['provinces'][::-1]
     if rows:_bar_chart(s,[r['name'] for r in rows],[r['value'] for r in rows],'Alertas',x=.5,y=1.4,w=7.3,h=4.55)
     _table(s,8.1,1.7,4.6,[('Estado','name',None,'text'),('Alertas','value',1.1,'int')],ctx['states'],row_h=.5)
-    _text(s,8.1,4,4.6,1.6,'La base registra alertas, no eventos únicos. El número de personas afectadas no puede consolidarse porque el campo fuente mezcla unidades.',size=15)
+    _text(s,8.1,4,4.6,1.6,'Solo afectaciones documentadas a servicios MTDH. Se excluyen daños externos sin impacto en su atención. El campo Afectados mezcla unidades y no se suma.',size=15)
     _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 29/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
     s=slide('Kits entregados','Fin de semana 24–25/10/2026 · '+ctx['territory_label'])
     _text(s,.65,1.4,12,.6,f"{number(sum(r['kits'] for r in ctx['kits']))} kits documentados",size=28,bold=True,color=theme.MORADO)
@@ -105,11 +105,11 @@ def render_workbook(book):
     if ctx['provinces']:
         ws.insert_chart(row+1,1,book.bar_chart('Resumen',first,end,1,9,'Alertas por provincia',[theme.MORADO],width=800,height=290));row+=18
     _finish_summary(book,ws,row+1,ctx['insights'])
-    ws,row=_sheet(book,'Alertas',theme.MORADO,'Alertas territoriales',[2.4,23,16,25,30,21,18,48,24,2.4])
+    ws,row=_sheet(book,'Alertas',theme.MORADO,'Afectaciones a servicios MTDH',[2.4,23,16,25,30,21,18,48,30,65,24,2.4])
     columns=[('Alerta','codigo','text'),('Fecha de registro','fecha','text'),('Provincia','provincia','text'),('Cantón','canton','text'),
-             ('Estado','estado','text'),('Código UA','codigo_ua','code'),('Unidad de atención','unidad','text'),('Afectados (campo fuente)','afectados_fuente','int')]
-    first,end,row=_block(book,ws,row+1,'Detalle desde el 29/09',columns,ctx['alerts'],last=8,height=32,autofilter=True)
-    ws.freeze_panes(first,3);book.note(ws,row+1,ctx['alert_note'],last=8,height=55)
+             ('Estado','estado','text'),('Código UA','codigo_ua','code'),('Unidad de atención','unidad','text'),('Servicio','servicio','text'),('Afectación al servicio','afectacion_servicio','text'),('Afectados (campo fuente)','afectados_fuente','int')]
+    first,end,row=_block(book,ws,row+1,'Detalle desde el 29/09',columns,ctx['alerts'],last=10,height=45,autofilter=True)
+    ws.freeze_panes(first,3);book.note(ws,row+1,ctx['alert_note'],last=10,height=70)
     ws,row=_sheet(book,'Kits',theme.VIOLETA_500,'Kits entregados',[2.4,18,28,32,18,2.4])
     _f,_e,row=_block(book,ws,row+1,'Entregas de fin de semana',[(h,k,'int' if k=='kits' else 'text') for h,k,_w,_t in KIT_COLUMNS],
                      ctx['kits'],total={'kits':sum(r['kits'] for r in ctx['kits'])},last=4,height=23,autofilter=True)

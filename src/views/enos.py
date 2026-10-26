@@ -45,7 +45,7 @@ class EnosView:
 
     def hero_copy(self):
         return ('Seguimiento desde el 29 de septiembre', 'Riesgos y respuesta',
-                'Alertas territoriales, entregas de kits y estado de la información sobre el bono de contingencia ante El Niño.')
+                'Afectaciones a servicios MTDH, entregas de kits y estado de la información sobre el bono de contingencia ante El Niño.')
 
     def update_stamp(self):
         from datetime import datetime
@@ -58,10 +58,10 @@ class EnosView:
                 'frequency': 'Actualización según los cortes recibidos', 'short': f'Alertas al {cut}', 'line': f'Alertas al {cut}'}
 
     def kpi_cards(self):
-        return [{'label': 'Alertas registradas', 'value': len(self.alerts), 'icon': 'storm', 'note': 'Desde el 29/09/2026'},
+        return [{'label': 'Alertas de servicios MTDH', 'value': len(self.alerts), 'icon': 'storm', 'note': 'Desde el 29/09/2026'},
                 {'label': 'Alertas abiertas', 'value': int(self.alerts.estado.ne('Resuelto').sum()), 'icon': 'clock',
                  'note': 'Pendientes o en seguimiento'},
-                {'label': 'UA identificadas en alertas', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
+                {'label': 'UA con afectación documentada', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
                  'icon': 'building', 'note': 'Códigos de unidad distintos'},
                 {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Fin de semana 24–25/10'}]
 
@@ -69,7 +69,7 @@ class EnosView:
         inventory = pd.read_parquet(ROOT/'data/processed/riesgos_ua.parquet')
         codes = {names.place(p): str(c) for p,c in zip(inventory.provincia, inventory.provincia_codigo)}
         values = {codes[r['name']]:r['value'] for r in enos.summary(self.alerts,'provincia') if r['name'] in codes}
-        ui.hero_map(geo.svg_map(ui.map_fills(values)), 'Alertas registradas por provincia')
+        ui.hero_map(geo.svg_map(ui.map_fills(values)), 'Alertas de servicios MTDH por provincia')
 
     geoportal = staticmethod(RiskView.geoportal)
 
@@ -79,7 +79,7 @@ class EnosView:
                       height=320 if len(frame)>7 else 250, key=key)
 
     def dashboard(self):
-        ui.section_heading('Alertas territoriales', f"29/09/2026 al {pd.Timestamp(self.data['corte']):%d/%m/%Y}", 'storm')
+        ui.section_heading('Afectaciones a servicios MTDH', f"29/09/2026 al {pd.Timestamp(self.data['corte']):%d/%m/%Y}", 'storm')
         st.caption(f'{self.alerts.provincia.nunique()} provincias · {self.alerts[["provincia","canton"]].drop_duplicates().shape[0]} cantones · '
                    f'{int(self.alerts.estado.eq("Resuelto").sum())} alertas resueltas. La ausencia de registros no prueba ausencia de afectación.')
         columns = [st.container(),st.container()] if compact() else st.columns(2)
@@ -94,7 +94,7 @@ class EnosView:
         with st.container(border=True):
             ui.chart_title('Detalle de alertas', 'Código y nombre de UA cuando constan en la fuente')
             self._table(self.alerts, {'codigo':'Alerta','fecha':'Fecha de registro','provincia':'Provincia','canton':'Cantón',
-                        'estado':'Estado','codigo_ua':'Código UA','unidad':'Unidad de atención','afectados_fuente':'Afectados (campo fuente)'}, 'enos_alerts')
+                        'estado':'Estado','codigo_ua':'Código UA','unidad':'Unidad de atención','servicio':'Servicio','afectacion_servicio':'Afectación al servicio','afectados_fuente':'Afectados (campo fuente)'}, 'enos_alerts')
         ui.info_note(enos.ALERT_NOTE,'Alcance de las alertas')
         st.caption(enos.QUALITY_NOTE)
         ui.section_heading('Kits entregados', 'Entregas documentadas del fin de semana', 'life-buoy')
@@ -116,7 +116,7 @@ class EnosView:
         st.caption('Fuentes: Subsecretaría Territorial, análisis de alertas del 26/10; reporte ministerial de kits al 25/10; ayuda memoria del bono al 23/10.')
 
     def scope_items(self):
-        return [('Alertas desde','29/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
+        return [('Ámbito','Solo afectaciones documentadas a servicios MTDH'),('Alertas desde','29/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
                 ('Kits','24–25/10/2026'),('Bonos','Referencia al 23/10; sin atribución ENOS confirmada')]
 
     def digest(self):
@@ -135,7 +135,7 @@ class EnosView:
         return ui.svg_columns([r['value'] for r in rows],[r['name'][:8] for r in rows],width=300,height=170,night=False)
 
     def slide_titles(self):
-        return 'Alertas territoriales','Kits y bono de contingencia'
+        return 'Afectaciones a servicios MTDH','Kits y bono de contingencia'
 
     def report_contents(self,kind):
         return [('storm','Alertas desde el 29/09','Estado, territorio y unidades identificadas'),

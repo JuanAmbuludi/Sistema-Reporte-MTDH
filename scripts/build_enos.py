@@ -30,22 +30,36 @@ def money(text):
     return float(re.sub(r'[^\d,.-]', '', text).replace('.', '').replace(',', '.'))
 
 
-def alert_rows(path, start, cut):
+def alert_rows(path, start, cut, review_path):
     frame = pd.read_excel(path, sheet_name='Detalle', header=3).dropna(subset=['Código'])
     dates = pd.to_datetime(frame.Fecha, errors='raise')
     chosen = frame.loc[dates.between(pd.Timestamp(start), pd.Timestamp(cut)) & frame.Tipo.eq('Desastre natural')].copy()
     if chosen.Código.duplicated().any():
         raise ValueError('Hay códigos de alerta repetidos; revisar el corte antes de publicarlo.')
+    review = pd.read_csv(review_path, dtype=str).fillna('')
+    if review.codigo.duplicated().any() or not review.incluir.isin(['si', 'no']).all():
+        raise ValueError('Revisar las decisiones de afectación a servicios: códigos únicos y si/no.')
+    decisions = review.set_index('codigo').to_dict('index')
     rows = []
     for r in chosen.to_dict('records'):
+        decision = decisions.get(str(r['Código']).strip(), {})
+        # An identified UA alone does not establish a service impact. Unreviewed cases stay out.
+        if decision.get('incluir') != 'si':
+            continue
+        if not decision.get('afectacion_servicio') or not decision.get('servicio'):
+            raise ValueError('Una alerta incluida requiere servicio y afectación documentada.')
         code = str(r['Código SIIMDH']).strip()
         code = '' if code in ('—', '-', 'nan', '') else re.sub(r'\.0$', '', code)
         rows.append({'codigo': str(r['Código']).strip(), 'fecha': str(r['Fecha'])[:10],
                      'provincia': names.place(r['Provincia']), 'canton': names.place(r['Cantón']),
                      'estado': r['Estado'], 'prioridad': r['Prioridad'], 'codigo_ua': code,
                      'unidad': str(r['Unidad de atención']).strip() if code else 'Sin unidad registrada',
+                     'afectacion_servicio_confirmada': True, 'servicio': decision['servicio'],
+                     'afectacion_servicio': decision['afectacion_servicio'],
                      'afectados_fuente': int(r['Afectados']) if pd.notna(r['Afectados']) else None})
-    return rows, len(frame)
+    return rows, {'alertas_detalle_original': len(frame), 'alertas_desde_inicio': len(chosen),
+                  'alertas_con_afectacion_servicios': len(rows), 'alertas_excluidas': len(chosen)-len(rows),
+                  'alertas_sin_revision': sum(str(code).strip() not in decisions for code in chosen.Código)}
 
 
 def bono_rows(path):
@@ -90,6 +104,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--alerts', type=Path, required=True)
     p.add_argument('--bonos', type=Path, required=True)
+    p.add_argument('--service-review', type=Path, required=True,
+                   help='CSV de revisión documental: solo incluir=si con impacto en servicios se publica.')
     p.add_argument('--kits', type=Path, default=ROOT/'data/reference/enos_kits_2026-10-25.csv')
     p.add_argument('--start', default='2026-09-29')
     p.add_argument('--cut', required=True)
@@ -99,16 +115,16 @@ def main():
     a = p.parse_args()
     for date in (a.start, a.cut, a.kits_cut, a.bonos_cut, a.bonos_start):
         datetime.strptime(date, '%Y-%m-%d')
-    alerts, original = alert_rows(a.alerts, a.start, a.cut)
+    alerts, control = alert_rows(a.alerts, a.start, a.cut, a.service_review)
     kits = pd.read_csv(a.kits)
     if kits.kits.lt(0).any() or not pd.to_datetime(kits.fecha).between(a.start, a.kits_cut).all():
         raise ValueError('Las entregas de kits no corresponden a su corte.')
-    result = {'schema': 1, 'corte': a.cut, 'desde': a.start, 'generado_utc': datetime.now(timezone.utc).isoformat(),
+    result = {'schema': 2, 'corte': a.cut, 'desde': a.start, 'generado_utc': datetime.now(timezone.utc).isoformat(),
               'alertas': alerts, 'kits': kits.to_dict('records'), 'bonos': bono_rows(a.bonos),
               'cortes': {'alertas': a.cut, 'kits': a.kits_cut, 'bonos': a.bonos_cut, 'bonos_desde': a.bonos_start},
-              'control': {'alertas_detalle_original': original, 'alertas_desde_inicio': len(alerts),
+              'control': {**control,
                           'resumen_excel_no_utilizado': 'Las hojas resumen incluyen otras categorías y fechas.'},
-              'fuentes': [{'nombre': f.name, 'sha256': hashlib.sha256(f.read_bytes()).hexdigest()} for f in (a.alerts, a.bonos, a.kits)]}
+              'fuentes': [{'nombre': f.name, 'sha256': hashlib.sha256(f.read_bytes()).hexdigest()} for f in (a.alerts, a.bonos, a.kits, a.service_review)]}
     out = ROOT/f'data/processed/seguimiento_enos_{a.cut}.json'
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     print(json.dumps({'output': str(out), 'alertas': len(alerts), 'kits': int(kits.kits.sum()),

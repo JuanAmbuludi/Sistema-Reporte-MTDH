@@ -1,20 +1,9 @@
 {
-  "schema": 1,
+  "schema": 2,
   "corte": "2026-10-26",
   "desde": "2026-09-29",
-  "generado_utc": "2026-10-26T17:26:25.515471+00:00",
+  "generado_utc": "2026-10-26T18:05:54.029364+00:00",
   "alertas": [
-    {
-      "codigo": "ALT-2026-000346",
-      "fecha": "2026-10-23",
-      "provincia": "Pichincha",
-      "canton": "Distrito Metropolitano de Quito",
-      "estado": "Pendiente",
-      "prioridad": "Baja",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 2
-    },
     {
       "codigo": "ALT-2026-000325",
       "fecha": "2026-10-20",
@@ -24,18 +13,10 @@
       "prioridad": "Baja",
       "codigo_ua": "62210",
       "unidad": "GOTITA DEL AMOR",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Ingreso de agua en la unidad; sin energía ni agua",
       "afectados_fuente": 36
-    },
-    {
-      "codigo": "ALT-2026-000324",
-      "fecha": "2026-10-20",
-      "provincia": "Cotopaxi",
-      "canton": "Pangua",
-      "estado": "Resuelto",
-      "prioridad": "Baja",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 6
     },
     {
       "codigo": "ALT-2026-000323",
@@ -46,6 +27,9 @@
       "prioridad": "Baja",
       "codigo_ua": "14294",
       "unidad": "MIS PEQUEÑOS ANGELITOS",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Ingreso de agua y goteras en la unidad",
       "afectados_fuente": 45
     },
     {
@@ -57,6 +41,9 @@
       "prioridad": "Baja",
       "codigo_ua": "13916",
       "unidad": "NIÑOS JUGUETONES",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Agua dentro y fuera de la unidad",
       "afectados_fuente": 36
     },
     {
@@ -68,18 +55,10 @@
       "prioridad": "Baja",
       "codigo_ua": "62208",
       "unidad": "PEQUEÑOS JILGUERITOS",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Acumulación de agua en la entrada de la unidad",
       "afectados_fuente": 36
-    },
-    {
-      "codigo": "ALT-2026-000320",
-      "fecha": "2026-10-20",
-      "provincia": "Santa Elena",
-      "canton": "Santa Elena",
-      "estado": "En seguimiento",
-      "prioridad": "Media",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 180
     },
     {
       "codigo": "ALT-2026-000319",
@@ -90,6 +69,9 @@
       "prioridad": "Baja",
       "codigo_ua": "60221",
       "unidad": "CENTRO DE DESARROLLO INFANTIL ESTRELLITA DE MAR",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Ingreso de agua; cambio temporal a modalidad virtual",
       "afectados_fuente": 36
     },
     {
@@ -101,51 +83,10 @@
       "prioridad": "Baja",
       "codigo_ua": "60220",
       "unidad": "CENTRO DE DESARROLLO INFANTIL SUPER NIÑO",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Ingreso de agua; cambio temporal a modalidad virtual",
       "afectados_fuente": 36
-    },
-    {
-      "codigo": "ALT-2026-000317",
-      "fecha": "2026-10-20",
-      "provincia": "El Oro",
-      "canton": "Pasaje",
-      "estado": "En seguimiento",
-      "prioridad": "Baja",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 91
-    },
-    {
-      "codigo": "ALT-2026-000316",
-      "fecha": "2026-10-19",
-      "provincia": "Guayas",
-      "canton": "Guayaquil",
-      "estado": "Pendiente",
-      "prioridad": "Baja",
-      "codigo_ua": "58337",
-      "unidad": "CDI NIÑOS DE SAN RAFAEL",
-      "afectados_fuente": 45
-    },
-    {
-      "codigo": "ALT-2026-000315",
-      "fecha": "2026-10-19",
-      "provincia": "Guayas",
-      "canton": "Guayaquil",
-      "estado": "Pendiente",
-      "prioridad": "Baja",
-      "codigo_ua": "58336",
-      "unidad": "CDI LOS NIÑOS DEL CISNE",
-      "afectados_fuente": 45
-    },
-    {
-      "codigo": "ALT-2026-000312",
-      "fecha": "2026-10-19",
-      "provincia": "Esmeraldas",
-      "canton": "Eloy Alfaro",
-      "estado": "En seguimiento",
-      "prioridad": "Media",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 150
     },
     {
       "codigo": "ALT-2026-000310",
@@ -156,6 +97,9 @@
       "prioridad": "Baja",
       "codigo_ua": "56744",
       "unidad": "CNH ESTRELLITAS DEL AMANECER",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Creciendo con Nuestros Hijos (CNH)",
+      "afectacion_servicio": "Acceso impedido para atención presencial; contacto telefónico temporal",
       "afectados_fuente": 29
     },
     {
@@ -167,29 +111,10 @@
       "prioridad": "Baja",
       "codigo_ua": "56204",
       "unidad": "CORREO INFANTIL",
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Creciendo con Nuestros Hijos (CNH)",
+      "afectacion_servicio": "Acceso impedido para atención presencial; contacto telefónico temporal",
       "afectados_fuente": 6
-    },
-    {
-      "codigo": "ALT-2026-000303",
-      "fecha": "2026-10-16",
-      "provincia": "Pichincha",
-      "canton": "Distrito Metropolitano de Quito",
-      "estado": "En seguimiento",
-      "prioridad": "Baja",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 4
-    },
-    {
-      "codigo": "ALT-2026-000301",
-      "fecha": "2026-10-16",
-      "provincia": "Guayas",
-      "canton": "Nobol",
-      "estado": "En seguimiento",
-      "prioridad": "Baja",
-      "codigo_ua": "",
-      "unidad": "Sin unidad registrada",
-      "afectados_fuente": 45
     }
   ],
   "kits": [
@@ -304,6 +229,9 @@
   "control": {
     "alertas_detalle_original": 31,
     "alertas_desde_inicio": 17,
+    "alertas_con_afectacion_servicios": 8,
+    "alertas_excluidas": 9,
+    "alertas_sin_revision": 0,
     "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas."
   },
   "fuentes": [
@@ -318,6 +246,10 @@
     {
       "nombre": "enos_kits_2026-10-25.csv",
       "sha256": "625112e470b3d30adb13137233bc7b97fd68994303c83ed9e819b694782fdd58"
+    },
+    {
+      "nombre": "enos_revision_servicios_2026-10-26.csv",
+      "sha256": "23a46ce403d2cfcdb3c70cb21ebf18b83636f25a32aa857c8e711814fb767576"
     }
   ]
 }

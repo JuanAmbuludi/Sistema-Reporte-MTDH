@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-import sys
 
 import streamlit as st
 
@@ -22,26 +21,7 @@ st.set_page_config(
 )
 
 
-def _fresh_project_modules() -> None:
-    """Reload the project's modules when their code changed after they were imported.
-
-    Streamlit reads app.py again on every run but keeps imported modules in memory.  After a deployment the new
-    app.py could otherwise call the previous version of a module (a TypeError on a new argument, for instance).
-    """
-    digest = hashlib.sha256()
-    for path in sorted((ROOT / "src").rglob("*.py")):
-        digest.update(str(path.relative_to(ROOT)).encode("utf-8"))
-        digest.update(path.read_bytes())
-    signature = digest.hexdigest()
-    package = sys.modules.get("src")
-    if package is not None and getattr(package, "__code_signature__", None) != signature:
-        for name in [n for n in sys.modules if n == "src" or n.startswith("src.")]:
-            del sys.modules[name]
-    import src
-    src.__code_signature__ = signature
-
-
-_fresh_project_modules()
+# Streamlit manages code reloads. Never delete shared modules while other sessions import them.
 
 from src import corte, ui  # noqa: E402
 from src.auth import logout, require_login  # noqa: E402
