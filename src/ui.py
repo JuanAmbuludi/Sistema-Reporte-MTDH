@@ -54,6 +54,25 @@ _PATHS = {
     "user-check": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>',
     "hourglass": '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
     "pie": '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+    "clock": '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    "refresh": '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    "heart": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    "life-buoy": '<circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/>',
+    "baby": '<path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/>',
+    "fuel": '<line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>',
+    "storm": '<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/>',
+    "graduation": '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+    "sparkles": '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+    "user-plus": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+    "send": '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+    "globe": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+    "external": '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    "factory": '<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/>',
+    "flame": '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    "plane": '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+    "scale": '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+    "percent": '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+    "accessibility": '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
 }
 
 
@@ -210,12 +229,13 @@ def hero_map(svg: str, label: str, *, selected: str = "", equator: bool = True) 
 
 def svg_columns(values: list[float], labels: list[str], *, titles: list[str] | None = None, average: float | None = None,
                 width: int = 640, height: int = 360, night: bool = True, css_class: str = "ec-columns",
-                value_text=None) -> str:
+                value_text=None, highlight: int | None = None, sublabels: list[str] | None = None) -> str:
     """Column chart drawn as SVG for the purple band (or a light miniature): one column per period, its figure on
-    top, the mean as a dotted gold line."""
+    top, the mean as a dotted gold line; ``highlight`` (an index) turns one column gold and ``sublabels`` add a second
+    line under each label."""
     value_text = value_text or (lambda v: number(v))
     titles = titles or [f"{l}: {value_text(v)}" for l, v in zip(labels, values)]
-    top, bottom, side = 34, 30, 8
+    top, bottom, side = 34, (48 if sublabels else 30), 8
     peak = max(values or [1]) or 1
     slot = (width - 2 * side) / max(1, len(values))
     bar = slot * 0.62
@@ -232,11 +252,14 @@ def svg_columns(values: list[float], labels: list[str], *, titles: list[str] | N
         columns.append(
             f'<g class="ec-col" style="{delay}"><title>{_esc(title)}</title>'
             f'<rect x="{x:.1f}" y="{top - 6}" width="{bar:.1f}" height="{height - bottom - top + 6:.1f}" rx="7" fill="{track}"/>'
-            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar:.1f}" height="{h:.1f}" rx="7" fill="{fill}"/></g>')
+            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar:.1f}" height="{h:.1f}" rx="7" fill="{theme.ORO if index == highlight else fill}"/></g>')
+        sub = (f'<text x="{x + bar / 2:.1f}" y="{height - 8}" text-anchor="middle" fill="{muted}" class="s">{_esc(sublabels[index])}</text>'
+               if sublabels else "")
         captions.append(
             f'<g class="ec-lab" style="{delay}">'
             f'<text x="{x + bar / 2:.1f}" y="{y - 8:.1f}" text-anchor="middle" fill="{ink}" class="v">{_esc(value_text(value))}</text>'
-            f'<text x="{x + bar / 2:.1f}" y="{height - 8}" text-anchor="middle" fill="{muted}" class="m">{_esc(label)}</text></g>')
+            f'<text x="{x + bar / 2:.1f}" y="{height - (26 if sublabels else 8)}" text-anchor="middle" fill="{ink if sublabels else muted}" '
+            f'class="m">{_esc(label)}</text>{sub}</g>')
     line = ""
     if average:
         ay = height - bottom - (height - top - bottom) * average / peak
@@ -298,6 +321,37 @@ def reach_strip(tiles: list[dict]) -> None:
             f'<p><b>{_esc(number(half))}</b> {_esc(tile["half_text"])}</p></article>')
     st.markdown(f'<section class="reach-strip n{len(tiles)}" aria-label="Alcance territorial">{"".join(items)}</section>',
                 unsafe_allow_html=True)
+
+
+GEOPORTAL_URL = "https://geoportal.trabajo.gob.ec/ua_amenazas"
+
+
+def geoportal_card(key: str, text: str) -> None:
+    """Access to the institutional geoportal of units of attention and hazards, opened in a new tab."""
+    with st.container(key=f"card_geoportal_{key}", horizontal=True, vertical_alignment="center", gap="medium"):
+        st.markdown(
+            f'<div class="geo-card"><span class="geo-icon">{icon("globe", 26)}</span><div><h3>Geoportal de unidades de atención '
+            f'y amenazas</h3><p>{_esc(text)}</p><small>geoportal.trabajo.gob.ec</small></div></div>', unsafe_allow_html=True)
+        st.link_button("Abrir el geoportal", GEOPORTAL_URL, icon=":material/open_in_new:", type="primary")
+
+
+def focus_tile(symbol: str, title: str, value: str, caption: str) -> None:
+    """A figure that deserves its own reading (the pace the year needs, for instance), in the gold tint."""
+    st.markdown(f'<div class="focus-tile"><span class="fi">{icon(symbol, 22)}</span><div><h4>{_esc(title)}</h4>'
+                f'<div class="fv">{_esc(value)}</div><p>{_esc(caption)}</p></div></div>', unsafe_allow_html=True)
+
+
+def update_stamp(stamp: dict) -> None:
+    """Cut, update and frequency of the information, under the headline of the band."""
+    if not stamp:
+        return
+    items = []
+    if stamp.get("updated"):
+        items.append(f'<span>{icon("clock", 15)}Actualizado el {_esc(stamp["updated"])}</span>')
+    if stamp.get("frequency"):
+        items.append(f'<span>{icon("refresh", 15)}{_esc(stamp["frequency"])}</span>')
+    if items:
+        st.markdown(f'<div class="update-stamp">{"".join(items)}</div>', unsafe_allow_html=True)
 
 
 def section_heading(title: str, subtitle: str = "", symbol: str = "chart", anchor: str = "") -> None:
@@ -422,10 +476,21 @@ def report_preview(kind: str, title: str, period: str, scope: str, kpis: list[tu
     st.markdown(f'<div class="preview preview-{_esc(kind)}">{body}</div>', unsafe_allow_html=True)
 
 
-def footer(period: str) -> None:
+SLOGAN = ("El corazón de Ecuador.", "Velamos por la calidad de vida de los ecuatorianos")
+
+
+def footer(period: str, stamp: dict | None = None) -> None:
+    """Brand, source, period, cut and update of the information, and the institutional slogan."""
     logo = f'<img src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
+    stamp = stamp or {}
+    update = ""
+    if stamp.get("updated"):
+        update += f'<span>Actualizado el {_esc(stamp["updated"])}</span>'
+    if stamp.get("frequency"):
+        update += f'<span>{_esc(stamp["frequency"])}</span>'
     st.markdown(
         f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>{PRODUCT} · Indicadores estratégicos</strong>'
-        f'<span>Fuente: Ministerio de Trabajo y Desarrollo Humano</span><span>Periodo: {_esc(period)}</span></div></footer>',
+        f'<span>Fuente: Ministerio de Trabajo y Desarrollo Humano</span><span>Periodo: {_esc(period)}</span>{update}</div>'
+        f'<div class="foot-slogan"><b>{SLOGAN[0]}</b><span>{SLOGAN[1]}</span></div></footer>',
         unsafe_allow_html=True,
     )

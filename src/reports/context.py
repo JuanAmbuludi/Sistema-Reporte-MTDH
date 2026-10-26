@@ -193,14 +193,17 @@ def _territory_detail(parishes: pd.DataFrame, level: str, has_units: bool) -> li
 def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None = None, title: str | None = None,
                          period_label: str | None = None, territory_label: str | None = None,
                          programs_label: str | None = None, selected_codes=None, parishes: pd.DataFrame | None = None,
-                         parishes_national: pd.DataFrame | None = None, level: str = "todo") -> dict:
+                         parishes_national: pd.DataFrame | None = None, level: str = "todo", budget: dict | None = None,
+                         monthly: dict | None = None, update: dict | None = None) -> dict:
     """Serializable snapshot of the selection.
 
     ``national`` is the same period, module and programs for every province; it gives the selection its place
     in the country.  ``parishes`` (and ``parishes_national``) carry the parish detail of the same rows when the cut
     has it.  ``level`` is the territorial level the reader asked for (``provincia``, ``canton``, ``parroquia`` or
-    ``todo``); without parish detail the documents keep the provinces.  Labels arrive from the interface so
-    documents name things exactly as the screen does.
+    ``todo``); without parish detail the documents keep the provinces.  ``budget`` describes the budget of the cut as
+    the dashboard shows it (``mode``: territorial, national, reference or none; ``programs`` and ``totals`` of the
+    national budget), ``monthly`` the selection month by month and ``update`` the cut and update of the information.
+    Labels arrive from the interface so documents name things exactly as the screen does.
     """
     if frame.empty:
         raise ValueError("No hay información en la selección. Ajuste los filtros antes de generar el documento.")
@@ -215,14 +218,22 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
     period_id, default_label, year = _period(frame)
     period_label = period_label or default_label
     executed = bool(frame["presupuesto_ejecutado"].notna().all() and frame["presupuesto_codificado"].notna().all())
-    money = module.money(year, executed=executed)
+    budget = dict(budget or {})
+    mode = budget.get("mode") or ("territorial" if executed else ("reference" if frame["monto_fiscal"].notna().any() else "none"))
+    national_money = mode == "national" and budget.get("shown", True) and bool(budget.get("programs"))
+    money = module.money(year, executed=mode in ("territorial", "national"))
     selected = {str(c) for c in (selected_codes or [])}
     people_label = module.people
     people_lower = people_label.lower()
     has_units = bool(module.extra)
+    span = budget.get("span", "")
 
     totals = _figures(frame)
     nation = _figures(national)
+    if national_money:
+        figures = budget.get("totals") or {}
+        totals.update({"fiscal": figures.get("fiscal"), "executed": figures.get("ejecutado"), "coded": figures.get("codificado"),
+                       "execution": figures.get("ejecucion"), "previous": figures.get("anterior"), "government": figures.get("gobierno")})
     labels = {"people": people_label, "units": module.extra[0].label if has_units else None,
               "fiscal": money["fiscal"].label, "previous": money["previous"].label, "government": money["government"].label,
               "coded": money["coded"].label, "fiscal_short": money["fiscal"].compact, "previous_short": money["previous"].compact,
@@ -232,6 +243,10 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
     programs = []
     for (pid, name), group in frame.groupby(["programa_id", "programa"], sort=False):
         figures = _figures(group)
+        if national_money:
+            row = (budget.get("programs") or {}).get(str(pid), {})
+            figures.update({"fiscal": row.get("fiscal"), "executed": row.get("fiscal"), "coded": row.get("coded"),
+                            "execution": row.get("execution"), "previous": row.get("previous"), "government": row.get("government")})
         programs.append({"id": str(pid), "label": str(name), "short": theme.program_label(pid, name), **figures,
                          "share": _share(figures["people"], totals["people"])})
     programs.sort(key=lambda r: (-(r["people"] or 0), r["label"]))
@@ -270,23 +285,42 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         })
 
     share_national = _share(totals["people"], nation["people"]) if selected else None
+    change = (monthly or {}).get("change")
+    previous_month = (monthly or {}).get("previous", "")
+    people_note = ""
+    if change is not None and previous_month and share_national is None:
+        people_note = (f"Igual que en {previous_month}" if not change else
+                       f"{number(abs(change))} {'más' if change > 0 else 'menos'} que en {previous_month}")
     kpis = [{"key": "people", "label": people_label, "value": totals["people"], "kind": "count", "icon": module.people_icon,
-             "share": share_national}]
+             "share": share_national, "note": people_note}]
+    with_budget = mode == "territorial" or national_money
     if has_units:
         kpis.append({"key": "units", "label": labels["units"], "value": totals["units"], "kind": "count", "icon": "building",
                      "share": _share(totals["units"], nation["units"]) if selected else None})
-    elif executed:
+    elif with_budget:
         kpis.append({"key": "execution", "label": "Ejecución presupuestaria", "short": "Ejecución presupuestaria",
                      "value": totals["execution"], "kind": "rate", "icon": "target", "share": None,
                      "note": f"Codificado: USD {millions(totals['coded'])} M"})
     else:
         kpis.append({"key": "programs", "label": f"{module.items.capitalize()} con {people_lower}", "value": active_programs,
                      "kind": "count", "icon": "layers", "share": None, "note": f"De {len(programs)} {module.items}"})
-    fiscal_note = f"Ejecución: {number(totals['execution'], 1)} % del codificado" if executed and has_units else ""
-    kpis.append({"key": "fiscal", "label": labels["fiscal"], "short": labels["fiscal_short"], "value": totals["fiscal"], "kind": "money",
-                 "icon": "banknote", "share": _share(totals["fiscal"], nation["fiscal"]) if selected else None, "note": fiscal_note})
-    kpis.append({"key": "government", "label": labels["government"], "short": labels["government_short"], "value": totals["government"],
-                 "kind": "money", "icon": "landmark", "share": _share(totals["government"], nation["government"]) if selected else None})
+    if with_budget or mode == "reference":
+        short_span = span.rsplit(" de ", 1)[0] if span else ""
+        fiscal_note = (f"Ejecución: {number(totals['execution'], 1)} % del codificado" if with_budget and has_units else
+                       (f"De {short_span}" if with_budget and short_span else ""))
+        share_ok = selected and mode != "national"
+        kpis.append({"key": "fiscal", "label": labels["fiscal"], "short": labels["fiscal_short"], "value": totals["fiscal"], "kind": "money",
+                     "icon": "banknote", "share": _share(totals["fiscal"], nation["fiscal"]) if share_ok else None, "note": fiscal_note})
+        kpis.append({"key": "government", "label": labels["government"], "short": labels["government_short"], "value": totals["government"],
+                     "kind": "money", "icon": "landmark", "share": _share(totals["government"], nation["government"]) if share_ok else None})
+    elif parishes is not None and not parishes.empty:
+        from src import territory as _territory
+        counts = _territory.reach(parishes, "usuarios", ["canton", "parroquia"])
+        for lvl, icon in (("canton", "landmark"), ("parroquia", "pin")):
+            item = counts[lvl]
+            kpis.append({"key": f"reach_{lvl}", "label": f"{_territory.LEVEL_PLURALS[lvl]} con {people_lower}", "value": item["count"],
+                         "kind": "count", "icon": icon, "share": None,
+                         "note": f"{number(item['half'])} {'reúne' if item['half'] == 1 else 'reúnen'} la mitad"})
 
     parish = _parish_block(parishes, parishes_national, selected, has_units)
 
@@ -311,24 +345,48 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         share3 = sum(p["share"] or 0 for p in leaders)
         insights.append({"icon": "pin", "text": f"{_join([p['name'] for p in leaders])} reúnen el {number(share3, 1)} % de los "
                                                 f"{people_lower} del país."})
-    if executed:
-        unit_text = f"Los servicios operan con {number(totals['units'])} unidades de atención. " if has_units else ""
-        insights.append({"icon": "trending-up", "text": f"{unit_text}El {money['fiscal'].label.lower()} asciende a USD "
+    unit_text = f"Los servicios operan con {number(totals['units'])} unidades de atención. " if has_units else ""
+    if with_budget:
+        when = f" de {span}" if span else ""
+        insights.append({"icon": "trending-up", "text": f"{unit_text}El {money['fiscal'].label.lower()}{when} asciende a USD "
                                                         f"{millions(totals['fiscal'])} millones, el {number(totals['execution'], 1)} % "
                                                         f"del presupuesto codificado."})
-    elif has_units:
+    elif mode == "reference" and has_units:
         insights.append({"icon": "trending-up", "text": f"Los servicios operan con {number(totals['units'])} unidades de atención y un "
                                                         f"{money['fiscal'].label.lower()} de USD {millions(totals['fiscal'])} millones."})
-    else:
+    elif mode == "reference":
         insights.append({"icon": "trending-up", "text": f"El {money['fiscal'].label.lower()} asciende a USD {millions(totals['fiscal'])} millones y el "
                                                         f"presupuesto acumulado 2023–{year} alcanza USD {millions(totals['government'])} millones."})
+    elif has_units:
+        insights.append({"icon": "trending-up", "text": f"Los servicios operan con {number(totals['units'])} unidades de atención en "
+                                                        f"{period_label.lower()}."})
+    # The year month by month: the change of the month and the programs that grew or shrank the most since January.
+    months = (monthly or {}).get("months") or []
+    if change is not None and previous_month and months:
+        before = next((m["people"] for i, m in enumerate(months) if i + 1 < len(months) and months[i + 1].get("selected")), None)
+        rate = f" ({'+' if change > 0 else '−'}{number(abs(change) / before * 100, 1)} %)" if before and change else ""
+        verb = "aumentan" if change > 0 else "disminuyen"
+        text = (f"Frente a {previous_month}, los {people_lower} {verb} en {number(abs(change))}{rate}." if change else
+                f"Los {people_lower} se mantienen iguales que en {previous_month}.")
+        insights.append({"icon": "calendar", "text": text})
+    changes = (monthly or {}).get("changes") or []
+    if len(changes) > 1:
+        rise, fall = max(changes, key=lambda c: c["change"]), min(changes, key=lambda c: c["change"])
+        first, end = (monthly or {}).get("window", ("", ""))
+        parts = []
+        if rise["change"] > 0:
+            parts.append(f"{rise['short']} suma {number(rise['change'])} {people_lower}")
+        if fall["change"] < 0:
+            parts.append(f"{fall['short']} reduce {number(-fall['change'])}")
+        if parts:
+            insights.append({"icon": "history", "text": f"De {first} a {end}, " + " y ".join(parts) + "."})
     if parish and parish["top"]:
         first = parish["top"][0]
         where = f"{first['parish']}, en {first['canton']}," if first["parish"] != first["canton"] else f"{first['parish']}"
         insights.append({"icon": "map", "text": f"La cobertura llega a {number(parish['count'])} parroquias; {where} registra el mayor "
                                                 f"número de {people_lower} ({number(first['people'])})."})
     budget_leader = max(programs, key=lambda r: r["fiscal"] or 0)
-    if len(programs) > 1 and totals["fiscal"]:
+    if len(programs) > 1 and totals["fiscal"] and (with_budget or mode == "reference"):
         insights.append({"icon": "banknote", "text": f"{budget_leader['label']} registra el "
                                                      f"{number(budget_leader['fiscal'] / totals['fiscal'] * 100, 1)} % del {money['fiscal'].label.lower()}, "
                                                      f"con USD {millions(budget_leader['fiscal'])} millones."})
@@ -420,7 +478,9 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         "period_id": period_id, "period_label": period_label, "year": year,
         "territory_label": territory_label, "programs_label": programs_label or f"Todos los {module.items}",
         "labels": labels, "kpis": kpis, "totals": totals, "national": nation,
-        "executed_available": executed,
+        # Execution by program (latest cut, or the national budget of a month); budget by territory only in the latest cut.
+        "executed_available": bool(with_budget), "territorial_budget": mode == "territorial", "budget_mode": mode,
+        "reference_budget": mode == "reference", "month_span": span, "monthly": monthly or None, "update": update or {},
         "programs": programs, "provinces": provinces, "province_count": province_count, "detail": detail,
         "selected_codes": sorted(selected), "map_values": map_values,
         "map_layer": maps[main]["layer"], "map_focus": maps[main]["focus"], "parish": parish,

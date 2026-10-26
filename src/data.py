@@ -61,18 +61,28 @@ MONTHS = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agost
 PERIOD_COLUMNS = ["periodo", "anio", "seccion", "programa_id", "programa", "provincia_codigo", "provincia", *METRIC_COLUMNS]
 
 
+def _default(data_dir: str | Path | None) -> bool:
+    """The monthly series live next to the default bases; a base read from elsewhere stands alone."""
+    return data_dir is None or Path(data_dir).resolve() == DEFAULT_DATA_DIR.resolve()
+
+
 def load_periods(data_dir: str | Path | None = None) -> tuple[pd.DataFrame, list[dict]]:
-    """Every period the base can show: monthly cuts and annual reference years.
+    """Every period the base can show: each month of the monthly series and the annual reference years.
 
     Rows keep their own ``periodo_id``; filter to one period before adding anything.  The catalog lists the
     periods newest first, each with ``id``, ``year``, ``month`` (None for a year without a monthly cut) and
-    ``label`` ("Septiembre 2026", "Año 2025").
+    ``label`` ("Septiembre 2026", "Año 2025").  Coverage of every month comes from the monthly series
+    (:mod:`src.mensual`); the latest cut keeps the budget of the September base.
     """
     current = load_data(data_dir)
     current = current.assign(periodo_id=current["periodo"].dt.strftime("%Y-%m"),
                              periodo_anio=current["periodo"].dt.year.astype(int),
                              periodo_mes=current["periodo"].dt.month.astype(int))
-    frames = [current[PERIOD_COLUMNS + ["periodo_id", "periodo_anio", "periodo_mes"]]]
+    current = current[PERIOD_COLUMNS + ["periodo_id", "periodo_anio", "periodo_mes"]]
+    if _default(data_dir):
+        from src import mensual
+        current = mensual.province_rows(current)[PERIOD_COLUMNS + ["periodo_id", "periodo_anio", "periodo_mes"]]
+    frames = [current]
     history = load_history(data_dir)
     if not history.empty:
         years = history["anio_referencia"].astype(int)
@@ -105,6 +115,25 @@ def load_territory(data_dir: str | Path | None = None) -> pd.DataFrame:
     """
     base = Path(data_dir or DEFAULT_DATA_DIR)
     coverage_path, budget_path = base / "cobertura_territorial.parquet", base / "presupuesto_territorial.parquet"
+    if _default(data_dir):
+        from src import mensual
+        budget = None
+        if budget_path.exists():
+            budget = pd.read_parquet(budget_path)
+            budget["periodo_id"] = pd.to_datetime(budget["periodo"]).dt.strftime("%Y-%m")
+            for col in ["programa_id", "parroquia_codigo"]:
+                budget[col] = budget[col].astype(str)
+            for col in ["presupuesto_ejecutado", "presupuesto_codificado"]:
+                budget[col] = pd.to_numeric(budget[col], errors="coerce").astype(float)
+        frame = mensual.parish_rows(budget)
+        if not frame.empty:
+            for col in MONEY_COLUMNS:
+                if col not in frame:
+                    frame[col] = float("nan")
+            frame["monto_fiscal"] = frame["presupuesto_ejecutado"]
+            frame["usuarios"] = pd.to_numeric(frame["usuarios"], errors="coerce").round().astype("Int64")
+            frame["unidades"] = pd.to_numeric(frame["unidades"], errors="coerce").astype(float)
+            return frame
     if not coverage_path.exists():
         return pd.DataFrame(columns=TERRITORY_KEYS + METRIC_COLUMNS)
     coverage = pd.read_parquet(coverage_path)

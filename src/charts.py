@@ -24,23 +24,25 @@ AXIS_TEXT = "#6E6880"
 
 
 def fmt_value(value, indicator: Indicator) -> str:
-    """Exact figure for hovers: 400.208 beneficiarios · USD 55,87 millones · 71,0 %."""
+    """Exact figure for hovers: 400.208 beneficiarios · USD 55,87 millones · USD 83.681 · 71,0 %."""
     if value is None or pd.isna(value):
         return "—"
     if indicator.is_money:
-        return f"USD {number(float(value) / 1e6, 2)} millones"
+        return f"USD {number(float(value) / 1e6, 2)} millones" if abs(float(value)) >= 1e6 else f"USD {number(value)}"
     if indicator.is_rate:
         return pct(value)
     return f"{number(value)} {indicator.unit}".strip()
 
 
 def short_value(value, indicator: Indicator) -> str:
-    """Bar labels: 400.208 · 55,9 M · 71,0 %."""
+    """Bar labels with their unit: 400.208 · USD 55,9 M · USD 83.681 · 71,0 %."""
     if value is None or pd.isna(value):
         return "—"
     if indicator.is_rate:
         return pct(value)
-    return f"{number(float(value) / 1e6, 1)} M" if indicator.is_money else number(value)
+    if indicator.is_money:
+        return f"USD {number(float(value) / 1e6, 1)} M" if abs(float(value)) >= 1e6 else f"USD {number(value)}"
+    return number(value)
 
 
 def money_text(value, decimals: int = 1) -> str:
@@ -122,9 +124,9 @@ def resources_stack(data: pd.DataFrame, money: dict[str, Indicator], names: dict
                            + money["government"].label + ": %{customdata[2]}<extra></extra>"),
         ))
     totals = group[money["government"].key] / 1e6
-    fig.add_trace(go.Scatter(x=totals, y=labels, mode="text", text=[number(v, 1) for v in totals], textposition="middle right",
+    fig.add_trace(go.Scatter(x=totals, y=labels, mode="text", text=[f"USD {number(v, 1)} M" for v in totals], textposition="middle right",
                              textfont=dict(size=12, color=theme.TINTA), hoverinfo="skip", showlegend=False, cliponaxis=False))
-    base(fig, _bar_height(len(group)), dict(l=8, r=56, t=34, b=36))
+    base(fig, _bar_height(len(group)), dict(l=8, r=96, t=34, b=36))
     fig.update_layout(barmode="stack", bargap=0.36, legend=dict(traceorder="normal"))
     fig.update_xaxes(title="Millones de USD", tickformat=",.0f", rangemode="tozero")
     fig.update_yaxes(categoryorder="array", categoryarray=labels)
@@ -296,7 +298,7 @@ def ranked_bars(labels: list[str], values: list[float], indicator: Indicator, *,
         customdata=np.stack([hover, [fmt_value(v, indicator) for v in values], shares], axis=1),
         hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>",
     ))
-    base(fig, height or max(300, len(labels) * 25 + 46), dict(l=8, r=64, t=30 if height else 10, b=10))
+    base(fig, height or max(300, len(labels) * 25 + 46), dict(l=8, r=96 if indicator.is_money else 64, t=30 if height else 10, b=10))
     fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
     fig.update_yaxes(tickfont=dict(size=11.5), categoryorder="array", categoryarray=labels)
     fig.update_layout(bargap=0.28 if not height else 0.4, showlegend=False)
@@ -321,6 +323,248 @@ def monthly_columns(months: list[str], values: list[float], *, unit: str = "cont
         fig.add_shape(type="line", xref="paper", x0=0, x1=1, y0=average, y1=average, line=dict(color=theme.ORO_700, width=1.4, dash="dot"))
         fig.add_annotation(xref="paper", x=1, y=average, yshift=4, text=f"Promedio mensual: {number(average)}", showarrow=False,
                            xanchor="right", yanchor="bottom", font=dict(size=11, color=theme.ORO_700))
+    return fig
+
+
+def compact_number(value) -> str:
+    """Axis and label figures: 1,58 M · 453,9 mil · 9.512."""
+    if value is None or pd.isna(value):
+        return "—"
+    value = float(value)
+    if abs(value) >= 1e6:
+        return f"{number(value / 1e6, 2)} M"
+    if abs(value) >= 1e4:
+        return f"{number(value / 1e3, 1)} mil"
+    return number(value)
+
+
+def month_trend(labels: list[str], values: list[float], *, selected: int | None = None, unit: str = "", full: list[str] | None = None,
+                notes: list[str] | None = None, height: int = 330) -> go.Figure:
+    """A monthly series as a line with its points; the month of the consultation in gold and labelled.
+
+    The axis starts near the lowest month (not at zero), so month-to-month changes read; every figure stays in the hover.
+    """
+    full = full or labels
+    notes = notes or [""] * len(values)
+    present = [v for v in values if v is not None and not pd.isna(v)]
+    low, high = (min(present), max(present)) if present else (0, 1)
+    pad = max((high - low) * 0.35, high * 0.01, 1)
+    colors = [theme.ORO if i == selected else BAR for i in range(len(values))]
+    sizes = [13 if i == selected else 8 for i in range(len(values))]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=labels, y=values, mode="lines+markers", line=dict(color=BAR, width=2.4, shape="linear"),
+        marker=dict(color=colors, size=sizes, line=dict(color="#FFFFFF", width=2)),
+        customdata=np.stack([full, [f"{number(v)} {unit}".strip() for v in values], notes], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>", showlegend=False,
+    ))
+    if selected is not None and 0 <= selected < len(values) and values[selected] is not None:
+        fig.add_annotation(x=labels[selected], y=values[selected], text=f"<b>{number(values[selected])}</b>", showarrow=False,
+                           yshift=18, font=dict(size=12.5, color=theme.MORADO_900), bgcolor="rgba(255,255,255,.85)")
+    base(fig, height, dict(l=8, r=14, t=24, b=30))
+    ticks = np.linspace(low - pad * 0.6, high + pad * 0.6, 4)
+    fig.update_yaxes(showgrid=True, gridcolor=GRID, range=[low - pad, high + pad], tickvals=ticks,
+                     ticktext=[compact_number(t) for t in ticks], tickfont=dict(size=11, color=AXIS_TEXT))
+    fig.update_xaxes(showgrid=False, tickfont=dict(size=11.5, color=theme.TINTA))
+    return fig
+
+
+def month_columns(labels: list[str], values: list[float], *, selected: int | None = None, money: bool = False, unit: str = "",
+                  full: list[str] | None = None, height: int = 330) -> go.Figure:
+    """Monthly amounts as columns from zero (money in millions of USD); the month of the consultation in gold."""
+    full = full or labels
+    scaled = [(v or 0) / (1e6 if money else 1) for v in values]
+    # Money columns read in millions with their unit; a small month keeps two decimals instead of «0,0».
+    text = [(f"{number(v, 2 if 0 < abs(v) < 0.05 else 1)} M" if money else compact_number(v)) if v else "" for v in scaled]
+    hover = [f"USD {number((v or 0) / 1e6, 2)} millones" if money else f"{number(v)} {unit}".strip() for v in values]
+    colors = [theme.ORO if i == selected else BAR for i in range(len(values))]
+    fig = go.Figure(go.Bar(
+        x=labels, y=scaled, marker=dict(color=colors, cornerradius=4), text=text, textposition="outside", cliponaxis=False,
+        textfont=dict(size=11, color=theme.TINTA), customdata=np.stack([full, hover], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+    ))
+    base(fig, height, dict(l=8, r=8, t=24, b=30))
+    fig.update_layout(bargap=0.34, showlegend=False)
+    fig.update_yaxes(showticklabels=False, showgrid=False, rangemode="tozero", range=[0, max(scaled or [1]) * 1.18 or 1])
+    fig.update_xaxes(showgrid=False, tickfont=dict(size=11.5, color=theme.TINTA))
+    return fig
+
+
+def cumulative_execution(labels: list[str], rates: list[float], *, selected: int | None = None, months: list[int] | None = None,
+                         full: list[str] | None = None, height: int = 330) -> go.Figure:
+    """Accumulated execution of the year month by month, against an even pace (one twelfth of the budget per month)."""
+    full = full or labels
+    months = months or list(range(1, len(labels) + 1))
+    pace = [m / 12 * 100 for m in months]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=labels, y=pace, mode="lines", name="Ritmo uniforme del año", line=dict(color=theme.LILA_300, width=1.6, dash="dot"),
+                             hovertemplate="<b>%{x}</b><br>Ritmo uniforme: %{y:.1f} %<extra></extra>"))
+    colors = [theme.ORO if i == selected else BAR for i in range(len(rates))]
+    fig.add_trace(go.Scatter(
+        x=labels, y=rates, mode="lines+markers", name="Ejecución acumulada", line=dict(color=BAR, width=2.6),
+        marker=dict(color=colors, size=[13 if i == selected else 8 for i in range(len(rates))], line=dict(color="#FFFFFF", width=2)),
+        customdata=np.stack([full, [pct(r) for r in rates], [pct(p) for p in pace]], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>Ejecución acumulada: %{customdata[1]}<br>Ritmo uniforme: %{customdata[2]}<extra></extra>",
+    ))
+    if selected is not None and 0 <= selected < len(rates) and rates[selected] is not None:
+        fig.add_annotation(x=labels[selected], y=rates[selected], text=f"<b>{pct(rates[selected])}</b>", showarrow=False, yshift=18,
+                           font=dict(size=12.5, color=theme.MORADO_900), bgcolor="rgba(255,255,255,.85)")
+    base(fig, height, dict(l=8, r=14, t=40, b=30))
+    fig.update_yaxes(showgrid=True, gridcolor=GRID, range=[0, 105], tickvals=[0, 25, 50, 75, 100], ticksuffix=" %",
+                     tickfont=dict(size=11, color=AXIS_TEXT))
+    fig.update_xaxes(showgrid=False, tickfont=dict(size=11.5, color=theme.TINTA))
+    fig.update_layout(legend=dict(orientation="h", y=1.08, x=0))
+    return fig
+
+
+def _thin_ticks(labels: list[str], every: int) -> tuple[list[str], list[str]]:
+    """Category ticks every ``every`` labels (the last one always shown)."""
+    keep = [i for i in range(len(labels)) if i % every == 0 or i == len(labels) - 1]
+    if len(keep) > 1 and keep[-1] - keep[-2] < max(2, every // 2):
+        keep.pop(-2)
+    return [labels[i] for i in keep], [labels[i] for i in keep]
+
+
+def history_line(labels: list[str], series: list[tuple[str, list, str]], *, selected: int | None = None, unit: str = "",
+                 full: list[str] | None = None, height: int = 330, from_zero: bool = True) -> go.Figure:
+    """Several years month by month: one or two lines (the first one carries the month of the consultation in gold).
+
+    ``series`` items are (name, values, colour); labels thin out so a long history stays legible on a phone.
+    """
+    full = full or labels
+    fig = go.Figure()
+    for index, (name, values, color) in enumerate(series):
+        marker_colors = [theme.ORO if index == 0 and i == selected else color for i in range(len(values))]
+        sizes = [12 if index == 0 and i == selected else 5 for i in range(len(values))]
+        fig.add_trace(go.Scatter(
+            x=labels, y=values, mode="lines+markers", name=name, connectgaps=False,
+            line=dict(color=color, width=2.4 if index == 0 else 1.8, dash="solid" if index == 0 else "dot"),
+            marker=dict(color=marker_colors, size=sizes, line=dict(color="#FFFFFF", width=1.5)),
+            customdata=np.stack([full, [f"{number(v)} {unit}".strip() if v is not None and not pd.isna(v) else "Sin registro" for v in values]], axis=1),
+            hovertemplate="<b>%{customdata[0]}</b><br>" + name + ": %{customdata[1]}<extra></extra>",
+        ))
+    first = series[0][1] if series else []
+    if selected is not None and 0 <= selected < len(first) and first[selected] is not None and not pd.isna(first[selected]):
+        fig.add_annotation(x=labels[selected], y=first[selected], text=f"<b>{number(first[selected])}</b>", showarrow=False, yshift=16,
+                           font=dict(size=12.5, color=theme.MORADO_900), bgcolor="rgba(255,255,255,.85)")
+    base(fig, height, dict(l=8, r=14, t=40 if len(series) > 1 else 24, b=30))
+    ticks, text = _thin_ticks(labels, 6 if len(labels) > 18 else (3 if len(labels) > 9 else 1))
+    fig.update_xaxes(showgrid=False, tickvals=ticks, ticktext=text, tickfont=dict(size=11, color=theme.TINTA))
+    fig.update_yaxes(showgrid=True, gridcolor=GRID, rangemode="tozero" if from_zero else "normal", tickformat=",.0f",
+                     tickfont=dict(size=11, color=AXIS_TEXT))
+    fig.update_layout(showlegend=len(series) > 1, legend=dict(orientation="h", y=1.1, x=0))
+    return fig
+
+
+def history_columns(labels: list[str], values: list[float], *, selected: int | None = None, partial: int | None = None,
+                    unit: str = "", money: bool = False, full: list[str] | None = None, height: int = 330) -> go.Figure:
+    """Months as columns from zero; the month of the consultation in gold and a partial month in a lighter tone."""
+    full = full or labels
+    scaled = [(v or 0) / (1e6 if money else 1) for v in values]
+    colors = [theme.ORO if i == selected else (theme.LILA_200 if i == partial else BAR) for i in range(len(values))]
+    hover = [(f"USD {number((v or 0) / 1e6, 2)} millones" if money else f"{number(v)} {unit}".strip()) + (" · mes en curso" if i == partial else "")
+             for i, v in enumerate(values)]
+    fig = go.Figure(go.Bar(x=labels, y=scaled, marker=dict(color=colors, cornerradius=3), customdata=np.stack([full, hover], axis=1),
+                           hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>"))
+    if selected is not None and 0 <= selected < len(values):
+        fig.add_annotation(x=labels[selected], y=scaled[selected], text=f"<b>{number(scaled[selected], 1) if money else number(values[selected])}</b>",
+                           showarrow=False, yshift=12, font=dict(size=12, color=theme.MORADO_900))
+    base(fig, height, dict(l=8, r=8, t=24, b=30))
+    ticks, text = _thin_ticks(labels, 6 if len(labels) > 18 else (3 if len(labels) > 9 else 1))
+    fig.update_xaxes(showgrid=False, tickvals=ticks, ticktext=text, tickfont=dict(size=11, color=theme.TINTA))
+    fig.update_yaxes(showgrid=True, gridcolor=GRID, rangemode="tozero", tickformat=",.1f" if money else ",.0f",
+                     tickfont=dict(size=11, color=AXIS_TEXT))
+    fig.update_layout(bargap=0.25, showlegend=False)
+    return fig
+
+
+PHASE_COLORS = [theme.LILA_300, theme.VIOLETA_500, theme.SERIE_BONOS]
+
+
+def grouped_bars(categories: list[str], series: list[tuple[str, list, str]], *, money: bool = True, height: int | None = None) -> go.Figure:
+    """Horizontal bars grouped by category (one colour per measure, a legend on top), figures at the bar ends."""
+    fig = go.Figure()
+    for name, values, color in series:
+        scaled = [None if v is None or pd.isna(v) else v / (1e6 if money else 1) for v in values]
+        text = ["" if v is None else (f"{number(v, 1)} M" if money else number(v)) for v in scaled]
+        fig.add_trace(go.Bar(
+            y=categories, x=scaled, name=name, orientation="h", marker=dict(color=color, cornerradius=3), text=text,
+            textposition="outside", cliponaxis=False, textfont=dict(size=11, color=theme.TINTA),
+            customdata=[[name, f"USD {number((v or 0) / 1e6, 2)} millones" if money else number(v)] for v in values],
+            hovertemplate="<b>%{y}</b><br>%{customdata[0]}: %{customdata[1]}<extra></extra>",
+        ))
+    base(fig, height or max(300, len(categories) * 92 + 70), dict(l=8, r=72, t=40, b=10))
+    fig.update_layout(barmode="group", bargap=0.28, bargroupgap=0.08, legend=dict(orientation="h", y=1.1, x=0, traceorder="normal"))
+    fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=12))
+    return fig
+
+
+def funnel_bars(steps: list[tuple[str, float, str]], *, height: int | None = None) -> go.Figure:
+    """Successive stages of a process (registered, enabled, paid) as bars sharing the first stage as reference."""
+    labels = [label for label, _v, _n in steps]
+    values = [v for _l, v, _n in steps]
+    # Each stage reads against the previous one, with words: «150.000 · 23,5 % de los registrados».
+    text = [f"<b>{number(v)}</b>" + (f" · {note}" if i else "") for i, (_l, v, note) in enumerate(steps)]
+    colors = [theme.LILA_200, theme.SERIE_BONOS, theme.ORO][:len(steps)]
+    fig = go.Figure(go.Bar(
+        y=labels, x=values, orientation="h", marker=dict(color=colors, cornerradius=5), text=text, textposition="outside",
+        cliponaxis=False, textfont=dict(size=12, color=theme.TINTA),
+        customdata=[[note] for _l, _v, note in steps], hovertemplate="<b>%{y}</b><br>%{customdata[0]}<extra></extra>",
+    ))
+    base(fig, height or max(240, len(steps) * 74 + 40), dict(l=8, r=230, t=10, b=10))
+    fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=12.5))
+    fig.update_layout(bargap=0.38, showlegend=False)
+    return fig
+
+
+def phase_columns(labels: list[str], values: list[float], phases: list[int], *, money: bool = False, unit: str = "",
+                  full: list[str] | None = None, height: int = 330) -> go.Figure:
+    """Months as columns coloured by the phase they belong to (a legend names each phase)."""
+    full = full or labels
+    fig = go.Figure()
+    for phase in sorted(set(phases)):
+        index = [i for i, p in enumerate(phases) if p == phase]
+        scaled = [(values[i] or 0) / (1e6 if money else 1) for i in index]
+        fig.add_trace(go.Bar(
+            x=[labels[i] for i in index], y=scaled, name=f"Fase {phase}", marker=dict(color=PHASE_COLORS[(phase - 1) % 3], cornerradius=3),
+            text=[(f"{number(v, 2 if 0 < abs(v) < 0.05 else 1)} M" if money else compact_number(v)) if v else "" for v in scaled],
+            textposition="outside", cliponaxis=False,
+            textfont=dict(size=10.5, color=theme.TINTA),
+            customdata=[[full[i], f"USD {number((values[i] or 0) / 1e6, 2)} millones" if money else f"{number(values[i])} {unit}".strip()] for i in index],
+            hovertemplate="<b>%{customdata[0]}</b><br>Fase " + str(phase) + ": %{customdata[1]}<extra></extra>",
+        ))
+    base(fig, height, dict(l=8, r=8, t=40, b=30))
+    fig.update_layout(barmode="overlay", bargap=0.3, legend=dict(orientation="h", y=1.1, x=0, traceorder="normal"))
+    fig.update_xaxes(showgrid=False, categoryorder="array", categoryarray=labels, tickfont=dict(size=10.5, color=theme.TINTA))
+    fig.update_yaxes(showticklabels=False, showgrid=False, rangemode="tozero",
+                     range=[0, max([(v or 0) / (1e6 if money else 1) for v in values] or [1]) * 1.2])
+    return fig
+
+
+def change_bars(labels: list[str], changes: list[float], *, unit: str = "", full: list[str] | None = None,
+                since: str = "", height: int | None = None) -> go.Figure:
+    """Change of each program between two months: increases to the right in purple, decreases to the left in fuchsia."""
+    full = full or labels
+    order = sorted(range(len(changes)), key=lambda i: changes[i])
+    labels = [labels[i] for i in order]
+    full = [full[i] for i in order]
+    changes = [changes[i] for i in order]
+    colors = [BAR if c >= 0 else theme.FUCSIA for c in changes]
+    text = [("+" if c > 0 else ("−" if c < 0 else "")) + number(abs(c)) for c in changes]
+    reach = max([abs(c) for c in changes] or [1]) or 1
+    fig = go.Figure(go.Bar(
+        x=changes, y=labels, orientation="h", marker=dict(color=colors, cornerradius=4), text=text, textposition="outside",
+        cliponaxis=False, textfont=dict(size=11.5, color=theme.TINTA),
+        customdata=np.stack([full, [f"{t} {unit}".strip() for t in text]], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}" + (f" desde {since}" if since else "") + "<extra></extra>",
+    ))
+    base(fig, height or _bar_height(len(labels), 42), dict(l=8, r=72, t=8, b=10))
+    fig.add_vline(x=0, line=dict(color=theme.PIZARRA, width=1))
+    fig.update_xaxes(showticklabels=False, showgrid=False, range=[-reach * 1.35, reach * 1.35])
+    fig.update_yaxes(categoryorder="array", categoryarray=labels, tickfont=dict(size=11.5))
+    fig.update_layout(bargap=0.4, showlegend=False)
     return fig
 
 

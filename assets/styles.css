@@ -364,7 +364,7 @@ html{scroll-behavior:smooth}
 .slide-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 /* Footer */
-.app-footer{width:100vw;margin:56px 0 -3rem calc(50% - 50vw);padding:30px calc(50vw - 50%) 34px;background:linear-gradient(118deg,#1E0F3B,#2B164F 55%,#3D216D);color:#D9CFEA;display:grid;grid-template-columns:auto 1fr;gap:12px 28px;align-items:center}
+.app-footer{width:100vw;margin:56px 0 calc(-3rem - 1rem) calc(50% - 50vw);padding:30px calc(50vw - 50%) 34px;background:linear-gradient(118deg,#1E0F3B,#2B164F 55%,#3D216D);color:#D9CFEA;display:grid;grid-template-columns:auto 1fr;gap:12px 28px;align-items:center}
 .foot-brand img{height:36px}
 .foot-meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px}
 .foot-meta strong{color:#fff;font-family:var(--font-display);width:100%}
@@ -400,6 +400,77 @@ html{scroll-behavior:smooth}
 @keyframes count{from{--v:0}}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(248,192,24,.55)}70%{box-shadow:0 0 0 10px rgba(248,192,24,0)}100%{box-shadow:0 0 0 0 rgba(248,192,24,0)}}
 
+/* ---------- Band selectors of the new areas (same language as the map selectors) ---------- */
+.st-key-cont_map_program [data-testid="stWidgetLabel"] p,.st-key-cont_map_level [data-testid="stWidgetLabel"] p,
+.st-key-labour_measure [data-testid="stWidgetLabel"] p,.st-key-labour_level [data-testid="stWidgetLabel"] p{color:#D9CFEA!important;font-family:var(--font-display)!important;font-weight:700!important;font-size:12.5px!important}
+.st-key-cont_map_program [role="radiogroup"],.st-key-cont_map_level [role="radiogroup"],.st-key-labour_measure [role="radiogroup"],
+.st-key-labour_level [role="radiogroup"]{display:flex;width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px;gap:4px}
+.st-key-cont_map_program button,.st-key-cont_map_level button,.st-key-labour_measure button,.st-key-labour_level button{flex:1 1 0;border:none!important;border-radius:999px!important;background:transparent!important;min-height:36px;padding:0 12px!important}
+.st-key-cont_map_program button p,.st-key-cont_map_level button p,.st-key-labour_measure button p,.st-key-labour_level button p{color:#E6DDF5!important;font-weight:600;font-size:13px;white-space:nowrap}
+.st-key-cont_map_program button:hover,.st-key-cont_map_level button:hover,.st-key-labour_measure button:hover,.st-key-labour_level button:hover{background:rgba(255,255,255,.1)!important}
+.st-key-cont_map_program button[aria-checked="true"],.st-key-cont_map_level button[aria-checked="true"],.st-key-labour_measure button[aria-checked="true"],
+.st-key-labour_level button[aria-checked="true"]{background:#fff!important;box-shadow:0 4px 14px rgba(10,4,25,.25)}
+.st-key-cont_map_program button[aria-checked="true"] p,.st-key-cont_map_level button[aria-checked="true"] p,.st-key-labour_measure button[aria-checked="true"] p,
+.st-key-labour_level button[aria-checked="true"] p{color:var(--morado)!important}
+.st-key-labour_level button:disabled{opacity:1!important}
+.st-key-labour_level button:disabled p{color:rgba(230,221,245,.42)!important}
+.st-key-labour_level button[aria-checked="true"]:disabled{background:rgba(255,255,255,.8)!important;box-shadow:none}
+.st-key-labour_level button[aria-checked="true"]:disabled p{color:var(--morado)!important}
+
+/* ---------- Six areas: two rows of three in the consultation panel ---------- */
+.st-key-module [role="radiogroup"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px!important}
+.st-key-module button{border-radius:12px!important;min-height:42px}
+.st-key-budget_universe [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr}
+
+/* ---------- Months of the year: every month in view, never behind a scroll ---------- */
+.st-key-period_month [role="radiogroup"]{overflow:visible!important}
+.st-key-period_month button{min-width:0!important;padding-left:2px!important;padding-right:2px!important}
+.st-key-period_month button p{font-size:12.5px!important}
+
+/* ---------- A figure with its own reading ---------- */
+.focus-tile{display:flex;gap:16px;align-items:flex-start;background:var(--oro-100);border-radius:var(--r-lg);padding:20px 22px;border-left:4px solid var(--oro);
+  margin-top:4px;box-shadow:var(--shadow-1, 0 1px 2px rgba(43,22,79,.06))}
+.focus-tile .fi{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--oro);color:#fff;flex:0 0 auto}
+.focus-tile h4{font-family:var(--font-text)!important;font-size:13.5px!important;font-weight:600!important;color:var(--pizarra)!important;margin:0 0 6px!important;padding:0!important}
+.focus-tile .fv{font-family:var(--font-display);font-weight:800;font-size:clamp(24px,2.2vw,32px);color:var(--morado-900);line-height:1.05;letter-spacing:-.01em}
+.stApp .focus-tile p{margin:8px 0 0;font-size:13.5px;color:var(--tinta);line-height:1.5}
+
+/* ---------- Key figures: fewer cards share the row ---------- */
+.kpi-grid.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kpi-grid.n1{grid-template-columns:minmax(0,1fr)}
+
+/* ---------- Cut and update of the information ---------- */
+.update-stamp{display:flex;flex-wrap:wrap;gap:8px 18px;margin:-6px 0 10px;font-size:13px;color:#D9CFEA;animation:rise .7s .05s var(--ease) both}
+.update-stamp span{display:inline-flex;align-items:center;gap:7px}
+.update-stamp svg{color:var(--oro)}
+
+/* ---------- Geoportal of units of attention and hazards ---------- */
+[class*="st-key-card_geoportal_"]{background:linear-gradient(118deg,#1E0F3B,#2B164F 55%,#41246F);border-radius:var(--r-lg);padding:20px 26px!important;
+  margin-top:18px;box-shadow:var(--shadow-2);justify-content:space-between}
+.geo-card{display:flex;align-items:center;gap:18px;color:#fff}
+.geo-icon{width:54px;height:54px;border-radius:17px;display:grid;place-items:center;background:rgba(248,192,24,.14);border:1px solid rgba(248,192,24,.32);color:var(--oro);flex:0 0 auto}
+.geo-card h3{font-family:var(--font-display)!important;font-size:18px!important;font-weight:800!important;color:#fff!important;margin:0 0 4px!important;padding:0!important}
+.stApp .geo-card p{margin:0 0 4px;color:#E1D7F1;font-size:14px;line-height:1.45}
+.geo-card small{color:#B9ABD3;font-size:12px;letter-spacing:.02em}
+[class*="st-key-card_geoportal_"] [data-testid="stLinkButton"] a{background:var(--oro)!important;border-color:var(--oro)!important;color:var(--morado-900)!important;
+  border-radius:12px;font-weight:700;white-space:nowrap}
+[class*="st-key-card_geoportal_"] [data-testid="stLinkButton"] a p{color:var(--morado-900)!important;font-weight:700}
+
+/* ---------- Profile of the contracts ---------- */
+.stApp .profile-label{margin:8px 0 -10px;font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--morado-800)}
+
+/* ---------- Slogan: footer and access ---------- */
+.foot-slogan{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid rgba(255,255,255,.12);padding-top:16px}
+.foot-slogan b{font-family:var(--font-display);font-weight:800;font-size:19px;color:var(--oro);letter-spacing:-.01em}
+.foot-slogan span{font-size:15px;color:#E1D7F1}
+.stApp .login-copy .login-slogan{margin-top:22px;font-size:15px;color:#E1D7F1}
+.login-slogan b{font-family:var(--font-display);font-weight:800;color:var(--oro)}
+
+/* ---------- Access: the whole screen in the institutional purple ---------- */
+.stApp:has(.st-key-login_band){background:linear-gradient(118deg,#1E0F3B 0%,#2B164F 34%,#41246F 66%,#512F8D 100%)}
+[data-testid="stMainBlockContainer"]:has(.st-key-login_band){padding-bottom:0!important}
+.stApp:has(.st-key-login_band) [data-testid="stBottomBlockContainer"]{background:transparent}
+
 /* ---------- Responsive ---------- */
 @media (max-width:1180px){
   .kpi-grid,.kpi-grid.n3,.kpi-grid.n5{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -418,7 +489,14 @@ html{scroll-behavior:smooth}
   .hero-copy h1{font-size:34px!important;margin-top:16px!important}
   .st-key-consulta{padding:16px 14px 14px}
   .st-key-consulta [data-testid="stButtonGroup"] button p{font-size:12.5px}
-  .st-key-module [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;gap:0}
+  .st-key-module [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;gap:6px!important}
+  .st-key-cont_map_program [role="radiogroup"],.st-key-cont_map_level [role="radiogroup"],.st-key-labour_measure [role="radiogroup"],.st-key-labour_level [role="radiogroup"]{border-radius:18px}
+  .st-key-cont_map_program button,.st-key-cont_map_level button,.st-key-labour_measure button,.st-key-labour_level button{min-height:44px;padding:0 6px!important;border-radius:14px!important}
+  .st-key-cont_map_program button p,.st-key-cont_map_level button p,.st-key-labour_measure button p,.st-key-labour_level button p{font-size:11.5px;white-space:normal;line-height:1.15}
+  [class*="st-key-card_geoportal_"]{flex-direction:column!important;align-items:stretch!important;padding:18px 16px!important}
+  .geo-card{align-items:flex-start}
+  .foot-slogan b{font-size:17px}
+  .foot-slogan span{font-size:14px}
   .st-key-map_indicator [role="radiogroup"],.st-key-budget_measure [role="radiogroup"],.st-key-map_level [role="radiogroup"]{border-radius:18px}
   .st-key-map_indicator button,.st-key-budget_measure button,.st-key-map_level button{min-height:44px;padding:0 6px!important;border-radius:14px!important}
   .st-key-map_indicator button p,.st-key-budget_measure button p,.st-key-map_level button p{font-size:11.5px;white-space:normal;line-height:1.15}

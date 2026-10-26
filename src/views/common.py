@@ -81,16 +81,24 @@ def period_controls(catalog: list[dict]) -> dict:
     years = sorted({p["year"] for p in catalog}, reverse=True)
     if st.session_state.get("period_year") not in years:
         st.session_state["period_year"] = years[0]
-    col_year, col_month = st.columns(2, gap="small")
+    year = st.session_state["period_year"]
+    months = [p for p in catalog if p["year"] == year and p["month"]]
+    # Many months need the room: the year keeps a narrow column and the months take the rest, oldest first; with more
+    # than two years, each control takes its own row.
+    many = len(months) > 3
+    if len(years) > 2 and many:
+        col_year, col_month = st.container(), st.container()
+    else:
+        col_year, col_month = st.columns([1, 2.6] if many else [1, 1], gap="small")
     with col_year:
         year = st.segmented_control("Año", years, key="period_year", required=True, format_func=str, width="stretch")
-    months = [p for p in catalog if p["year"] == year and p["month"]]
+    months = sorted((p for p in catalog if p["year"] == year and p["month"]), key=lambda p: p["month"])
     with col_month:
         if months:
             month_ids = [p["id"] for p in months]
             if st.session_state.get("period_month") not in month_ids:
-                st.session_state["period_month"] = month_ids[0]
-            month_names = {p["id"]: p["label"].split()[0] for p in months}
+                st.session_state["period_month"] = month_ids[-1]
+            month_names = {p["id"]: (p["label"].split()[0][:3] if len(months) > 3 else p["label"].split()[0]) for p in months}
             period_id = st.segmented_control("Mes", month_ids, format_func=month_names.get, key="period_month",
                                              required=True, width="stretch")
             return next(p for p in catalog if p["id"] == period_id)

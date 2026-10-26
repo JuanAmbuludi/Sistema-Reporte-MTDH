@@ -135,3 +135,30 @@ def youth(data):
     return {"fase": int(latest.orden), "periodo": latest.corte_ejecucion,
             "registrados": int(latest.registrados), "habilitados": int(latest.beneficiarios),
             "presupuesto_publicado": float(latest.presupuesto_usd), "ejecucion_publicada": float(latest.ejecucion_usd)}
+
+
+def youth_phases(data):
+    """Phases of Jóvenes en Acción with documented execution or attention (scheduled phases are left out).
+
+    Every row keeps the figures the public resource publishes for its phase: registered young people, participants
+    (enabled or attended), transfers and their amount, budget and execution with its cut.  The snapshot is dated by the
+    latest execution cut, so a new publication replaces it.
+    """
+    from decimal import Decimal
+    d = pd.read_csv(StringIO(data[FILES[4]]))
+    d = d.loc[d.estado.isin(["ejecutado", "en_ejecucion"])].copy()
+    if d.empty:
+        raise ValueError("No hay fases de Jóvenes en Acción con ejecución publicada.")
+    cut = str(d.corte_ejecucion.dropna().max())
+    out = pd.DataFrame({
+        "periodo": cut, "fase": d.orden.astype("int8"), "nombre_fase": d.periodo.astype(str), "etiqueta": d.etiqueta.astype(str),
+        "estado": d.estado.astype(str), "inicio": d.inicio.astype(str), "fin": d.fin.where(d.fin.notna(), None),
+        "registrados": pd.array(d.registrados, dtype="Int64"), "participantes": pd.array(d.beneficiarios, dtype="Int64"),
+        "transferencias": pd.array(d.transferencias, dtype="Int16"),
+        "monto_transferencia_usd": [None if pd.isna(v) else Decimal(str(v)) for v in d.monto_transferencia_usd],
+        "presupuesto_usd": [None if pd.isna(v) else Decimal(str(v)) for v in d.presupuesto_usd],
+        "ejecucion_usd": [None if pd.isna(v) else Decimal(str(v)) for v in d.ejecucion_usd],
+        "corte_ejecucion": d.corte_ejecucion.where(d.corte_ejecucion.notna(), None), "nota": d.nota.astype(str),
+    })
+    return periods(out)
+

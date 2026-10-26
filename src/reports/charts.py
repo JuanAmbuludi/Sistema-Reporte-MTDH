@@ -247,10 +247,14 @@ def emblem_png(selected=(), *, layer: str = "provincia", width: float = 3.4, hei
 
 
 def columns_png(labels: list[str], values: list[float], *, mode: str = "light", width: float = 7.2, height: float = 3.0,
-                dpi: int = 220, average: float | None = None, value_text=None, average_text: str = "") -> bytes:
-    """Monthly columns with their figures; the mean as a dotted gold line."""
+                dpi: int = 220, average: float | None = None, value_text=None, average_text: str = "",
+                highlight: int | None = None, colors: list[str] | None = None, label_size: float = 8) -> bytes:
+    """Monthly columns with their figures; the mean as a dotted gold line and ``highlight`` (an index) in gold.
+
+    ``colors`` gives each column its own colour (the phase of a program, for instance)."""
     value_text = value_text or (lambda v: number(v))
     night = mode == "night"
+    values = [v or 0 for v in values]
     with _LOCK:
         fig = Figure(figsize=(width, height), dpi=dpi, facecolor="none" if night else "#FFFFFF")
         FigureCanvasAgg(fig)
@@ -263,11 +267,12 @@ def columns_png(labels: list[str], values: list[float], *, mode: str = "light", 
         muted = "#CDBFE6" if night else MUTED
         positions = list(range(len(values)))
         ax.bar(positions, [peak * 1.12] * len(values), width=0.62, color=track, zorder=1)
-        ax.bar(positions, values, width=0.62, color=color, zorder=2)
+        fills = colors or [theme.ORO if i == highlight else color for i in positions]
+        ax.bar(positions, values, width=0.62, color=fills, zorder=2)
         for index, (label, value) in enumerate(zip(labels, values)):
             ax.text(index, value + peak * 0.03, value_text(value), ha="center", va="bottom", color=ink,
-                    fontproperties=font("Bold", size=8.2), zorder=4)
-            ax.text(index, -peak * 0.05, label, ha="center", va="top", color=muted, fontproperties=font("SemiBold", size=8))
+                    fontproperties=font("Bold", size=label_size + 0.2), zorder=4)
+            ax.text(index, -peak * 0.05, label, ha="center", va="top", color=muted, fontproperties=font("SemiBold", size=label_size))
         if average:
             ax.plot([-0.5, len(values) - 0.5], [average, average], color=theme.ORO, lw=1.2, ls=(0, (1.2, 3)), zorder=3,
                     solid_capstyle="round")
@@ -277,3 +282,110 @@ def columns_png(labels: list[str], values: list[float], *, mode: str = "light", 
         ax.set_xlim(-0.6, len(values) - 0.4)
         ax.set_ylim(-peak * 0.02, peak * 1.2)
         return _png(fig, transparent=night, dpi=dpi)
+
+
+def nice_bounds(low: float, high: float, steps: int = 4) -> tuple[float, float, float]:
+    """Axis bounds and step on round figures (1, 2, 2,5 or 5 times a power of ten) around the values."""
+    import math
+    span = max(high - low, abs(high) * 0.02, 1.0)
+    raw = span * 1.6 / steps
+    power = 10 ** math.floor(math.log10(raw))
+    step = next(m * power for m in (1, 2, 2.5, 5, 10) if m * power >= raw)
+    bottom = math.floor((low - span * 0.3) / step) * step
+    top = math.ceil((high + span * 0.3) / step) * step
+    return max(0.0, bottom), top, step
+
+
+def _axis_text(value: float) -> str:
+    if abs(value) >= 1e6:
+        return f"{number(value / 1e6, 2)} M"
+    if abs(value) >= 1e4:
+        return f"{number(value / 1e3, 1)} mil"
+    return number(value)
+
+
+def trend_png(labels: list[str], values: list[float], *, highlight: int | None = None, width: float = 5.0, height: float = 2.4,
+              dpi: int = 220, color: str | None = None, value_text=None, every: int = 1, font_scale: float = 1.0) -> bytes:
+    """A monthly series as a line with its points; the month of the report in gold with its figure.
+
+    The axis starts near the lowest month (as on the dashboard), so the change between months reads; it never goes
+    below zero for counts and amounts.  ``every`` keeps one month label out of that many (the last one always).
+    """
+    value_text = value_text or (lambda v: number(v))
+    color = color or theme.SERIE_BONOS
+    clean = [float(v) if v is not None and v == v else None for v in values]
+    present = [v for v in clean if v is not None] or [0.0, 1.0]
+    low, high = min(present), max(present)
+    pad = max((high - low) * 0.35, high * 0.01, 1)
+    floor = 0.0 if low >= 0 else None
+    with _LOCK:
+        fig = Figure(figsize=(width, height), dpi=dpi, facecolor="#FFFFFF")
+        FigureCanvasAgg(fig)
+        ax = fig.add_axes([0.13, 0.15, 0.84, 0.78] if font_scale >= 1 else [0.17, 0.17, 0.8, 0.74])
+        positions = list(range(len(clean)))
+        points = [(i, v) for i, v in zip(positions, clean) if v is not None]
+        ax.plot([p[0] for p in points], [p[1] for p in points], color=color, lw=1.8, zorder=2, solid_capstyle="round")
+        ax.scatter([p[0] for p in points], [p[1] for p in points], s=[60 if p[0] == highlight else 22 for p in points],
+                   c=[theme.ORO if p[0] == highlight else color for p in points], edgecolors="#FFFFFF", linewidths=1.2, zorder=3)
+        if highlight is not None and 0 <= highlight < len(clean) and clean[highlight] is not None:
+            ax.text(highlight, clean[highlight] + pad * 0.32, value_text(clean[highlight]), ha="center", va="bottom", color=theme.MORADO_900,
+                    fontproperties=font("Bold", size=7.8 * font_scale), zorder=4,
+                    path_effects=[patheffects.withStroke(linewidth=2.6, foreground="#FFFFFF")])
+        if floor is None:
+            bottom, top = low - pad, high + pad
+            ticks = [bottom + pad * 0.4 + (top - bottom - pad * 0.8) * k / 3 for k in range(4)]
+        else:
+            # Round figures on the axis (0 · 5.000 · 10.000), from zero or near the lowest month.
+            bottom, top, step = nice_bounds(low, high, steps=3)
+            ticks = []
+            tick = bottom
+            while tick <= top + step / 2:
+                ticks.append(tick)
+                tick += step
+        ax.set_ylim(bottom, top)
+        ax.set_xlim(-0.4, len(clean) - 0.6)
+        ax.set_yticks(ticks)
+        ax.set_yticklabels([_axis_text(t) for t in ticks], fontproperties=font(size=6.6 * font_scale), color=MUTED)
+        keep = {i for i in positions if (len(positions) - 1 - i) % max(1, every) == 0}
+        ax.set_xticks(positions)
+        ax.set_xticklabels([label if i in keep else "" for i, label in enumerate(labels)],
+                           fontproperties=font("SemiBold", size=6.8 * font_scale), color=INK)
+        ax.grid(axis="y", color="#EEEAF4", lw=0.6)
+        for side in ("top", "right", "left", "bottom"):
+            ax.spines[side].set_visible(False)
+        ax.tick_params(length=0, pad=3)
+        return _png(fig, dpi=dpi)
+
+
+def execution_png(labels: list[str], rates: list[float | None], months: list[int], *, highlight: int | None = None,
+                  width: float = 5.0, height: float = 2.4, dpi: int = 220) -> bytes:
+    """Accumulated execution month by month against an even pace (a twelfth of the budget per month)."""
+    with _LOCK:
+        fig = Figure(figsize=(width, height), dpi=dpi, facecolor="#FFFFFF")
+        FigureCanvasAgg(fig)
+        ax = fig.add_axes([0.1, 0.15, 0.87, 0.74])
+        positions = list(range(len(labels)))
+        pace = [m / 12 * 100 for m in months]
+        ax.plot(positions, pace, color=theme.LILA_300, lw=1.2, ls=(0, (2, 2.4)), zorder=1, label="Ritmo uniforme del año")
+        points = [(i, r) for i, r in zip(positions, rates) if r is not None]
+        ax.plot([p[0] for p in points], [p[1] for p in points], color=theme.SERIE_BONOS, lw=1.9, zorder=2, label="Ejecución acumulada")
+        ax.scatter([p[0] for p in points], [p[1] for p in points], s=[60 if p[0] == highlight else 20 for p in points],
+                   c=[theme.ORO if p[0] == highlight else theme.SERIE_BONOS for p in points], edgecolors="#FFFFFF", linewidths=1.2, zorder=3)
+        if highlight is not None and 0 <= highlight < len(rates) and rates[highlight] is not None:
+            ax.text(highlight, rates[highlight] + 6, f"{number(rates[highlight], 1)} %", ha="center", va="bottom", color=theme.MORADO_900,
+                    fontproperties=font("Bold", size=7.8), zorder=4, path_effects=[patheffects.withStroke(linewidth=2.6, foreground="#FFFFFF")])
+        ax.set_ylim(0, 108)
+        ax.set_xlim(-0.4, len(labels) - 0.6)
+        ax.set_yticks([0, 25, 50, 75, 100])
+        ax.set_yticklabels([f"{t} %" for t in (0, 25, 50, 75, 100)], fontproperties=font(size=6.6), color=MUTED)
+        ax.set_xticks(positions)
+        ax.set_xticklabels(labels, fontproperties=font("SemiBold", size=6.8), color=INK)
+        ax.grid(axis="y", color="#EEEAF4", lw=0.6)
+        for side in ("top", "right", "left", "bottom"):
+            ax.spines[side].set_visible(False)
+        ax.tick_params(length=0, pad=3)
+        legend = ax.legend(loc="upper left", frameon=False, prop=font("Medium", size=6.6), ncol=2, bbox_to_anchor=(0, 1.16),
+                           handlelength=1.8, columnspacing=1.4)
+        for text in legend.get_texts():
+            text.set_color(MUTED)
+        return _png(fig, dpi=dpi)

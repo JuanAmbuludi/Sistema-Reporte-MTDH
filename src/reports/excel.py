@@ -2,8 +2,9 @@
 
 Built with XlsxWriter from the same report context as the summary and the slides.  Transfers and services get
 Resumen, results by program (or service), one sheet for each territorial level the reader chose (Provincias,
-Cantones, Parroquias), Detalle at the finest of those levels and Ficha técnica; the institutional budget and labour
-management get their own sheets.  Design rules:
+Cantones, Parroquias), Detalle at the finest of those levels and Ficha técnica; the institutional budget gets its own
+sheets, and the books of contingencies, Jóvenes en Acción, labour management and the social budget live in
+``excel_areas``.  Design rules:
 * every figure is a real number with a number format (no numbers as text);
 * totals are live formulas that also carry their computed value, so they read correctly in Excel,
   LibreOffice, Google Sheets and phone previews;
@@ -23,7 +24,7 @@ from PIL import Image
 from xlsxwriter.utility import xl_rowcol_to_cell
 
 from src import theme
-from .charts import map_png
+from .charts import map_png, nice_bounds
 from .context import PRODUCT, number
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -152,14 +153,17 @@ class Workbook:
 
     # ------------------------------------------------------------- components
     def band(self, ws, title: str, subtitle: str, last: int, compact=False) -> int:
-        """Purple header plate with logo, title and context, closed by a gold rule."""
-        heights = [8, 32, 20, 10] if compact else [12, 40, 22, 14]
+        """Purple header plate with logo, title, context and the cut and update of the information, closed by a gold rule."""
+        update = (self.ctx.get("update") or {}).get("short", "")
+        heights = [8, 32, 20, 10] if compact else ([12, 40, 22, 20] if update else [12, 40, 22, 14])
         for row, height in enumerate(heights):
             ws.set_row(row, height)
             for col in range(last + 1):
                 ws.write_blank(row, col, None, self.f(bg_color=theme.MORADO))
         ws.write(1, 1, title, self.f(bg_color=theme.MORADO, font_name=DISPLAY, font_size=17 if compact else 20, bold=True, font_color=WHITE))
         ws.write(2, 1, subtitle, self.f(bg_color=theme.MORADO, font_size=10, font_color="#E4DBF3"))
+        if update and not compact:
+            ws.write(3, 1, update, self.f(bg_color=theme.MORADO, font_size=9, font_color="#FFE7A3", valign="top"))
         gold = len(heights)
         ws.set_row(gold, 5)
         for col in range(last + 1):
@@ -224,11 +228,12 @@ class Workbook:
             self.kpi(ws, row, group[0], len(group), *card)
         return row + 4
 
-    def table(self, ws, row, layout, rows, *, total=None, label_index=0, subtotal=False, header_height=34, height=19):
+    def table(self, ws, row, layout, rows, *, total=None, label_index=0, subtotal=False, header_height=34, height=19, gold=False):
         """Styled table on a column layout.
 
         ``layout`` items are (header, key, kind, first_col, span).  Kinds: text,
         code, center, int, units, usd, mill, pct.  Missing numbers read as a dash.
+        With ``gold`` the rows marked ``selected`` (the month or the year of the report) read in gold.
         Returns (first, last, next).
         """
         ws.set_row(row, header_height)
@@ -243,10 +248,11 @@ class Workbook:
         for i, item in enumerate(rows):
             r = first + i
             ws.set_row(r, height)
-            fill = theme.NIEBLA if i % 2 else WHITE
+            chosen = gold and isinstance(item, dict) and item.get("selected")
+            fill = theme.ORO_100 if chosen else (theme.NIEBLA if i % 2 else WHITE)
             for index, (_header, key, kind, col, span) in enumerate(layout):
                 value = item.get(key) if isinstance(item, dict) else item[key]
-                strong = index == label_index
+                strong = index == label_index or bool(chosen)
                 self._value(ws, r, col, span, value, kind, fill, strong)
         last = first + len(rows) - 1
         nxt = last + 1
@@ -429,6 +435,18 @@ class Workbook:
             row += 1
         ws.set_zoom(95)
 
+    def update_facts(self) -> list[tuple[str, str]]:
+        """Cut, update and frequency of the information for the technical sheet."""
+        update = self.ctx.get("update") or {}
+        facts = []
+        if update.get("cut"):
+            facts.append(("Corte de la información", update["cut"][:1].upper() + update["cut"][1:]))
+        if update.get("updated"):
+            facts.append(("Fecha y hora de actualización", f"{update['updated']} (hora de Ecuador)"))
+        if update.get("frequency"):
+            facts.append(("Frecuencia de actualización", update["frequency"]))
+        return facts
+
     def generic_table(self, ws, row: int, layout: list[tuple], rows: list[dict], *, total: dict | None = None, label_index: int = 0,
                       subtotal: bool = False, bar_key: str | None = None, height: int = 19) -> tuple[int, int, int]:
         first, last, nxt = self.table(ws, row, layout, rows, total=total, label_index=label_index, subtotal=subtotal,
@@ -463,12 +481,19 @@ class Workbook:
                   ("Participación", "share", "pct", 5, 1)]
         if executed:
             layout += [(f"{labels['fiscal']} (millones de USD)", "fiscal", "mill", 6, 1), ("Ejecución", "execution_f", "pct", 7, 1)]
-        else:
+        elif ctx.get("reference_budget"):
             layout.append((f"{labels['fiscal']} (millones de USD)", "fiscal", "mill", 6, 2))
+        elif labels.get("units"):
+            layout.append((labels["units"], "units", "int", 6, 2))
+        else:
+            layout[0] = (labels["item"].capitalize(), "short", "text", 1, 5)
+            layout[1:] = [(labels["people"], "people", "int", 6, 1), ("Participación", "share", "pct", 7, 1)]
         total = {"people": total_people, "share": 1.0 if total_people else None, "fiscal": ctx["totals"]["fiscal"],
+                 "units": ctx["totals"].get("units"),
                  "execution_f": (ctx["totals"]["execution"] / 100) if ctx["totals"].get("execution") is not None else None}
         first, last, nxt = self.table(ws, top + 1, layout, rows, total=total, header_height=36)
-        self.data_bar(ws, first, last, 5, theme.LILA_300, maximum=1)
+        share_col = next(col for _h, key, _k, col, _s in layout if key == "share")
+        self.data_bar(ws, first, last, share_col, theme.LILA_300, maximum=1)
         picture = map_png(ctx["map_values"], layer=ctx.get("map_layer", "provincia"), focus=ctx.get("map_focus", []),
                           selected=set(ctx["selected_codes"]), label=f"{labels['people']} por {self._scope_word()}",
                           width=5.4, height=4.8, dpi=200)
@@ -487,8 +512,9 @@ class Workbook:
         name = labels["items"].capitalize()
         units = bool(labels["units"])
         ws = self.wb.add_worksheet(name)
-        columns = ([2.4, 6.0, 40.0, 15.0, 13.0] + ([14.0] if units else []) + [18.0] + ([18.0, 12.0] if executed else [])
-                   + [22.0, 22.0, 2.4])
+        with_money = executed or ctx.get("reference_budget")
+        columns = ([2.4, 6.0, 40.0, 15.0, 13.0] + ([14.0] if units else []) + ([18.0] if with_money else [])
+                   + ([18.0, 12.0] if executed else []) + ([22.0, 22.0] if with_money else []) + [2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws, tall=1)
@@ -505,12 +531,14 @@ class Workbook:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
         fiscal_col = col
-        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
-        col += 1
-        if executed:
-            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
-            col += 2
-        layout += [(labels["previous"], "previous", "usd", col, 1), (labels["government"], "government", "usd", col + 1, 1)]
+        with_money = executed or ctx.get("reference_budget")
+        if with_money:
+            layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
+            col += 1
+            if executed:
+                layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
+                col += 2
+            layout += [(labels["previous"], "previous", "usd", col, 1), (labels["government"], "government", "usd", col + 1, 1)]
         totals = ctx["totals"]
         total = {"people": totals["people"], "share": 1.0 if totals["people"] else None, "units": totals["units"],
                  "fiscal": totals["fiscal"], "coded": totals.get("coded"),
@@ -523,18 +551,24 @@ class Workbook:
             height = max(300, 32 * len(rows) + 80)
             ws.insert_chart(nxt + 1, 2, self.bar_chart(name, first, last, 2, 3, f"{labels['people']} por {labels['item']}", [theme.SERIE_BONOS],
                                                        width=560, height=height), {"y_offset": 10, "object_position": 3})
-            ws.insert_chart(nxt + 1, 4, self.bar_chart(name, first, last, 2, fiscal_col, f"{labels['fiscal']} (millones de USD)",
-                                                       [theme.VIOLETA_500], number_format="#,##0.0,,", width=560, height=height),
-                            {"x_offset": 40, "y_offset": 10, "object_position": 3})
+            if with_money:
+                ws.insert_chart(nxt + 1, 4, self.bar_chart(name, first, last, 2, fiscal_col, f"{labels['fiscal']} (millones de USD)",
+                                                           [theme.VIOLETA_500], number_format="#,##0.0,,", width=560, height=height),
+                                {"x_offset": 40, "y_offset": 10, "object_position": 3})
+            elif units:
+                ws.insert_chart(nxt + 1, 4, self.bar_chart(name, first, last, 2, 5, f"{labels['units']} por {labels['item']}",
+                                                           [theme.VIOLETA_500], width=560, height=height),
+                                {"x_offset": 40, "y_offset": 10, "object_position": 3})
         ws.set_zoom(90)
 
     def provinces_sheet(self):
         ctx, labels = self.ctx, self.ctx["labels"]
-        executed = ctx.get("executed_available")
+        executed = ctx.get("territorial_budget")
+        with_money = executed or ctx.get("reference_budget")
         units = bool(labels["units"])
         ws = self.wb.add_worksheet("Provincias")
-        columns = ([2.4, 9.0, 8.0, 30.0, 12.0, 15.0, 13.0] + ([14.0] if units else []) + [18.0] + ([12.0] if executed else [])
-                   + [22.0, 2.4])
+        columns = ([2.4, 9.0, 8.0, 30.0, 12.0, 15.0, 13.0] + ([14.0] if units else []) + ([18.0] if with_money else [])
+                   + ([12.0] if executed else []) + ([22.0] if with_money else []) + [2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
@@ -549,16 +583,17 @@ class Workbook:
                    description=f"Mapa del Ecuador: {labels['people'].lower()} por provincia")
         row += 27
         ws.set_h_pagebreaks([row])
-        row = self.heading(ws, row, "Posición de cada provincia en el país", "Montos en USD", last=last_col - 1)
+        row = self.heading(ws, row, "Posición de cada provincia en el país", "Montos en USD" if with_money else "", last=last_col - 1)
         headers = ["Posición", "Código", "Provincia", "Región", labels["people"], "Participación nacional"]
         kinds = ["center", "code", "text", "code", "int", "pct"]
         keys = ["position", "code", "name", "region", "people", "share"]
         if units:
             headers.append(labels["units"]), kinds.append("int"), keys.append("units")
-        headers.append(labels["fiscal"]), kinds.append("usd"), keys.append("fiscal")
-        if executed:
-            headers.append("Ejecución"), kinds.append("pct"), keys.append("execution_f")
-        headers.append(labels["government"]), kinds.append("usd"), keys.append("government")
+        if with_money:
+            headers.append(labels["fiscal"]), kinds.append("usd"), keys.append("fiscal")
+            if executed:
+                headers.append("Ejecución"), kinds.append("pct"), keys.append("execution_f")
+            headers.append(labels["government"]), kinds.append("usd"), keys.append("government")
         ws.set_row(row, 36)
         for i, header in enumerate(headers):
             align = "right" if kinds[i] in NUMERIC else ("center" if kinds[i] in ("center", "code") else "left")
@@ -615,13 +650,13 @@ class Workbook:
     def territory_sheet(self, level: str):
         """Cantons or parishes of the selection: their map and every territory with coverage, budget and execution."""
         ctx, labels = self.ctx, self.ctx["labels"]
-        executed = ctx.get("executed_available")
+        executed = ctx.get("territorial_budget")
         units = bool(labels["units"])
         parish = level == "parroquia"
         word, plural = ("parroquia", "Parroquias") if parish else ("cantón", "Cantones")
         ws = self.wb.add_worksheet(plural)
-        columns = ([2.4, 24.0, 26.0] + ([30.0] if parish else []) + [12.0, 14.0, 13.0] + ([14.0] if units else []) + [20.0]
-                   + ([20.0, 12.0] if executed else []) + [2.4])
+        columns = ([2.4, 24.0, 26.0] + ([30.0] if parish else []) + [12.0, 14.0, 13.0] + ([14.0] if units else [])
+                   + ([20.0, 20.0, 12.0] if executed else []) + [2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
@@ -637,7 +672,7 @@ class Workbook:
                        description=f"Mapa del Ecuador: {labels['people'].lower()} por {word}")
             row += 27
             ws.set_h_pagebreaks([row])
-        row = self.heading(ws, row, f"{plural} de la selección", "Montos en USD", last=last_col - 1)
+        row = self.heading(ws, row, f"{plural} de la selección", "Montos en USD" if executed else "", last=last_col - 1)
         layout = [("Provincia", "province", "text", 1, 1)]
         col = 2
         if parish:
@@ -653,11 +688,10 @@ class Workbook:
         if units:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
-        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
-        col += 1
         if executed:
-            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
-            col += 2
+            layout += [(labels["fiscal"], "fiscal", "usd", col, 1), (labels["coded"], "coded", "usd", col + 1, 1),
+                       ("Ejecución", "execution_f", "pct", col + 2, 1)]
+            col += 3
         territories = ctx.get("territories", {}).get(level, [])
         rows = [{**r, "share_f": r["share"] / 100 if r.get("share") is not None else None,
                  "execution_f": r["execution"] / 100 if r.get("execution") is not None else None} for r in territories]
@@ -679,11 +713,12 @@ class Workbook:
             self.territory_detail_sheet()
             return
         ctx, labels = self.ctx, self.ctx["labels"]
-        executed = ctx.get("executed_available")
+        executed = ctx.get("territorial_budget")
+        with_money = executed or ctx.get("reference_budget")
         units = bool(labels["units"])
         ws = self.wb.add_worksheet("Detalle")
-        columns = ([2.4, 38.0, 9.0, 28.0, 12.0, 15.0] + ([14.0] if units else []) + [18.0] + ([18.0, 12.0] if executed else [])
-                   + [22.0, 22.0, 2.4])
+        columns = ([2.4, 38.0, 9.0, 28.0, 12.0, 15.0] + ([14.0] if units else []) + ([18.0] if with_money else [])
+                   + ([18.0, 12.0] if executed else []) + ([22.0, 22.0] if with_money else []) + [2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
@@ -695,12 +730,13 @@ class Workbook:
         if units:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
-        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
-        col += 1
-        if executed:
-            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
-            col += 2
-        layout += [(labels["previous"], "previous", "usd", col, 1), (labels["government"], "government", "usd", col + 1, 1)]
+        if with_money:
+            layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
+            col += 1
+            if executed:
+                layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
+                col += 2
+            layout += [(labels["previous"], "previous", "usd", col, 1), (labels["government"], "government", "usd", col + 1, 1)]
         detail = [{**d, "execution_f": d["execution"] / 100 if d.get("execution") is not None else None} for d in ctx["detail"]]
         totals_row, header_row = row + 1, row + 3
         first, last = header_row + 1, header_row + max(1, len(detail))
@@ -728,12 +764,12 @@ class Workbook:
     def territory_detail_sheet(self):
         """Each program in each canton or parish, with filters and totals of the visible rows."""
         ctx, labels = self.ctx, self.ctx["labels"]
-        executed = ctx.get("executed_available")
+        executed = ctx.get("territorial_budget")
         units = bool(labels["units"])
         parish = ctx["detail_level"] == "parroquia"
         ws = self.wb.add_worksheet("Detalle")
-        columns = ([2.4, 36.0, 20.0, 24.0] + ([28.0] if parish else []) + [12.0, 14.0] + ([14.0] if units else []) + [18.0]
-                   + ([18.0, 12.0] if executed else []) + [2.4])
+        columns = ([2.4, 36.0, 20.0, 24.0] + ([28.0] if parish else []) + [12.0, 14.0] + ([14.0] if units else [])
+                   + ([18.0, 18.0, 12.0] if executed else []) + [2.4])
         self.widths(ws, columns)
         last_col = len(columns) - 1
         self.page(ws)
@@ -752,11 +788,10 @@ class Workbook:
         if units:
             layout.append((labels["units"], "units", "int", col, 1))
             col += 1
-        layout.append((labels["fiscal"], "fiscal", "usd", col, 1))
-        col += 1
         if executed:
-            layout += [(labels["coded"], "coded", "usd", col, 1), ("Ejecución", "execution_f", "pct", col + 1, 1)]
-            col += 2
+            layout += [(labels["fiscal"], "fiscal", "usd", col, 1), (labels["coded"], "coded", "usd", col + 1, 1),
+                       ("Ejecución", "execution_f", "pct", col + 2, 1)]
+            col += 3
         detail = [{**d, "execution_f": d["execution"] / 100 if d.get("execution") is not None else None} for d in ctx["detail"]]
         totals_row, header_row = row + 1, row + 3
         first, last = header_row + 1, header_row + max(1, len(detail))
@@ -784,6 +819,80 @@ class Workbook:
         self.data_bar(ws, first, last, people_col, theme.LILA_200)
         ws.set_zoom(90)
 
+    def monthly_sheet(self):
+        """The selection month by month: people, change, units and the national budget; each program by month."""
+        ctx, labels = self.ctx, self.ctx["labels"]
+        monthly = ctx["monthly"]
+        months = monthly["months"]
+        budget = monthly.get("budget")
+        units = bool(labels["units"]) and any(m["units"] for m in months)
+        ws = self.wb.add_worksheet("Serie mensual")
+        columns = [2.4, 30.0, 16.0, 15.0] + ([15.0] if units else []) + ([19.0, 20.0, 14.0] if budget else [])
+        columns = columns + [13.0] * max(0, len(months) + 2 - len(columns)) + [2.4]
+        self.widths(ws, columns)
+        last_col = len(columns) - 1
+        self.page(ws)
+        ws.set_tab_color(theme.ORO)
+        span = f"{months[0]['label']} a {months[-1]['label'].lower()} de {monthly['year']}"
+        row = self.band(ws, "Evolución mensual", f"{labels['people']} · {span} · {ctx['territory_label']} · {ctx['programs_label']}",
+                        last=last_col)
+        row = self.heading(ws, row + 1, f"{labels['people']} por mes", "Montos en USD" if budget else "", last=last_col - 1)
+        rows = [{**m, "name": f"{m['label']} {monthly['year']}", "execution_f": m["execution"] / 100 if m.get("execution") is not None else None}
+                for m in months]
+        layout = [("Mes", "name", "text", 1, 1), (labels["people"], "people", "int", 2, 1), ("Variación mensual", "change", "int", 3, 1)]
+        col = 4
+        if units:
+            layout.append((labels["units"], "units", "int", col, 1))
+            col += 1
+        if budget:
+            layout += [("Devengado del mes", "accrued_month", "usd", col, 1), ("Devengado acumulado", "accrued", "usd", col + 1, 1),
+                       ("Ejecución acumulada", "execution_f", "pct", col + 2, 1)]
+            col += 3
+        first, last, nxt = self.table(ws, row, layout, rows, header_height=36)
+        for index, month in enumerate(rows):
+            if month.get("selected"):
+                for position, (_header, key, kind, col_, span_) in enumerate(layout):
+                    self._value(ws, first + index, col_, span_, month.get(key), kind, theme.ORO_100, strong=position == 0)
+        chart = self.wb.add_chart({"type": "line"})
+        chart.add_series({"name": labels["people"], "categories": ["Serie mensual", first, 1, last, 1], "values": ["Serie mensual", first, 2, last, 2],
+                          "line": {"color": theme.SERIE_BONOS, "width": 2.25},
+                          "marker": {"type": "circle", "size": 6, "fill": {"color": theme.SERIE_BONOS}, "border": {"color": WHITE}},
+                          "points": [({"fill": {"color": theme.ORO}, "border": {"color": WHITE}} if m.get("selected") else None) for m in months]})
+        chart.set_title({"name": f"{labels['people']} por mes", "overlay": False,
+                         "name_font": {"name": DISPLAY, "size": 11, "bold": True, "color": theme.MORADO_900}})
+        present = [m["people"] for m in months if m.get("people") is not None] or [0]
+        bottom, top, step = nice_bounds(min(present), max(present))
+        chart.set_y_axis({"num_format": INT, "min": bottom, "max": top, "major_unit": step,
+                          "num_font": {"name": TEXT, "size": 8, "color": MUTED},
+                          "major_gridlines": {"visible": True, "line": {"color": "#EEEAF4", "width": 0.75}}, "line": {"none": True}})
+        chart.set_x_axis({"num_font": {"name": TEXT, "size": 9, "color": theme.TINTA}, "line": {"color": theme.LILA_100}})
+        chart.set_legend({"none": True})
+        chart.set_chartarea({"border": {"color": SOFT_LINE}, "fill": {"color": WHITE}})
+        chart.set_size({"width": 560, "height": 300})
+        ws.insert_chart(nxt + 1, 1, chart, {"y_offset": 8, "object_position": 3})
+        if budget:
+            # The second chart starts on the first column past the first one.
+            widths = self._col_widths.get(ws.name, [])
+            room, col_ = 0, 1
+            while col_ < len(widths) and room < 560 + 16:
+                room += self.px(widths[col_])
+                col_ += 1
+            accrued_col = next(c for _h, key, _k, c, _s in layout if key == "accrued_month")
+            ws.insert_chart(nxt + 1, col_, self.column_chart("Serie mensual", first, last, 1, accrued_col,
+                                                             "Presupuesto devengado por mes (millones de USD)",
+                                                             number_format="#,##0.0,,", width=520, height=300),
+                            {"x_offset": 6, "y_offset": 8, "object_position": 3})
+        # Each program month by month.
+        row = nxt + 18
+        row = self.heading(ws, row, f"{labels['people']} por {labels['item']} y mes", last=last_col - 1)
+        matrix_layout = [(labels["item"].capitalize(), "short", "text", 1, 1)] + [
+            (m["short"], f"m{index}", "int", 2 + index, 1) for index, m in enumerate(months)]
+        matrix = [{"short": r["short"], **{f"m{index}": value for index, value in enumerate(r["values"])}} for r in monthly["programs"]]
+        totals = {f"m{index}": m["people"] for index, m in enumerate(months)}
+        totals["_label"] = "Total"
+        self.table(ws, row, matrix_layout, matrix, total=totals, header_height=30)
+        ws.set_zoom(90)
+
     def technical_sheet(self):
         ctx, labels = self.ctx, self.ctx["labels"]
         from src.indicators import MODULES
@@ -793,10 +902,13 @@ class Workbook:
         facts = [("Institución", ctx["institution"]), ("Producto", f"Libro de datos de {PRODUCT}"),
                  ("Ámbito", ctx["module_label"]), ("Periodo", ctx["period_label"]), ("Territorio", ctx["territory_label"]),
                  ("Nivel territorial", ", ".join(level_names[level] for level in levels)),
-                 (labels["items"].capitalize(), ctx["programs_label"]), ("Fecha de generación", ctx["generated_label"].capitalize()),
-                 ("Unidad monetaria", "Dólares de los Estados Unidos (USD)")]
+                 (labels["items"].capitalize(), ctx["programs_label"])] + self.update_facts() + [
+                 ("Fecha de generación", ctx["generated_label"].capitalize()), ("Unidad monetaria", "Dólares de los Estados Unidos (USD)")]
         contents = [("Resumen", "Cifras clave, resultados por " + labels["item"] + ", mapa y aspectos destacados"),
                     (labels["items"].capitalize(), f"{labels['people']}, participación, presupuesto y ejecución por {labels['item']}")]
+        if ctx.get("monthly"):
+            contents.append(("Serie mensual", f"{labels['people']} de cada mes, variación, cada {labels['item']} por mes"
+                                              + (" y presupuesto devengado" if ctx["monthly"].get("budget") else "")))
         descriptions = {"provincia": "Mapa y posición de cada provincia en el país",
                         "canton": "Mapa y cada cantón con su cobertura, presupuesto y ejecución",
                         "parroquia": "Mapa y cada parroquia con su cantón, cobertura, presupuesto y ejecución"}
@@ -804,7 +916,13 @@ class Workbook:
         finest = {"provincia": "provincia", "canton": "cantón", "parroquia": "parroquia"}[ctx.get("detail_level", "provincia")]
         contents += [("Detalle", f"Cada {labels['item']} en cada {finest}, con filtros y totales que se recalculan"),
                      ("Ficha técnica", "Identificación del producto y definiciones")]
-        self.facts_sheet(facts, module.definitions(ctx["year"], executed=ctx.get("executed_available", False)), contents)
+        definitions = module.definitions(ctx["year"], executed=ctx.get("executed_available", False))
+        if ctx.get("monthly"):
+            definitions = definitions + [("Variación mensual", f"Diferencia de los {labels['people'].lower()} de un mes frente al mes anterior.")]
+            if ctx["monthly"].get("budget"):
+                definitions.append(("Ejecución acumulada", "Presupuesto devengado de enero al mes, sobre el presupuesto codificado del "
+                                                           "año; el ritmo uniforme supone una doceava parte del presupuesto por mes."))
+        self.facts_sheet(facts, definitions, contents)
 
     # ------------------------------------------------------------------- budget
     def _money_rows(self, rows: list[dict]) -> list[dict]:
@@ -940,57 +1058,6 @@ class Workbook:
                     ("Ficha técnica", "Identificación del producto y definiciones")]
         self.facts_sheet(facts, ctx["definitions"], contents)
 
-    # ------------------------------------------------------------------- labour
-    def labour_book(self):
-        ctx = self.ctx
-        info = ctx["info"]
-        ws = self.wb.add_worksheet("Resumen")
-        self.widths(ws, [2.4] + [12.6] * 12 + [2.4])
-        self.page(ws, tall=1)
-        ws.set_tab_color(theme.MORADO)
-        row = self.band(ws, ctx["title"], self.subtitle(), last=13)
-        row = self.heading(ws, row + 1, "Cifras clave", ctx["period_label"])
-        row = self.kpi_row(ws, row + 1, self.kpi_cards())
-        top = row + 1
-        self.heading(ws, top, f"Contratos registrados por mes en {ctx['year']}", last=4)
-        rows = [{**m, "share_f": m["share"] / 100 if m["share"] is not None else None} for m in ctx["months"]]
-        layout = [("Mes", "label", "text", 1, 2), ("Contratos", "value", "int", 3, 1), ("Participación", "share_f", "pct", 4, 1)]
-        first, last, nxt = self.table(ws, top + 1, layout, rows, total={"value": info["cohorts"], "share_f": 1.0, "_label": "Total del año"},
-                                      header_height=30)
-        ws.insert_chart(top + 1, 6, self.column_chart("Resumen", first, last, 1, 3, "Contratos registrados que siguen vigentes",
-                                                      width=600, height=330), {"x_offset": 6, "y_offset": 4, "object_position": 3})
-        row = max(nxt, top + 18) + 1
-        row = self.findings(ws, row, ctx["insights"])
-        ws.print_area(0, 0, row, 13)
-        ws.activate()
-        ws.set_first_sheet()
-        ws.set_zoom(90)
-
-        ws = self.wb.add_worksheet("Contratos por mes")
-        columns = [2.4, 28.0, 26.0, 24.0, 26.0, 2.4]
-        self.widths(ws, columns)
-        self.page(ws, landscape=False)
-        ws.set_tab_color(theme.VIOLETA_500)
-        row = self.band(ws, "Contratos registrados por mes", f"{ctx['period_label']} · Total nacional · contratos que siguen vigentes",
-                        last=len(columns) - 1)
-        row = self.heading(ws, row + 1, "Serie mensual", f"Consulta del {info['consulted_label']}", last=4)
-        layout = [("Mes", "label", "text", 1, 1), ("Contratos registrados", "value", "int", 2, 1),
-                  ("Participación en el año", "share_f", "pct", 3, 1), ("Acumulado del año", "cumulative", "int", 4, 1)]
-        first, last, nxt = self.table(ws, row, layout, rows, total={"value": info["cohorts"], "share_f": 1.0, "_label": "Total del año"},
-                                      header_height=36)
-        self.data_bar(ws, first, last, 3, theme.LILA_300, maximum=1)
-        ws.insert_chart(nxt + 1, 1, self.column_chart("Contratos por mes", first, last, 1, 2, "Contratos registrados por mes",
-                                                      width=720, height=340), {"y_offset": 10, "object_position": 3})
-        ws.set_zoom(95)
-
-        facts = [("Institución", ctx["institution"]), ("Producto", f"Libro de datos de {PRODUCT}"), ("Ámbito", ctx["module_label"]),
-                 ("Periodo", f"{ctx['period_label']} (meses de {ctx['span']})"), ("Territorio", "Nacional"),
-                 ("Fecha de consulta", info["consulted_label"].capitalize()), ("Fecha de generación", ctx["generated_label"].capitalize())]
-        contents = [("Resumen", "Cifras clave, serie mensual y aspectos destacados"),
-                    ("Contratos por mes", "Contratos registrados cada mes, participación y acumulado"),
-                    ("Ficha técnica", "Identificación, definiciones y fuentes oficiales")]
-        self.facts_sheet(facts, ctx["definitions"], contents, sources=ctx["sources"])
-
     # ---------------------------------------------------------------- build
     def build(self) -> bytes:
         ctx = self.ctx
@@ -1001,13 +1068,16 @@ class Workbook:
         })
         self.wb.set_size(1680, 1040)
         kind = ctx.get("kind", "territorial")
+        from .excel_areas import BOOKS
         if kind == "presupuesto":
             self.budget_book()
-        elif kind == "laboral":
-            self.labour_book()
+        elif kind in BOOKS:
+            BOOKS[kind](self)
         else:
             self.summary()
             self.programs_sheet()
+            if ctx.get("monthly"):
+                self.monthly_sheet()
             levels = ctx.get("levels") or ["provincia"]
             if "provincia" in levels:
                 self.provinces_sheet()

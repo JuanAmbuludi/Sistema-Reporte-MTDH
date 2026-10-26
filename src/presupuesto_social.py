@@ -107,3 +107,44 @@ def read_approved(path):
             "universo": "Grupos de gasto 58, 57 y 78 del presupuesto social; no es todo el presupuesto institucional."}
     finally:
         book.close()
+
+
+# ----------------------------------------------------------------------------------------------- dashboard reading
+GROUP_NAMES = {
+    "BDH_BDHV": "Bono de Desarrollo Humano (BDH y BDHV)", "BJGL": "Bono Joaquín Gallegos Lara", "BMD": "Bono 1.000 Días",
+    "MMA": "Pensión Mis Mejores Años", "PTV": "Pensión Toda Una Vida", "ORFANDAD_VIOLENCIA": "Orfandad por femicidio",
+    "CONTINGENCIAS": "Cobertura de contingencias", "ANTROPICOS": "Eventos naturales y antrópicos",
+    "COMPENSACION_GASOLINA": "Compensación al transporte", "COMPENSACION_DIESEL": "Compensación diésel",
+    "MIGRANTES": "Migrantes retornados", "JEA_F3": "Jóvenes en Acción (tercera fase)", "COMISIONES": "Comisiones bancarias",
+}
+SPENDING_GROUPS = {57: "Otros egresos corrientes", 58: "Transferencias o donaciones corrientes",
+                   78: "Transferencias o donaciones para inversión"}
+SERIES = Path(__file__).resolve().parents[1] / "data" / "series"
+
+
+def load_social_budget() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Accrued budget of every month by budget group (programs that share an allocation add up), and the allocations.
+
+    ``devengado_acumulado`` is a snapshot of the year (never added across months).  Execution of a group is its accrued
+    budget over its approved budget.
+    """
+    monthly_path, annual_path = SERIES / "presupuesto_social_mensual.parquet", SERIES / "presupuesto_social_asignado.parquet"
+    if not monthly_path.exists() or not annual_path.exists():
+        return pd.DataFrame(), pd.DataFrame()
+    monthly = pd.read_parquet(monthly_path)
+    for column in ["devengado_mes", "devengado_acumulado"]:
+        monthly[column] = pd.to_numeric(monthly[column], errors="coerce").astype(float)
+    groups = monthly.groupby(["periodo", "grupo_presupuestario", "grupo_gasto"], as_index=False)[["devengado_mes", "devengado_acumulado"]].sum()
+    annual = pd.read_parquet(annual_path)
+    for column in ["planificado_anual", "presupuesto_aprobado"]:
+        annual[column] = pd.to_numeric(annual[column], errors="coerce").astype(float)
+    annual = annual.loc[annual.periodo.eq(annual.periodo.max())]
+    groups = groups.merge(annual[["grupo_presupuestario", "programas", "planificado_anual", "presupuesto_aprobado"]],
+                          on="grupo_presupuestario", how="left")
+    groups = groups.rename(columns={"periodo": "periodo_id"})
+    groups["nombre"] = groups.grupo_presupuestario.map(GROUP_NAMES).fillna(groups.grupo_presupuestario)
+    groups["grupo_gasto_nombre"] = groups.grupo_gasto.map(SPENDING_GROUPS)
+    groups["porcentaje_ejecucion"] = groups.devengado_acumulado / groups.presupuesto_aprobado.where(groups.presupuesto_aprobado > 0) * 100
+    groups["saldo"] = groups.presupuesto_aprobado - groups.devengado_acumulado
+    programs = monthly.rename(columns={"periodo": "periodo_id"})
+    return groups.sort_values(["periodo_id", "presupuesto_aprobado"], ascending=[True, False]).reset_index(drop=True), programs

@@ -82,9 +82,12 @@ class DeliveredSourceTests(unittest.TestCase):
 
     def test_periods_catalog_keeps_each_cut_apart(self):
         data, catalog = load_periods()
-        self.assertEqual([p["id"] for p in catalog], ["2026-09", "2025", "2024"])
-        self.assertEqual([p["label"] for p in catalog], ["Septiembre 2026", "Año 2025", "Año 2024"])
-        self.assertEqual(len(data), 296 * 3)
+        months = ["2026-09", "2026-08", "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
+        self.assertEqual([p["id"] for p in catalog], months + ["2025", "2024"])
+        self.assertEqual([p["label"] for p in catalog][:2] + [p["label"] for p in catalog][-3:],
+                         ["Septiembre 2026", "Agosto 2026", "Enero 2026", "Año 2025", "Año 2024"])
+        self.assertEqual(len(data), 2826)
+        self.assertEqual(summarize(data[data.periodo_id == "2026-05"])["beneficiarios"], 1552015)
         with self.assertRaisesRegex(ValueError, "un solo corte"):
             summarize(data)
         self.assertEqual(summarize(data[data.periodo_id == "2025"])["beneficiarios"], 1557996)

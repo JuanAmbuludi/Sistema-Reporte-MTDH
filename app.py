@@ -1,8 +1,8 @@
 """InfoReport MTDH: tablero de indicadores estratégicos y centro de reportes institucionales.
 
 Run from the repository root with ``streamlit run app.py``.
-Each view reads one period and one area (transfers, services, labour management or the institutional budget; they
-are never mixed), and every export receives exactly the rows shown on screen.
+Each view reads one period and one area (transfers, services, contingencies and compensation, Jóvenes en Acción,
+labour management or the budget; they are never mixed), and every export receives exactly the rows shown on screen.
 """
 from __future__ import annotations
 
@@ -43,15 +43,17 @@ def _fresh_project_modules() -> None:
 
 _fresh_project_modules()
 
-from src import ui  # noqa: E402
+from src import corte, ui  # noqa: E402
 from src.auth import logout, require_login  # noqa: E402
 from src.data import DEFAULT_DATA_DIR, load_periods, load_territory  # noqa: E402
 from src.gestion_laboral import load_labour  # noqa: E402
 from src.indicators import AREAS, MODULES  # noqa: E402
 from src.institutional import load_budget  # noqa: E402
 from src.views.common import period_controls  # noqa: E402
+from src.views.contingencias import ContingencyView  # noqa: E402
+from src.views.jovenes import YouthView  # noqa: E402
 from src.views.laboral import LabourView  # noqa: E402
-from src.views.presupuesto import BudgetView  # noqa: E402
+from src.views.presupuesto import BudgetArea, BudgetView, SocialBudgetView  # noqa: E402
 from src.views.territorial import TerritorialView  # noqa: E402
 
 ui.inject_styles()
@@ -60,30 +62,58 @@ user = require_login()
 WORKSPACES = {"Tablero": ":material/insights: Tablero", "Reportes": ":material/description: Reportes"}
 
 
+def _clear_module_caches() -> None:
+    """Forget what the modules read from the previous version of the bases."""
+    from src import contingencias, depuracion, gestion_laboral, jovenes, mensual
+    for function in (contingencias.extraction, contingencias.monthly, contingencias.territorial, jovenes.phases, jovenes.payments,
+                     jovenes.budget, mensual.coverage, mensual.program_budget, depuracion.gazetteer, depuracion._cleaned):
+        function.cache_clear()
+    gestion_laboral._TABLES.clear()
+
+
 @st.cache_data(show_spinner=False)
 def read_bases(version: int) -> dict:
-    """Every processed base; invalidated when any of them changes."""
+    """Every base of the dashboard; invalidated when any of them changes."""
+    from src import contingencias, mensual, presupuesto_social
+    _clear_module_caches()
     data, catalog = load_periods()
     budget, manifest = load_budget()
+    groups, programs = presupuesto_social.load_social_budget()
     return {"data": data, "catalog": catalog, "territory": load_territory(), "budget": budget, "budget_manifest": manifest,
-            "labour": load_labour()}
+            "labour": load_labour(), "program_budget": mensual.program_budget(), "contingencies": contingencias.monthly(),
+            "contingency_places": contingencias.territorial(), "contingency_catalog": contingencias.catalog(),
+            "social_groups": groups, "social_programs": programs}
+
+
+def bases_version() -> int:
+    """Latest change of any base (processed bases and monthly series)."""
+    folders = [DEFAULT_DATA_DIR, DEFAULT_DATA_DIR.parent / "series", DEFAULT_DATA_DIR.parent / "series" / "laboral"]
+    return max(path.stat().st_mtime_ns for folder in folders if folder.exists() for path in folder.glob("*") if path.is_file())
 
 
 try:
-    version = max(path.stat().st_mtime_ns for path in DEFAULT_DATA_DIR.glob("*") if path.is_file())
+    version = bases_version()
     bases = read_bases(version)
 except (FileNotFoundError, ValueError, OSError):
     ui.info_note("La información no está disponible en este momento. Vuelva a cargar la página en unos minutos.",
                  "Información no disponible", tone="warn")
     st.stop()
 
-views = {module_id: TerritorialView(module_id, bases["data"], bases["catalog"], bases["territory"]) for module_id in MODULES}
-if not bases["labour"].empty:
-    labour = LabourView(bases["labour"])
-    if labour.catalog():
-        views["laboral"] = labour
-if not bases["budget"].empty:
-    views["presupuesto"] = BudgetView(bases["budget"], bases["budget_manifest"])
+views = {module_id: TerritorialView(module_id, bases["data"], bases["catalog"], bases["territory"], bases["program_budget"])
+         for module_id in MODULES}
+if bases["contingency_catalog"]:
+    views["contingencias"] = ContingencyView(bases["contingencies"], bases["contingency_places"], bases["contingency_catalog"])
+youth = YouthView()
+if youth.catalog():
+    views["jovenes"] = youth
+labour = LabourView(bases["labour"])
+if labour.catalog():
+    views["laboral"] = labour
+institutional = BudgetView(bases["budget"], bases["budget_manifest"]) if not bases["budget"].empty else None
+social = SocialBudgetView(bases["social_groups"], bases["social_programs"]) if not bases["social_groups"].empty else None
+budget_area = BudgetArea(institutional, social)
+if budget_area.views:
+    views["presupuesto"] = budget_area
 st.session_state.setdefault("workspace", "Tablero")
 if st.session_state.get("module") not in views:
     st.session_state["module"] = next(iter(views))
@@ -107,12 +137,16 @@ with st.container(key="band"):
             area = st.segmented_control("Ámbito", list(views), format_func=lambda a: AREAS[a]["short"], key="module",
                                         required=True, width="stretch")
             view = views[area]
+            if hasattr(view, "pre_controls"):
+                view.pre_controls()
             period = period_controls(view.catalog())
             view.controls(period)
     ready = view.prepare()
+    stamp = view.update_stamp() if hasattr(view, "update_stamp") else corte.stamp(view.id, period)
     if ready:
-        with copy_slot:
+        with copy_slot.container():
             ui.hero_copy(*view.hero_copy())
+            ui.update_stamp(stamp)
         with hero_right:
             view.hero_visual()
 
@@ -158,12 +192,13 @@ def report_center() -> None:
                                        default="Resumen ejecutivo", key="report_product", required=True, width="stretch")
         spec = PRODUCTS[product]
         st.caption(view.products_notes()[spec["kind"]])
-        title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{view.id}").strip() or view.label
+        file_id = getattr(view, "file_id", view.id)
+        title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{file_id}").strip() or view.label
         if hasattr(view, "report_options"):
             view.report_options()
         ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
-        digest = hashlib.sha256((view.digest() + json.dumps({"title": title, "product": product, "area": view.id},
+        digest = hashlib.sha256((view.digest() + json.dumps({"title": title, "product": product, "area": file_id},
                                                              sort_keys=True)).encode("utf-8")).hexdigest()
         name = product.lower()
         if st.button(f"Generar {name}", type="primary", icon=":material/auto_awesome:", width="stretch", key="generate_report"):
@@ -181,12 +216,12 @@ def report_center() -> None:
             ui.info_note("El documento conserva el periodo, el ámbito y la selección vigentes.", f"{product} listo", tone="ok")
             level = LEVEL_SUFFIX.get(getattr(view, "report_level", ""), "") if hasattr(view, "report_options") else ""
             st.download_button(f"Descargar {name}", generated["content"],
-                               file_name=f'MTDH_{spec["slug"]}_{view.id}_{period["id"]}{level}.{spec["ext"]}', mime=spec["mime"],
+                               file_name=f'MTDH_{spec["slug"]}_{file_id}_{period["id"]}{level}.{spec["ext"]}', mime=spec["mime"],
                                icon=":material/download:", type="primary", width="stretch", key="download_report")
     with right:
         kpis = [(card["label"], kpi_text(card), card["icon"]) for card in view.kpi_cards()]
         ui.report_preview(spec["kind"], title, period["label"], view.territory_label, kpis, view.sheets(), view.preview_visual(),
-                          view.slide_titles(), pages=1 if view.kind == "laboral" else 2)
+                          view.slide_titles(), pages=getattr(view, "summary_pages", 2))
         ui.content_list(view.report_contents(spec["kind"]))
 
 
@@ -195,4 +230,4 @@ if st.session_state.workspace == "Tablero":
 else:
     report_center()
 
-ui.footer(period["label"])
+ui.footer(period["label"], stamp)

@@ -115,3 +115,161 @@ def month_span(info: dict) -> str:
         return ""
     first, last = info["first_month"], info["last_month"]
     return first if first == last else f"{first} a {last}"
+
+
+# ------------------------------------------------------------------------------------------------- SGDE daily cut
+# The published tabulations of contracts (SGDE) are a stock at the date and hour of their cut: contracts in force and
+# ended by state, sex, age group, disability, province and canton, and parallel tables by branch of activity, type of
+# contract, ethnicity, foreign nationality and distinct companies.  Tables are never joined row by row; each answers
+# its own question.  Retirement compensation is published by year (2023 to the current year) and by province, regime
+# and sex; each dimension repeats the total of the year.
+SGDE = Path(__file__).resolve().parents[1] / "data" / "series" / "laboral"
+DIMENSIONS = {"base": None, "canton": "canton", "rama": "rama_actividad", "tipo": "tipo_contrato", "etnia": "etnia",
+              "nac": "nacionalidad", "act": "actividad", "empresas": None}
+
+
+def _sgde(name: str) -> pd.DataFrame:
+    path = SGDE / f"contratos_{name}.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    frame = pd.read_parquet(path)
+    return frame.loc[frame.fecha_corte.eq(frame.fecha_corte.max())].copy()
+
+
+def _province_code(name: object) -> str | None:
+    from src import depuracion
+    if not isinstance(name, str) or name in ("Sin provincia", "TOTAL"):
+        return None
+    return depuracion.gazetteer().province(name)
+
+
+_TABLES: dict[str, pd.DataFrame] = {}
+
+
+def contracts(name: str) -> pd.DataFrame:
+    """Latest cut of a contract tabulation, with the DPA code of its province (and canton)."""
+    if name not in _TABLES:
+        frame = _sgde(name)
+        if not frame.empty and "provincia" in frame:
+            codes = {p: _province_code(p) for p in frame.provincia.unique()}
+            frame["provincia_codigo"] = frame.provincia.map(codes)
+            if name == "canton":
+                from src import depuracion
+                gaz = depuracion.gazetteer()
+                pairs = {(p, c): gaz.canton(codes.get(p), c) for p, c in frame[["provincia", "canton"]].drop_duplicates().itertuples(index=False)}
+                frame["canton_codigo"] = [pairs[(p, c)] for p, c in zip(frame.provincia, frame.canton)]
+        _TABLES[name] = frame
+    return _TABLES[name]
+
+
+def retirement_table() -> pd.DataFrame:
+    path = SGDE / "jubilados.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    frame = pd.read_parquet(path)
+    frame = frame.loc[frame.fecha_corte.eq(frame.fecha_corte.max())].copy()
+    frame["monto"] = pd.to_numeric(frame.monto_usd, errors="coerce").astype(float)
+    frame["provincia_codigo"] = frame.codigo.where(frame.dimension.eq("provincia") & frame.codigo.ne(""), None)
+    return frame
+
+
+def sgde_cut() -> dict:
+    """Date and hour of the latest published cut of contracts and of retirement compensation."""
+    from src import corte
+    base = contracts("base")
+    retirement = retirement_table()
+    cut = corte.labour_cut()
+    retirement_cut = pd.Timestamp(retirement.fecha_corte.iloc[0]).date() if not retirement.empty else None
+    return {"contracts": cut, "contracts_label": corte.long_date(cut) if cut else "",
+            "contracts_date": _long_date(cut.date()) if cut else "",
+            "retirement": retirement_cut, "retirement_label": _long_date(retirement_cut) if retirement_cut else "",
+            "has_contracts": not base.empty}
+
+
+def stock(provinces=None, state: str = "Vigente") -> dict:
+    """Contracts of a state (and the registered total) of the country or of the chosen provinces."""
+    base = contracts("base")
+    if base.empty:
+        return {}
+    rows = base.loc[base.provincia_codigo.isin(provinces)] if provinces else base
+    by_state = rows.groupby("estado").contratos.sum()
+    companies = contracts("empresas")
+    if provinces:
+        firms = companies.loc[companies.estado.eq(state) & companies.provincia_codigo.isin(provinces)].empresas
+        firms_total = int(firms.sum()) if len(firms) else None
+    else:
+        total = companies.loc[companies.estado.eq(state) & companies.provincia.eq("TOTAL")].empresas
+        firms_total = int(total.iloc[0]) if len(total) else None
+    return {"vigentes": int(by_state.get("Vigente", 0)), "finalizados": int(by_state.get("Finalizado", 0)),
+            "registrados": int(by_state.sum()), "empresas": firms_total}
+
+
+def by_territory(level: str = "provincia", provinces=None, state: str = "Vigente") -> pd.DataFrame:
+    """Contracts of a state by province or canton, largest first, with the share of the selection."""
+    table = contracts("canton" if level == "canton" else "base")
+    if table.empty:
+        return pd.DataFrame()
+    rows = table.loc[table.estado.eq(state)]
+    if provinces:
+        rows = rows.loc[rows.provincia_codigo.isin(provinces)]
+    keys = ["provincia", "provincia_codigo"] + (["canton", "canton_codigo"] if level == "canton" else [])
+    out = rows.groupby(keys, as_index=False, dropna=False).contratos.sum()
+    total = out.contratos.sum()
+    out["participacion"] = out.contratos / total * 100 if total else 0.0
+    out["nombre"] = out.canton if level == "canton" else out.provincia
+    out["detalle"] = [f"{c} · {p}" for c, p in zip(out.canton, out.provincia)] if level == "canton" else out.provincia
+    return out.sort_values("contratos", ascending=False).reset_index(drop=True)
+
+
+def by_dimension(name: str, column: str, provinces=None, state: str = "Vigente", top: int | None = None) -> pd.DataFrame:
+    """Contracts of a state by one published dimension (branch, type, ethnicity, nationality, sex, age, disability)."""
+    table = contracts(name)
+    if table.empty:
+        return pd.DataFrame(columns=[column, "contratos", "participacion"])
+    rows = table.loc[table.estado.eq(state)]
+    if provinces:
+        rows = rows.loc[rows.provincia_codigo.isin(provinces)]
+    out = rows.groupby(column, as_index=False).contratos.sum().sort_values("contratos", ascending=False)
+    total = out.contratos.sum()
+    out["participacion"] = out.contratos / total * 100 if total else 0.0
+    out = out.reset_index(drop=True)
+    return out.head(top) if top else out
+
+
+def companies_by_province(state: str = "Vigente", provinces=None) -> pd.DataFrame:
+    table = contracts("empresas")
+    if table.empty:
+        return pd.DataFrame()
+    rows = table.loc[table.estado.eq(state) & table.provincia_codigo.notna()]
+    if provinces:
+        rows = rows.loc[rows.provincia_codigo.isin(provinces)]
+    return rows[["provincia", "provincia_codigo", "empresas"]].sort_values("empresas", ascending=False).reset_index(drop=True)
+
+
+def retirement_years(provinces=None) -> pd.DataFrame:
+    """Files and amount of retirement compensation of every published year (the current year to its cut)."""
+    table = retirement_table()
+    if table.empty:
+        return pd.DataFrame()
+    if provinces:
+        rows = table.loc[table.dimension.eq("provincia") & table.provincia_codigo.isin(provinces)]
+        out = rows.groupby(["anio", "parcial", "mes_fin"], as_index=False)[["expedientes", "monto"]].sum()
+    else:
+        out = table.loc[table.dimension.eq("total"), ["anio", "parcial", "mes_fin", "expedientes", "monto"]]
+    out = out.sort_values("anio").reset_index(drop=True)
+    out["promedio"] = out.monto / out.expedientes.where(out.expedientes > 0)
+    return out
+
+
+def retirement_by(dimension: str, year: int, provinces=None) -> pd.DataFrame:
+    """Files and amount of a year by province, regime or sex."""
+    table = retirement_table()
+    if table.empty:
+        return pd.DataFrame()
+    rows = table.loc[table.dimension.eq(dimension) & table.anio.eq(year)]
+    if provinces and dimension == "provincia":
+        rows = rows.loc[rows.provincia_codigo.isin(provinces)]
+    out = rows[["categoria", "provincia_codigo", "expedientes", "monto"]].sort_values("expedientes", ascending=False).reset_index(drop=True)
+    total = out.expedientes.sum()
+    out["participacion"] = out.expedientes / total * 100 if total else 0.0
+    return out

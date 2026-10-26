@@ -69,6 +69,7 @@ def _login_layout():
             st.markdown(
                 f'<div class="login-copy">{logo}<h1>InfoReport</h1>'
                 '<p>Indicadores institucionales por periodo, ámbito y territorio, con reportes listos para compartir.</p>'
+                '<p class="login-slogan"><b>El corazón de Ecuador.</b> Velamos por la calidad de vida de los ecuatorianos</p>'
                 f'<div class="login-map">{_login_map()}</div></div>',
                 unsafe_allow_html=True,
             )

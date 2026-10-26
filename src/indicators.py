@@ -68,11 +68,14 @@ class Module:
     def people_indicator(self) -> Indicator:
         return Indicator("usuarios", self.people, "count", self.people_icon, self.people.lower())
 
-    def indicators(self, year: int, *, executed: bool = False, parishes: bool = False) -> list[Indicator]:
+    def indicators(self, year: int, *, executed: bool = False, parishes: bool = False, budget: bool = True) -> list[Indicator]:
         """Indicators a reader can map and rank, in reading order.
 
         The parish detail carries coverage and the accrued budget; the accumulated budget exists by province only.
+        Months without a territorial budget (``budget=False``) map coverage only.
         """
+        if not budget:
+            return [self.people_indicator(), *self.extra]
         money = self.money(year, executed=executed)
         if parishes:
             return [self.people_indicator(), *self.extra, money["fiscal"]]
@@ -101,8 +104,10 @@ class Module:
     @property
     def people_definition(self) -> str:
         if self.people == "Beneficiarios":
-            return "Personas que reciben cada bono o pensión en el corte; el total suma los beneficiarios de cada programa."
-        return f"Personas atendidas por cada {self.item} en el corte; el total suma los usuarios de cada modalidad."
+            return ("Personas distintas que reciben cada bono o pensión en el mes; el total suma los beneficiarios de cada programa. "
+                    "Pensión Toda Una Vida incluye a las personas adultas y a los menores de edad.")
+        return (f"Personas distintas atendidas en cada modalidad de cada {self.item} en el mes; el total suma los usuarios de cada "
+                "modalidad. Cada territorio cuenta a sus propios usuarios.")
 
 
 EXTRA_DEFINITIONS = {"unidades": "Unidades de atención que prestan cada servicio, propias y en convenio, en el corte."}
@@ -126,9 +131,15 @@ MODULES: dict[str, Module] = {
 AREAS: dict[str, dict] = {
     "transferencias": {"label": "Transferencias monetarias", "short": "Transferencias", "kind": "territorial"},
     "servicios": {"label": "Servicios de protección integral", "short": "Servicios", "kind": "territorial"},
+    "contingencias": {"label": "Contingencias y compensaciones", "short": "Contingencias", "kind": "contingencias",
+                      "description": "Bonos por orfandad por femicidio, cobertura de contingencias y eventos de origen natural o "
+                                     "antrópico, y mecanismos de compensación: personas, montos y presupuesto de cada mes."},
+    "jovenes": {"label": "Jóvenes en Acción", "short": "Jóvenes en Acción", "kind": "jovenes",
+                "description": "Jóvenes registrados y habilitados, transferencias acreditadas y ejecución presupuestaria de "
+                               "cada fase del programa."},
     "laboral": {"label": "Gestión laboral", "short": "Gestión laboral", "kind": "laboral",
-                "description": "Contratos de trabajo vigentes en el país y compensaciones jubilares pagadas a exservidores "
-                               "y extrabajadores públicos."},
+                "description": "Contratos de trabajo vigentes en el país por provincia y cantón, su perfil, y las "
+                               "compensaciones jubilares pagadas a exservidores y extrabajadores públicos."},
     "presupuesto": {"label": "Presupuesto institucional", "short": "Presupuesto", "kind": "presupuesto",
                     "description": "Presupuesto codificado, devengado y ejecución del Ministerio, por programa, zona y "
                                    "grupo de gasto."},
@@ -140,13 +151,6 @@ BUDGET_DEFINITIONS = [
     ("Ejecución presupuestaria", "Presupuesto devengado sobre presupuesto codificado, en porcentaje."),
     ("Saldo por devengar", "Presupuesto codificado menos presupuesto devengado."),
     ("Presupuesto certificado", "Valor certificado que registra la base financiera para cada partida."),
-]
-
-LABOUR_DEFINITIONS = [
-    ("Contratos vigentes", "Contratos de trabajo en estado vigente registrados en el Sistema Único de Trabajo, a la fecha de actualización de la fuente."),
-    ("Contratos registrados en el año", "Contratos registrados cada mes del año que se mantienen vigentes a la fecha de consulta."),
-    ("Expedientes de jubilación compensados", "Expedientes de compensación jubilar acumulados en el año hasta el corte publicado; no representan necesariamente personas únicas."),
-    ("Recursos para compensaciones jubilares", "Monto destinado en el año al pago de compensaciones jubilares, según el balance oficial publicado."),
 ]
 
 

@@ -31,6 +31,7 @@ Las bases se guardan en **Parquet con compresión Zstandard**. Cada serie mensua
 | `antropicos_territorial.parquet` | Mes × criterio × provincia × cantón × tipo | Desglose territorial, con una única versión de cada fuente |
 | `contingencias_territorial.parquet` | Mes × criterio × provincia × cantón × parroquia × tipo | Desglose territorial de contingencias |
 | `jovenes_accion_fase3.parquet` | Corte × fase | Habilitados y presupuesto de la fase; ejecución aprobada frente a la publicada |
+| `jovenes_accion_fases.parquet` | Corte × fase | Las tres fases publicadas por SGDE: registrados, participantes, transferencias, presupuesto y ejecución |
 | `laboral/contratos_base.parquet` | Fecha de corte × estado × sexo × edad × discapacidad × provincia | Total de contratos, vigentes y finalizados |
 | `laboral/contratos_canton.parquet` | Fecha de corte × estado × sexo × edad × discapacidad × provincia × cantón | Territorialización cantonal; no existe parroquia en la fuente |
 | `laboral/contratos_rama.parquet`, `contratos_tipo.parquet`, `contratos_etnia.parquet` | Corte y dimensiones identificadas en cada tabla | Tabulaciones independientes; no unirlas fila a fila |
@@ -50,7 +51,12 @@ El inventario exacto de filas, tamaños, periodos y hashes está en [`series/act
 - El presupuesto social aprobado cubre grupos 58, 57 y 78. El presupuesto institucional y los presupuestos territoriales tienen universos distintos; no sumarlos al presupuesto social.
 - Las nuevas versiones VIS/VIE incluyen tabulaciones nacionales y territoriales independientes de enero a septiembre. Seleccione un solo `nivel_territorial`; sumar provincia, cantón y parroquia triplicaría los registros. La aplicación conserva el detalle operativo anterior por modalidad/cooperante en sus nombres habituales, porque su estructura y presupuesto tienen un alcance distinto.
 - En VIS se usa la modalidad detallada para mantener separados CDI directos, convenios y emblemáticos; se eliminan sus prefijos numéricos de presentación.
-- `codigo_ambiguo` señala un código asociado a distintos nombres en el mismo mes y nivel. Los registros se conservan separados por código y nombre. No unir esas filas a un mapa solo por su código sin revisar la fuente; no se inventa una corrección territorial.
+- `codigo_ambiguo` señala un código asociado a distintos nombres en el mismo mes y nivel. Las series se guardan tal como llegan; la depuración territorial ocurre al leerlas (`src/depuracion.py`) y nunca altera los totales:
+  - si los nombres de un mismo código coinciden (tildes, abreviaturas, «SAN JOSE» frente a «SAN JOSÉ»), el código se conserva;
+  - si provincia, cantón y parroquia identifican otra unidad de la división político-administrativa, la fila se reasigna a ese código;
+  - las bases que solo traen nombres (contingencias y eventos antrópicos) se ubican con el nomenclátor de VIS y VIE: alias de cantones, coincidencia aproximada dentro de la provincia y, como último recurso, el único cantón del país con ese nombre;
+  - lo que no puede ubicarse queda en los totales nacionales y fuera de los mapas. `cleaning_log()` lista cada reasignación.
+- Las bases de contingencias y eventos antrópicos llegan con el mes de su extracción todavía abierto (por ejemplo, octubre al 23). Ese mes no se publica en el tablero ni en los documentos hasta que se cierre con la siguiente entrega; `contingencias.closed_until()` indica el último mes cerrado.
 - Un nulo significa que la fuente no permite medir el dato; un cero existe solo si está documentado.
 - En `resumen_social_mensual`, PTV agrupa adultos y menores para coincidir con el presupuesto. El detalle original se conserva en `bonos_vie`.
 

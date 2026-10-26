@@ -4,8 +4,8 @@ Transfers and services: page 1 holds the institutional plate, four key figures, 
 of the chosen level, the results by program and the findings; page 2 the territorial detail (reach by level,
 ranked tables with coverage, budget and execution, and how each program weighs in the leading territories).
 Institutional budget: page 1 with zones and programs, page 2 with the composition of spending and the executing
-units.  Labour management fits one page.  Same context, palette and fonts (Montserrat and Public Sans, embedded)
-as the slides and the data workbook.
+units.  Contingencies, Jóvenes en Acción, labour management and the social budget are drawn in ``pdf_areas``.  Same
+context, palette and fonts (Montserrat and Public Sans, embedded) as the slides and the data workbook.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.platypus import Paragraph
 
 from src import theme
-from .charts import columns_png, emblem_png, map_png
+from .charts import columns_png, emblem_png, execution_png, map_png, trend_png
 from .context import NO_POLYGON, PRODUCT, millions, number
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -98,6 +98,9 @@ def _wrap(text: str, font: str, size: float, width: float, lines: int = 3) -> li
 
 
 def _heading(c, text: str, x: float, y: float, width: float, note: str = "") -> None:
+    """Section title over a lilac rule; the note at the right only when both fit in full."""
+    if note and pdfmetrics.stringWidth(text, "Display-Bold", 11) + pdfmetrics.stringWidth(note, "Text", 7.4) + 12 > width:
+        note = ""
     c.setFillColor(NIGHT)
     c.setFont("Display-Bold", 11)
     c.drawString(x, y, _clip(text, "Display-Bold", 11, width - (pdfmetrics.stringWidth(note, "Text", 7.4) + 10 if note else 0)))
@@ -147,16 +150,29 @@ def _band(c, ctx: dict, top: float, picture: bytes | None, ratio: float = 3.0 / 
         c.drawImage(logo, M - 4, top - 44, width=30 * iw / ih, height=30, mask="auto")
     c.setFillColor(C("#FFE7A3"))
     c.setFont("Text-Semi", 9)
-    c.drawString(M, top - 64, f"{kind_label} · {ctx['period_label']}")
+    c.drawString(M, top - 61, f"{kind_label} · {ctx['period_label']}")
     title = ctx["title"]
     size = _fit(title, "Display", 23, W - 2 * M - 200, 14)
     c.setFillColor(colors.white)
     c.setFont("Display", size)
-    c.drawString(M, top - 92, title)
+    c.drawString(M, top - 88, title)
     c.setFillColor(C("#E4DBF3"))
     c.setFont("Text", 9.5)
-    c.drawString(M, top - 111, _clip(f"{ctx['territory_label']} · {ctx['programs_label']}", "Text", 9.5, W - 2 * M - 200))
+    c.drawString(M, top - 105, _clip(f"{ctx['territory_label']} · {ctx['programs_label']}", "Text", 9.5, W - 2 * M - 200))
+    _update_line(c, ctx, M, top - 121, W - 2 * M - 200)
     return bottom - 4
+
+
+def _update_line(c, ctx: dict, x: float, y: float, width: float) -> None:
+    """Cut, update and frequency of the information, with a clock, on a purple plate."""
+    update = ctx.get("update") or {}
+    if not update.get("line"):
+        return
+    _icon(c, "clock", "oro", x, y - 2.2, 8.4)
+    c.setFillColor(C("#CDBFE6"))
+    c.setFont("Text-Medium", 7.4)
+    text = update["line"] if pdfmetrics.stringWidth(update["line"], "Text-Medium", 7.4) <= width - 12 else update.get("short", update["line"])
+    c.drawString(x + 12, y, _clip(text, "Text-Medium", 7.4, width - 12))
 
 
 def _slim_band(c, ctx: dict, title: str, subtitle: str) -> float:
@@ -171,8 +187,9 @@ def _slim_band(c, ctx: dict, title: str, subtitle: str) -> float:
     c.setFont("Text-Semi", 8.4)
     c.drawString(M, top - 26, f"{ctx['title']} · {ctx['period_label']}")
     c.setFillColor(colors.white)
-    c.setFont("Display", 18)
-    c.drawString(M, top - 48, title)
+    room = W - 2 * M - 150
+    c.setFont("Display", _fit(title, "Display", 18, room, 12))
+    c.drawString(M, top - 48, _clip(title, "Display", _fit(title, "Display", 18, room, 12), room))
     c.setFillColor(C("#E4DBF3"))
     c.setFont("Text", 8.6)
     c.drawString(M, top - 63, _clip(subtitle, "Text", 8.6, W - 2 * M - 160))
@@ -180,10 +197,13 @@ def _slim_band(c, ctx: dict, title: str, subtitle: str) -> float:
 
 
 def _kpis(c, ctx: dict, top: float) -> float:
+    """Up to four key figures; fewer cards share the whole width, so the row never leaves an empty slot."""
     gap, height = 10, 74
-    width = (W - 2 * M - gap * 3) / 4
+    cards = ctx["kpis"][:4]
+    count = max(1, len(cards))
+    width = (W - 2 * M - gap * (count - 1)) / count
     share_word = ctx.get("share_word", "del total nacional")
-    for i, kpi in enumerate(ctx["kpis"][:4]):
+    for i, kpi in enumerate(cards):
         x = M + i * (width + gap)
         y = top - height
         c.setFillColor(MIST)
@@ -266,17 +286,27 @@ def _picture(c, data: bytes, x: float, top: float, width: float, ratio: float) -
     return top - height
 
 
+SLOGAN = ("El corazón de Ecuador.", "Velamos por la calidad de vida de los ecuatorianos")
+
+
 def _footer(c, ctx: dict, page: int | None = None, pages: int | None = None) -> None:
+    """Source, generation date and page; under them, the institutional slogan."""
     c.setStrokeColor(LINE)
     c.setLineWidth(0.8)
-    c.line(M, 42, W - M, 42)
+    c.line(M, 44, W - M, 44)
     c.setFillColor(MUTED)
-    c.setFont("Text", 7.6)
-    c.drawString(M, 30, f"{ctx['institution']} · {PRODUCT}")
-    right = f"{ctx['source']} · {ctx['generated_label'].capitalize()}"
+    c.setFont("Text", 7.4)
+    c.drawString(M, 33, f"{ctx['source']} · {PRODUCT}")
+    right = f"Generado el {ctx['generated_label']}"
     if pages and pages > 1:
         right += f" · Página {page} de {pages}"
-    c.drawRightString(W - M, 30, right)
+    c.drawRightString(W - M, 33, right)
+    c.setFillColor(C(theme.ORO_700))
+    c.setFont("Display-Bold", 7.4)
+    c.drawString(M, 21, SLOGAN[0])
+    c.setFillColor(C(theme.MORADO))
+    c.setFont("Text-Medium", 7.4)
+    c.drawString(M + pdfmetrics.stringWidth(SLOGAN[0] + " ", "Display-Bold", 7.4), 21, SLOGAN[1])
 
 
 def _next_page(c, ctx: dict, page: int, pages: int) -> None:
@@ -326,8 +356,11 @@ def _cell(value, kind: str) -> str:
         return "—"
     if kind == "int":
         return number(value)
-    if kind in ("pct", "share"):
+    if kind in ("pct", "share", "rate"):
         return f"{number(value, 1)} %"
+    if kind == "spct":
+        sign = "+" if value > 0.05 else ("−" if value < -0.05 else "")
+        return f"{sign}{number(abs(value), 1)} %"
     if kind == "mill":
         return millions(value, 1)
     return str(value)
@@ -337,8 +370,8 @@ def _table(c, x: float, top: float, width: float, columns: list[tuple], rows: li
            header_h: float = 22) -> float:
     """Ranked table: ``columns`` are (header, key, width, kind) with one ``None`` width that takes the rest.
 
-    Kinds: ``text``, ``center``, ``int``, ``pct``, ``mill`` and ``share`` (a percentage over a thin bar).
-    ``selected`` rows read in gold.
+    Kinds: ``text``, ``center``, ``int``, ``pct``, ``mill``, ``share`` (a percentage over a thin bar relative to the
+    largest) and ``rate`` (a percentage over a 0–100 track).  ``selected`` rows read in gold.
     """
     fixed = sum(w for _h, _k, w, _kind in columns if w)
     widths = [w if w else width - fixed for _h, _k, w, _kind in columns]
@@ -378,14 +411,14 @@ def _table(c, x: float, top: float, width: float, columns: list[tuple], rows: li
                 c.setFillColor(MUTED)
                 c.setFont("Text-Semi", 7.4)
                 c.drawCentredString(cx + w / 2, base, text)
-            elif kind == "share":
+            elif kind in ("share", "rate"):
                 c.setFillColor(INK)
                 c.setFont("Text-Semi", 7.6)
                 c.drawRightString(cx + w - 6, base, text)
                 track = w - 46
                 c.setFillColor(C("#EBE7F2"))
                 c.roundRect(cx + 6, y + row_h / 2 - 1.6, track, 3.2, 1.6, stroke=0, fill=1)
-                fraction = max(0.0, min(1.0, (value or 0) / peaks[key]))
+                fraction = max(0.0, min(1.0, (value or 0) / (100.0 if kind == "rate" else peaks[key])))
                 if fraction:
                     c.setFillColor(GOLD if chosen else C(theme.LILA_300))
                     c.roundRect(cx + 6, y + row_h / 2 - 1.6, max(3.2, track * fraction), 3.2, 1.6, stroke=0, fill=1)
@@ -464,16 +497,33 @@ def _territorial(c, ctx: dict, pages: int) -> None:
     picture = map_png(chosen_map["values"], layer=chosen_map["layer"], focus=focus, selected=selected, mode="light",
                       label=f"{people} por {word}", width=5.0, height=4.6, dpi=220)
     _picture(c, picture, M - 6, top - 22, column + 12, 4.6 / 5.0)
-    # The territories are detailed on page 2; next to the map, how each program executes (or what it receives).
+    # The territories are detailed on page 2; next to the map, how each program executes (or what it receives), or
+    # the year month by month when the cut has no budget.
     x = M + column + 22
     funded = sorted([p for p in ctx["programs"] if p.get("coded") or p.get("fiscal")],
                     key=lambda p: -(p.get("coded") or p.get("fiscal") or 0))[:8]
-    if ctx.get("executed_available"):
-        _heading(c, f"Ejecución presupuestaria por {labels['item']}", x, top - 12, column)
+    monthly = ctx.get("monthly")
+    if ctx.get("executed_available") and funded:
+        span = ctx.get("month_span")
+        _heading(c, f"Ejecución presupuestaria por {labels['item']}", x, top - 12, column, span.capitalize() if span else "")
         _bars(c, _rate_rows(funded), x, top - 36, column, 29.5)
-    else:
+    elif ctx.get("reference_budget") and funded:
         _heading(c, f"{labels['fiscal']} por {labels['item']}", x, top - 12, column)
         _bars(c, _count_rows(funded, "fiscal", "short", money=True), x, top - 36, column, 29.5)
+    elif monthly and monthly.get("changes"):
+        # Without a budget in the cut, the change of each program in the year (the monthly series is on page 2).
+        first, end = monthly["window"]
+        changes = sorted(monthly["changes"], key=lambda r: -r["change"])[:8]
+        _heading(c, f"Variación por {labels['item']}", x, top - 12, column, f"De {first} a {end}")
+        before, after = sum(r["first"] for r in monthly["changes"]), sum(r["last"] for r in monthly["changes"])
+        if before:
+            delta = after - before
+            c.setFillColor(C(theme.PIZARRA))
+            c.setFont("Text", 8.2)
+            sign = "+" if delta > 0 else ("−" if delta < 0 else "")
+            c.drawString(x, top - 34, _clip(f"{number(before)} en {first} y {number(after)} en {end} "
+                                            f"({sign}{number(abs(delta) / before * 100, 1)} %)", "Text", 8.2, column))
+        _change_bars(c, changes, x, top - 58, column, 28)
     top -= 288
     _heading(c, f"{people} por {labels['item']}", M, top - 12, column)
     programs = [p for p in ctx["programs"] if (p["people"] or 0) > 0][:8] or ctx["programs"][:8]
@@ -494,20 +544,87 @@ def _territorial(c, ctx: dict, pages: int) -> None:
 
 
 def _territory_columns(ctx: dict, level: str) -> list[tuple]:
+    """Columns of a territorial table: the budget only where territories carry it (latest cut, annual references)."""
     labels = ctx["labels"]
-    executed = ctx.get("executed_available")
     columns = [("N.º", "position", 24, "center"), (LEVEL_LABELS[level], "place", None, "text"),
                (labels["people"], "people", 62, "int"), ("Participación", "share", 86, "share")]
     if labels.get("units"):
         columns.append(("Unidades", "units", 52, "int"))
-    if executed:
+    if ctx.get("territorial_budget"):
         columns += [("Ejecutado\n(millones de USD)", "fiscal", 72, "mill"), ("Ejecución", "execution", 52, "pct")]
-    elif level == "provincia":
+    elif ctx.get("reference_budget") and level == "provincia":
         columns += [(f"Presupuesto {ctx['year']}\n(millones de USD)", "fiscal", 76, "mill"),
                     ("Acumulado\n(millones de USD)", "government", 72, "mill")]
-    else:
+    elif ctx.get("reference_budget"):
         columns.append((f"Presupuesto {ctx['year']}\n(millones de USD)", "fiscal", 76, "mill"))
     return columns
+
+
+def _change_bars(c, rows: list[dict], x: float, top: float, width: float, row_h: float) -> float:
+    """Change of each program between two months: increases in purple to the right, decreases in fuchsia to the left."""
+    label_w = width * 0.5
+    mid = x + label_w + (width - label_w) / 2
+    reach = max([abs(r["change"]) for r in rows] or [1]) or 1
+    half = (width - label_w) / 2 - 30
+    y = top
+    for row in rows:
+        c.setFillColor(INK)
+        c.setFont("Text-Medium", 7.8)
+        c.drawRightString(x + label_w - 6, y - 2.6, _clip(row["short"], "Text-Medium", 7.8, label_w - 10))
+        length = max(2.0, half * abs(row["change"]) / reach) if row["change"] else 0
+        color = C(theme.SERIE_BONOS) if row["change"] >= 0 else C(theme.FUCSIA)
+        c.setFillColor(color)
+        if row["change"] >= 0:
+            c.roundRect(mid, y - 5, length, 7, 2, stroke=0, fill=1)
+        else:
+            c.roundRect(mid - length, y - 5, length, 7, 2, stroke=0, fill=1)
+        text = ("+" if row["change"] > 0 else ("−" if row["change"] < 0 else "")) + number(abs(row["change"]))
+        c.setFillColor(INK)
+        c.setFont("Text-Bold", 7.4)
+        if row["change"] >= 0:
+            c.drawString(mid + length + 4, y - 3.4, text)
+        else:
+            c.drawRightString(mid - length - 4, y - 3.4, text)
+        y -= row_h
+    c.setStrokeColor(C(theme.PIZARRA))
+    c.setLineWidth(0.6)
+    c.line(mid, top + 6, mid, y + row_h - 8)
+    return y
+
+
+def _monthly_block(c, ctx: dict, top: float, width: float, height: float = 120) -> float:
+    """The year month by month on page 2: people, and the accumulated execution of the budget, the units of attention or
+    the monthly table."""
+    monthly = ctx.get("monthly")
+    if not monthly:
+        return top
+    labels = ctx["labels"]
+    months = monthly["months"]
+    selected_index = next((i for i, m in enumerate(months) if m["selected"]), None)
+    shorts = [m["short"] for m in months]
+    column = (width - 22) / 2
+    span = f"{months[0]['label']} a {months[-1]['label'].lower()} de {monthly['year']}"
+    _heading(c, f"{labels['people']} por mes", M, top, column, span)
+    ratio = height / column
+    picture = trend_png(shorts, [m["people"] for m in months], highlight=selected_index, width=4.6, height=4.6 * ratio)
+    _picture(c, picture, M - 4, top - 10, column + 8, ratio)
+    x = M + column + 22
+    if monthly.get("budget"):
+        _heading(c, "Ejecución presupuestaria acumulada", x, top, column, "Total nacional")
+        picture = execution_png(shorts, [m["execution"] for m in months], [m["month"] for m in months], highlight=selected_index,
+                                width=4.6, height=4.6 * ratio)
+        _picture(c, picture, x - 4, top - 10, column + 8, ratio)
+    elif labels.get("units") and any(m["units"] for m in months):
+        _heading(c, f"{labels['units']} por mes", x, top, column, span)
+        picture = trend_png(shorts, [m["units"] for m in months], highlight=selected_index, width=4.6, height=4.6 * ratio,
+                            color=theme.VIOLETA_500)
+        _picture(c, picture, x - 4, top - 10, column + 8, ratio)
+    else:
+        _heading(c, "Serie mensual", x, top, column)
+        rows = [{"place": m["label"], "people": m["people"], "change": m["change"], "selected": m["selected"]} for m in months]
+        _table(c, x, top - 12, column, [("Mes", "place", None, "text"), (labels["people"], "people", 86, "int"),
+                                        ("Variación", "change", 70, "int")], rows, row_h=10.4, header_h=15)
+    return top - 10 - (column + 8) * ratio
 
 
 def _territory_table_rows(ctx: dict, level: str, limit: int) -> list[dict]:
@@ -526,14 +643,20 @@ def _territorial_detail(c, ctx: dict) -> None:
     people_lower = labels["people"].lower()
     levels = ctx.get("levels") or ["provincia"]
     subtitle = f"{ctx['territory_label']} · {ctx['programs_label']}"
-    y = _slim_band(c, ctx, "Detalle territorial", subtitle)
+    monthly = ctx.get("monthly")
+    y = _slim_band(c, ctx, "Evolución mensual y detalle territorial" if monthly else "Detalle territorial", subtitle)
+    width = W - 2 * M
+    if monthly:
+        y = _monthly_block(c, ctx, y - 24, width) + 4
     tiles = ctx.get("reach_tiles") or []
     if tiles:
         y = _reach_tiles(c, tiles, M, y - 16, W - 2 * M)
     many = len(levels) > 1
-    width = W - 2 * M
     for level in levels:
-        limit = 10 if many else (24 if level == "provincia" else 20)
+        if monthly:
+            limit = 7 if many else 13
+        else:
+            limit = 10 if many else (24 if level == "provincia" else 20)
         rows = _territory_table_rows(ctx, level, limit)
         if not rows:
             continue
@@ -624,76 +747,10 @@ def _budget_detail(c, ctx: dict) -> None:
             _findings(c, [item], M + index * (half + 12), y - 38, half, limit=1)
 
 
-# -------------------------------------------------------------------------------------------------- labour
-def _labour(c, ctx: dict, pages: int) -> None:
-    months = ctx["months"]
-    labels, values = [m["short"] for m in months], [m["value"] for m in months]
-    average = ctx["info"]["average"]
-    y = _band(c, ctx, H, emblem_png())
-    y = _kpis(c, ctx, y - 18)
-    top = y - 20
-    full = W - 2 * M
-    _heading(c, f"Contratos registrados por mes en {ctx['year']} que siguen vigentes", M, top - 12, full)
-    legend = f"Promedio mensual: {number(average)}"
-    c.setFont("Text-Semi", 7.6)
-    c.setFillColor(C(theme.ORO_700))
-    c.drawRightString(W - M, top - 26, legend)
-    c.setStrokeColor(GOLD)
-    c.setLineWidth(1.4)
-    c.setDash(1.2, 2.6)
-    end = W - M - pdfmetrics.stringWidth(legend, "Text-Semi", 7.6) - 6
-    c.line(end - 18, top - 23.5, end, top - 23.5)
-    c.setDash()
-    picture = columns_png(labels, values, mode="light", width=7.6, height=2.9, dpi=220, average=average)
-    bottom = _picture(c, picture, M - 4, top - 30, full + 8, 2.9 / 7.6)
-    top = bottom - 14
-    column = (full - 22) / 2
-    info = ctx["info"]
-    bar_y = top - 58
-    if info.get("same_cut", True):
-        _heading(c, "Contratos vigentes según su registro", M, top - 12, column)
-        share = (info["cohorts_share"] or 0) / 100
-        bar_y = top - 58
-        c.setFillColor(C(theme.LILA_200))
-        c.roundRect(M, bar_y, column, 18, 4, stroke=0, fill=1)
-        c.setFillColor(C(theme.SERIE_BONOS))
-        c.roundRect(M, bar_y, max(8, column * share), 18, 4, stroke=0, fill=1)
-        c.setFillColor(colors.white)
-        c.setFont("Text-Bold", 8.4)
-        c.drawString(M + 6, bar_y + 6, f"{number(info['cohorts_share'], 1)} %")
-        c.setFillColor(NIGHT)
-        c.drawRightString(M + column - 6, bar_y + 6, f"{number(100 - (info['cohorts_share'] or 0), 1)} %")
-        legend = [(C(theme.SERIE_BONOS), f"Registrados de {ctx['span']} de {ctx['year']}: {number(info['cohorts'])}"),
-                  (C(theme.LILA_200), f"Registrados en otros periodos: {number(info['stock'] - info['cohorts'])}")]
-        for index, (color, text) in enumerate(legend):
-            ly = bar_y - 22 - index * 16
-            c.setFillColor(color)
-            c.roundRect(M, ly, 9, 9, 2, stroke=0, fill=1)
-            c.setFillColor(INK)
-            c.setFont("Text-Medium", 8.4)
-            c.drawString(M + 15, ly + 1.5, text)
-    else:
-        _heading(c, "Fechas de referencia", M, top - 12, column)
-        c.setFont("Text-Medium", 8.4)
-        c.drawString(M, bar_y, f"Stock: {info['stock_label']}")
-        c.drawString(M, bar_y - 18, f"Serie mensual: {info['cohorts_label']}")
-    sources_y = bar_y - 80
-    _heading(c, "Fuentes de información", M, sources_y, column)
-    style = ParagraphStyle("src", fontName="Text", fontSize=8.2, leading=11, textColor=INK)
-    y = sources_y - 22
-    for label, origin, _url in ctx["sources"]:
-        para = Paragraph(f"<b>{escape(label)}</b><br/>{escape(origin)}", style)
-        _w, h = para.wrap(column, 60)
-        para.drawOn(c, M, y - h)
-        y -= h + 10
-    x = M + column + 22
-    _heading(c, "Aspectos destacados", x, top - 12, column)
-    _findings(c, ctx["insights"], x, top - 26, column, limit=4)
-
-
 def page_count(context: dict) -> int:
-    """Pages of the summary: two for the territorial areas and the budget, one for labour management."""
-    return 1 if context.get("kind") == "laboral" else 2
+    """Pages of the summary: two, except the areas that fit one (Jóvenes en Acción)."""
+    from .pdf_areas import PAGES
+    return PAGES.get(context.get("kind"), 2)
 
 
 def generate_pdf(context: dict) -> bytes:
@@ -707,7 +764,9 @@ def generate_pdf(context: dict) -> bytes:
     c.setFillColor(colors.white)
     c.rect(0, 0, W, H, stroke=0, fill=1)
     pages = page_count(context)
-    {"presupuesto": _budget, "laboral": _labour}.get(context.get("kind"), _territorial)(c, context, pages)
+    from .pdf_areas import RENDERERS
+    renderers = {"presupuesto": _budget, **RENDERERS}
+    renderers.get(context.get("kind"), _territorial)(c, context, pages)
     _footer(c, context, pages, pages)
     c.showPage()
     c.save()

@@ -9,10 +9,10 @@ from openpyxl import load_workbook
 from pptx import Presentation
 
 from src.data import filter_data, load_periods, load_territory
-from src.gestion_laboral import load_labour, summary
+from src.gestion_laboral import load_labour
 from src.institutional import catalog as budget_catalog, load_budget
 from src.reports import build_report_context, generate_pdf, generate_pptx, generate_xlsx
-from src.reports.national import budget_context, labour_context
+from src.reports.national import budget_context
 
 BANNED = ["N/D", "No aplica", "no disponible", "No disponible", "Excel", "fuente_", "no certifica",
           "no documentado", "registros", "Selección ", "deduplicación", "no sumar", "sin identificadores", "fase presupuestaria"]
@@ -40,8 +40,40 @@ def budget():
 
 @pytest.fixture(scope="module")
 def labour():
-    period = {"id": "2026", "year": 2026, "month": None, "label": "Año 2026"}
-    return labour_context(summary(load_labour()), title="Gestión laboral", period=period)
+    from src.views.laboral import LabourView
+    view = LabourView(load_labour())
+    view.select(view.catalog()[0])
+    assert view.prepare()
+    return view.report_context("Gestión laboral")
+
+
+@pytest.fixture(scope="module")
+def contingencies():
+    from src import contingencias
+    from src.views.contingencias import ContingencyView
+    view = ContingencyView(contingencias.monthly(), contingencias.territorial(), contingencias.catalog())
+    view.select(next(p for p in view.catalog() if p["id"] == "2026-09"))
+    assert view.prepare()
+    return view.report_context("Contingencias y compensaciones")
+
+
+@pytest.fixture(scope="module")
+def youth():
+    from src.views.jovenes import YouthView
+    view = YouthView()
+    view.select(view.catalog()[0])
+    assert view.prepare()
+    return view.report_context("Jóvenes en Acción")
+
+
+@pytest.fixture(scope="module")
+def social():
+    from src import presupuesto_social
+    from src.views.presupuesto import SocialBudgetView
+    view = SocialBudgetView(*presupuesto_social.load_social_budget())
+    view.select(view.catalog()[0])
+    assert view.prepare()
+    return view.report_context("Presupuesto social")
 
 
 def _period(data, period_id):
@@ -107,20 +139,20 @@ def test_selected_province_keeps_its_national_place_and_its_parishes(periods, pa
     data, _ = periods
     context = _context(data, parishes, "proteccion_integral", provinces=["09"])
     assert context["territory_label"] == "Guayas"
-    assert context["totals"]["people"] == 88004
+    assert context["totals"]["people"] == 87600
     assert all(k["share"] is not None for k in context["kpis"])
     assert "primer lugar" in context["insights"][1]["text"]
     guayas = next(p for p in context["provinces"] if p["code"] == "09")
     assert guayas["selected"] and guayas["position"] == 1
     assert context["map_focus"] == ["09"]
     assert {r["province_code"] for r in context["parish"]["rows"]} == {"09"}
-    assert sum(r["people"] or 0 for r in context["parish"]["rows"]) == 88004
+    assert sum(r["people"] or 0 for r in context["parish"]["rows"]) == 87600
     assert context["parish"]["top"][0]["parish"] == "Tarqui"
 
 
-def test_documents_use_formal_wording_without_technical_notes(periods, parishes, budget, labour):
+def test_documents_use_formal_wording_without_technical_notes(periods, parishes, budget, labour, contingencies, youth, social):
     data, catalog = periods
-    contexts = [budget, labour]
+    contexts = [budget, labour, contingencies, youth, social]
     for period in catalog:
         for section in ["bonos_pensiones", "proteccion_integral"]:
             contexts.append(_context(data, parishes, section, period["id"]))
@@ -250,19 +282,63 @@ def test_budget_exports_read_execution_by_program_and_zone(budget):
 
 
 def test_labour_exports_keep_each_figure_with_its_reference(labour):
-    from src.gestion_laboral import load_labour, summary
-    from src.reports.context import number, millions
-    current = summary(load_labour())
-    assert labour["info"]["stock"] == current["stock"] and labour["info"]["cohorts"] == 507451
-    assert not labour["kpis"][3]["lower_bound"]
-    text = _pdf_text(generate_pdf(labour), pages=1)
-    for expected in ["Gestión laboral", number(current["stock"]), "507.451", f"USD {millions(current['compensation'], 0)} M", "Fuentes de información"]:
-        assert expected in text
+    assert labour["stock"]["vigentes"] == 2789748 and labour["levels"] == ["provincia", "canton"]
+    assert labour["update"]["frequency"] == "Actualización diaria"
+    text = _pdf_text(generate_pdf(labour), pages=2)
+    for expected in ["Gestión laboral", "2.789.748", "325.877", "Contratos vigentes por provincia", "Perfil de los contratos vigentes",
+                     "Compensación jubilar por año", "Contratos registrados por mes en 2026", "El corazón de Ecuador."]:
+        assert expected in text, expected
     deck, texts = _deck_texts(generate_pptx(labour))
-    assert len(deck.slides) == 3 and "Contratación laboral" in texts and "Compensaciones jubilares" in texts
-    charts = [shape for shape in deck.slides[1].shapes if shape.has_chart]
-    assert len(charts) == 1 and len(charts[0].chart.plots[0].categories) == 9
+    assert len(deck.slides) == 5 and "Compensación jubilar" in texts and "Perfil y actividad económica" in texts
     book = load_workbook(BytesIO(generate_xlsx(labour)))
-    assert book.sheetnames == ["Resumen", "Contratos por mes", "Ficha técnica"]
+    assert book.sheetnames == ["Resumen", "Provincias", "Cantones", "Perfil y actividad", "Jubilación", "Contratos por mes", "Ficha técnica"]
     links = [c.hyperlink.target for row in book["Ficha técnica"].iter_rows() for c in row if c.hyperlink]
     assert any("sgde-indicadores.github.io" in (link or "") for link in links)
+
+
+def test_contingency_exports_read_each_program_with_its_criterion(contingencies):
+    assert contingencies["period_label"] == "Septiembre 2026" and contingencies["levels"] == ["provincia", "canton", "parroquia"]
+    assert [k["label"] for k in contingencies["kpis"]] == ["Orfandad por femicidio", "Cobertura de contingencias",
+                                                           "Eventos naturales y antrópicos", "Presupuesto devengado 2026"]
+    assert round(contingencies["budget"]["execution"], 1) == 87.8
+    text = _pdf_text(generate_pdf(contingencies), pages=2)
+    for expected in ["Contingencias y compensaciones", "464", "3.403", "USD 83.681", "Bonos habilitados por provincia",
+                     "Resultados por programa", "Evolución mensual de cada programa", "Pago acreditado", "Corte: septiembre de 2026"]:
+        assert expected in text, expected
+    deck, texts = _deck_texts(generate_pptx(contingencies))
+    assert len(deck.slides) == 5 and "Resultados por programa" in texts and "Presupuesto" in texts
+    book = load_workbook(BytesIO(generate_xlsx(contingencies)))
+    assert book.sheetnames == ["Resumen", "Programas", "Serie mensual", "Provincias", "Cantones", "Parroquias", "Tipos", "Ficha técnica"]
+    assert book["Parroquias"].max_row > 300, "El libro trae cada parroquia con bonos habilitados"
+
+
+def test_open_months_are_not_published():
+    from src import contingencias
+    assert contingencias.closed_until() == "2026-09"
+    assert all(p["id"] <= "2026-09" for p in contingencias.catalog())
+    assert contingencias.monthly().periodo_id.max() == "2026-09" and contingencias.territorial().periodo_id.max() == "2026-09"
+
+
+def test_youth_summary_fits_one_page(youth):
+    assert youth["info"]["phase"] == 3 and [p["participants"] for p in youth["phases"]] == [75467, 80000, 150000]
+    text = _pdf_text(generate_pdf(youth), pages=1)
+    for expected in ["Jóvenes en Acción", "150.000", "637.808 jóvenes", "Presupuesto, ejecución y pagos por fase", "Pagos acreditados por mes",
+                     "84,5 % de los habilitados"]:
+        assert expected in text, expected
+    deck, texts = _deck_texts(generate_pptx(youth))
+    assert len(deck.slides) == 4 and "Fases del programa" in texts
+    book = load_workbook(BytesIO(generate_xlsx(youth)))
+    assert book.sheetnames == ["Resumen", "Fases", "Pagos por mes", "Presupuesto", "Ficha técnica"]
+
+
+def test_social_budget_exports_read_the_pace_of_the_year(social):
+    assert round(social["stats"]["execution"], 1) == 73.5 and len(social["programs"]) == 13
+    assert round(social["closing"]["required"] / 1e6, 1) == 151.3
+    text = _pdf_text(generate_pdf(social), pages=2)
+    for expected in ["Presupuesto social", "USD 1.715,7 M", "Presupuesto devengado por mes", "Ritmo necesario de octubre a diciembre",
+                     "Devengado de cada programa por mes", "Bono de Desarrollo Humano (BDH y BDHV)"]:
+        assert expected in text, expected
+    deck, texts = _deck_texts(generate_pptx(social))
+    assert len(deck.slides) == 4 and "Detalle por programa" in texts
+    book = load_workbook(BytesIO(generate_xlsx(social)))
+    assert book.sheetnames == ["Resumen", "Programas", "Programa y mes", "Ficha técnica"]

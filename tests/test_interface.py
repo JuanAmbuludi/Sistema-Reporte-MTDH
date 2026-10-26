@@ -59,11 +59,14 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert html.count("<svg") >= 1 and "ec-map" in html and 'class="ec-mosaic"' in html, "El encabezado incluye el mapa parroquial"
     assert "Beneficiarios por parroquia" in html
     assert "1.578.019" in html and "71,0" in html
-    assert "reach-strip" in html and "reúnen la mitad de los beneficiarios" in html and "1.283" in html
+    assert "reach-strip" in html and "reúnen la mitad de los beneficiarios" in html and "1.256" in html
     for banned in BANNED:
         assert banned not in html, banned
     assert "Corte septiembre 2026" in html
-    assert app.segmented_control(key="module").options == ["Transferencias", "Servicios", "Gestión laboral", "Presupuesto"]
+    assert "update-stamp" in html and "Actualizado el" in html and "Actualización mensual" in html, "Corte y frecuencia visibles"
+    assert "El corazón de Ecuador." in html and "Velamos por la calidad de vida de los ecuatorianos" in html, "Eslogan institucional"
+    assert app.segmented_control(key="module").options == ["Transferencias", "Servicios", "Contingencias", "Jóvenes en Acción",
+                                                           "Gestión laboral", "Presupuesto"]
 
 
 def test_every_territorial_chart_switches_between_province_canton_and_parish():
@@ -89,8 +92,10 @@ def test_services_are_never_mixed_with_transfers():
     assert not app.exception
     html = _markdown(app)
     assert "Servicios de protección integral" in html
-    assert "456.356" in html and "11.215" in html and "47,2" in html
+    assert "453.994" in html and "11.215" in html and "47,2" in html
     assert "1.578.019" not in html and "2.034.375" not in html
+    assert "Geoportal de unidades de atención y amenazas" in html, "El geoportal acompaña a los servicios"
+    assert any(b.url == "https://geoportal.trabajo.gob.ec/ua_amenazas" for b in app.get("link_button")), "Enlace al geoportal"
 
 
 def test_periods_can_be_chosen_by_year():
@@ -157,9 +162,64 @@ def test_labour_management_shows_contracts_and_retirement():
     app.segmented_control(key="module").set_value("laboral").run()
     assert not app.exception
     html = _markdown(app)
-    from src.gestion_laboral import load_labour, summary
-    from src.ui import number
-    current = summary(load_labour())
-    for expected in ["Gestión laboral", number(current["stock"]), "507.451", number(current["retirees"]), "USD", "Contratos registrados por mes", "ec-columns"]:
+    for expected in ["Gestión laboral", "2.789.748", "325.877", "4.686", "Actualización diaria", "Contratos vigentes por provincia",
+                     "Perfil de los contratos vigentes", "Compensación jubilar", "Contratos registrados por mes"]:
         assert expected in html, expected
+    app.multiselect(key="labour_provinces").set_value(["09"]).run()
+    assert not app.exception and "Gestión laboral en Guayas" in _markdown(app) and "890.175" in _markdown(app)
+    app.segmented_control(key="workspace").set_value("Reportes").run()
+    assert app.segmented_control(key="report_level_labour").options == ["Provincia", "Cantón", "Todo"]
+    app.segmented_control(key="workspace").set_value("Tablero").run()
+    _generate_every_product(app)
+
+
+def test_contingencies_show_closed_months_with_the_criterion_of_each_source():
+    app = _logged_in_app()
+    app.segmented_control(key="module").set_value("contingencias").run()
+    assert not app.exception
+    assert app.segmented_control(key="period_year").options == ["2026", "2025", "2024", "2023"]
+    assert app.segmented_control(key="period_month").options[-1] == "Sep", "Octubre no se publica hasta que cierre el mes"
+    html = _markdown(app)
+    for expected in ["Contingencias y compensaciones", "Orfandad por femicidio", "Cobertura de contingencias", "464", "3.403",
+                     "USD 83.681 acreditados", "Presupuesto devengado 2026", "87,8 % del aprobado", "Bonos habilitados por provincia",
+                     "Geoportal de unidades de atención y amenazas", "Evolución mensual"]:
+        assert expected in html, expected
+    for banned in BANNED:
+        assert banned not in html, banned
+    app.segmented_control(key="cont_map_program").set_value("ANTROPICOS").run()
+    assert not app.exception and app.segmented_control(key="cont_map_level").options == ["Provincia", "Cantón", "Parroquia"]
+    app.multiselect(key="cont_programs").set_value(["ORFANDAD_VIOLENCIA"]).run()
+    assert not app.exception and "Orfandad por femicidio" in _markdown(app)
+    app.multiselect(key="cont_programs").set_value([]).run()
+    app.segmented_control(key="workspace").set_value("Reportes").run()
+    assert app.segmented_control(key="report_level_cont").value == "todo"
+    app.segmented_control(key="workspace").set_value("Tablero").run()
+    _generate_every_product(app)
+
+
+def test_youth_area_reads_the_phases_and_the_current_phase():
+    app = _logged_in_app()
+    app.segmented_control(key="module").set_value("jovenes").run()
+    assert not app.exception
+    html = _markdown(app)
+    for expected in ["Jóvenes en Acción", "150.000", "637.808", "Fases del programa", "Del registro al pago", "Pagos acreditados por mes",
+                     "Actualización mensual"]:
+        assert expected in html, expected
+    _generate_every_product(app)
+
+
+def test_budget_offers_the_institutional_and_the_social_budget():
+    app = _logged_in_app()
+    app.segmented_control(key="module").set_value("presupuesto").run()
+    assert not app.exception
+    assert app.segmented_control(key="budget_universe").options == ["Institucional", "Social"]
+    app.segmented_control(key="budget_universe").set_value("social").run()
+    assert not app.exception
+    assert len(app.segmented_control(key="period_month").options) == 9
+    html = _markdown(app)
+    for expected in ["Presupuesto social", "1.715,7", "1.261,8", "73,5", "Ritmo necesario de octubre a diciembre",
+                     "Por programa presupuestario", "Ejecución acumulada por mes"]:
+        assert expected in html, expected
+    app.multiselect(key="social_groups").set_value(["BDH_BDHV"]).run()
+    assert not app.exception and "Bono de Desarrollo Humano (BDH y BDHV)" in _markdown(app)
     _generate_every_product(app)

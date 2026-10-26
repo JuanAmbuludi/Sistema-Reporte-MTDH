@@ -143,7 +143,7 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
                 save("presupuesto_social_asignado", annual, ["periodo", "grupo_presupuestario"], ["periodo"],
                      ["planificado_anual", "presupuesto_aprobado"], "Asignación anual al corte; BDH y BDHV comparten un solo presupuesto.")
         if web or sgde_local:
-            from src.sgde_scraper import collect, contracts, retirement, youth, FILES
+            from src.sgde_scraper import collect, contracts, retirement, youth, youth_phases, FILES
             raw, receipt = collect(sgde_local)
             tables, checks = contracts(raw[FILES[0]])
             audit["controles"]["contratos"] = checks
@@ -154,6 +154,9 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
             save("laboral/jubilados", table, ["fecha_corte", "anio", "dimension", "categoria", "codigo"], ["fecha_corte"],
                  ["monto_usd"], "Cada dimensión repite el universo; total, sexo, provincia y régimen nunca se suman entre sí.")
             audit["controles"]["jovenes_web"] = youth(raw)
+            save("jovenes_accion_fases", youth_phases(raw), ["periodo", "fase"], ["periodo"],
+                 ["monto_transferencia_usd", "presupuesto_usd", "ejecucion_usd"],
+                 "Fases con ejecución o atención publicadas en SGDE; participantes son habilitados o atendidos de cada fase, no pagos mensuales.")
             evidence = series/"laboral"/f"fuentes_{checks['fecha_corte']}.json"
             # Preserve original receipt when the same source content is queried again.
             if evidence.exists():

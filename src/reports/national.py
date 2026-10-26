@@ -1,4 +1,4 @@
-"""Report snapshots of the national areas: the institutional budget and labour management.
+"""Report snapshot of the institutional budget (the areas with their own structure live in ``areas``).
 
 Like the territorial snapshot, each one is built from the rows on screen and holds everything the one-page summary,
 the slides and the data workbook draw: key figures, ranked rows, map values and findings for an authority.
@@ -8,7 +8,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src import institutional
-from src.indicators import AREAS, BUDGET_DEFINITIONS, LABOUR_DEFINITIONS
+from src.indicators import AREAS, BUDGET_DEFINITIONS
 from .context import INSTITUTION, millions, number, stamp
 
 
@@ -109,63 +109,5 @@ def budget_context(filtered: pd.DataFrame, *, national: pd.DataFrame, scope: pd.
         "kinds": kinds, "sources": sources, "detail": detail, "insights": insights,
         "map_values": zone_values, "selected_zones": sorted(z for z in selected_zones if z != "Z0"),
         "definitions": BUDGET_DEFINITIONS, "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",
-        "generated_at": generated_at, "generated_label": generated_label,
-    }
-
-
-def labour_context(info: dict, *, title: str, period: dict) -> dict:
-    """Snapshot of the labour figures of the latest consultation."""
-    if not info:
-        raise ValueError("La información laboral no está disponible.")
-    from src.gestion_laboral import month_span
-    span = month_span(info)
-    year = info["year"]
-    kpis = [
-        {"key": "stock", "label": "Contratos vigentes", "value": info["stock"], "kind": "count", "icon": "briefcase", "share": None,
-         "note": f"Al {info['stock_label']}"},
-        {"key": "cohorts", "label": f"Contratos registrados en {year}", "value": info["cohorts"], "kind": "count", "icon": "file-check",
-         "share": None, "note": f"Estado al {info['cohorts_label']}"},
-        {"key": "retirees", "label": "Expedientes compensados" if info.get("retirees_unit") == "expedientes" else "Personas jubiladas compensadas", "value": info["retirees"], "kind": "count", "icon": "user-check",
-         "share": None, "note": f"Al {info['retirement_cut']}" if info.get("retirement_cut") else "Exservidores y extrabajadores"},
-        {"key": "compensation", "label": "Compensaciones jubilares", "value": info["compensation"], "kind": "money", "icon": "coins",
-         "share": None, "lower_bound": info["compensation_lower_bound"], "decimals": 0, "note": f"Pagadas en {info['retirees_year']}"},
-    ]
-    months = [{"label": m["label"], "short": m["short"], "value": m["value"],
-               "share": m["value"] / info["cohorts"] * 100 if info["cohorts"] else None} for m in info["months"]]
-    running = 0.0
-    for row in months:
-        running += row["value"]
-        row["cumulative"] = running
-    amount = f"{'más de ' if info['compensation_lower_bound'] else ''}USD {millions(info['compensation'], 0)} millones"
-    insights = [
-        {"icon": "briefcase", "text": f"El país registra {number(info['stock'])} contratos de trabajo vigentes al {info['stock_label']}."},
-        {"icon": "file-check", "text": f"De {span} de {year} se registraron {number(info['cohorts'])} contratos con estado vigente al {info['cohorts_label']}."},
-        {"icon": "user-check", "text": f"En {info['retirees_year']} se compensó a {number(info['retirees'])} exservidores y extrabajadores "
-                                       f"públicos jubilados, con {amount}."},
-        {"icon": "trending-up", "text": f"En promedio se registraron {number(info['average'])} contratos por mes que siguen vigentes."},
-    ]
-    sources = [
-        ("Contratos registrados por mes", f"SUT, estado al {info['cohorts_label']}",
-         next((u for i, u in info["sources"] if i == "sut_contratos"), "")),
-        ("Personas jubiladas y compensaciones jubilares", "Balance oficial publicado por el Ministerio del Trabajo"
-         + (f" el {info['published_label']}" if info.get("published_label") else ""),
-         next((u for i, u in info["sources"] if i == "mdt_noticia_jubilados"), "")),
-    ]
-    if any(i == "sgde_contratos" for i, _ in info["sources"]):
-        sources.insert(0, ("Stock de contratos", f"SGDE, corte {info['stock_label']}",
-                           next(u for i, u in info["sources"] if i == "sgde_contratos")))
-    if info.get("retirees_unit") == "expedientes":
-        insights[2]["text"] = f"Se compensaron {number(info['retirees'])} expedientes de jubilación, con {amount}, al {info['retirement_cut']}."
-        sources[-1] = ("Compensaciones jubilares", f"SGDE, corte {info['retirement_cut']}",
-                       next((u for i, u in info["sources"] if i == "sgde_jubilados"), ""))
-    generated_at, generated_label = stamp()
-    return {
-        "kind": "laboral", "module_id": "laboral", "module_label": AREAS["laboral"]["label"],
-        "title": str(title or AREAS["laboral"]["label"])[:100],
-        "period_id": period["id"], "period_label": period["label"], "year": year, "span": span,
-        "territory_label": "Nacional", "programs_label": f"Consulta del {info['consulted_label']}",
-        "info": {k: v for k, v in info.items() if k not in ("sources",)}, "kpis": kpis, "months": months,
-        "insights": insights, "sources": sources, "definitions": LABOUR_DEFINITIONS,
-        "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",
         "generated_at": generated_at, "generated_label": generated_label,
     }
