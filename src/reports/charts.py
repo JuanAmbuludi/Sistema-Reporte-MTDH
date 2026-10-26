@@ -74,7 +74,8 @@ def _classes(values: dict[str, float], stops: list[str]) -> dict[str, str]:
 
 def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=None, selected=None, mode: str = "light",
             label: str = "", money: bool = False, rate: bool = False, annotate: int = 0, width: float = 6.6,
-            height: float = 5.6, dpi: int = 220, legend: bool = True, names: dict[str, str] | None = None) -> bytes:
+            height: float = 5.6, dpi: int = 220, legend: bool = True, names: dict[str, str] | None = None,
+            marks: bool = True) -> bytes:
     """Choropleth of Ecuador: provinces, cantons, parishes or zones; the whole country (with the Galápagos inset and
     the equator) or a zoom into ``focus`` provinces with the rest of the country as context.
 
@@ -124,9 +125,10 @@ def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=
         if not focus or (y0 < 0 < y1):
             ax.plot([x0 + 0.05 * (x1 - x0), x1 - 0.02 * (x1 - x0)], [0, 0], color=gold, lw=1.0, ls=(0, (1.2, 3.2)),
                     zorder=1, solid_capstyle="round")
-            ax.text(x1 - 0.02 * (x1 - x0), 0.008 * (y1 - y0), "Latitud 0°", ha="right", va="bottom",
-                    color=(gold if night else theme.ORO_700), fontproperties=font("SemiBold", size=6.8), zorder=6,
-                    path_effects=[patheffects.withStroke(linewidth=2.4, foreground=(theme.MORADO_900 if night else "#FFFFFF"))])
+            if marks:
+                ax.text(x1 - 0.02 * (x1 - x0), 0.008 * (y1 - y0), "Latitud 0°", ha="right", va="bottom",
+                        color=(gold if night else theme.ORO_700), fontproperties=font("SemiBold", size=6.8), zorder=6,
+                        path_effects=[patheffects.withStroke(linewidth=2.4, foreground=(theme.MORADO_900 if night else "#FFFFFF"))])
         if focus:
             context = [_shape(geo.rings("provincia", c, level=3, inset=inset)) for c in provinces if c not in focus]
             context = [p for p in context if p is not None]
@@ -170,8 +172,9 @@ def map_png(values: dict[str, float | None], *, layer: str = "provincia", focus=
             gx0, gy0, gx1, gy1 = geo.galapagos_frame()
             frame_color = (1, 1, 1, .5) if night else theme.LILA_300
             ax.add_patch(Rectangle((gx0, gy0), gx1 - gx0, gy1 - gy0, fill=False, ec=frame_color, lw=0.8, ls=(0, (2, 2.5)), zorder=1))
-            ax.text(gx0 + 0.05, gy1 + 0.12, "Galápagos (recuadro)", color=("#E6DDF5" if night else MUTED),
-                    fontproperties=font("Medium", size=7.5))
+            if marks:
+                ax.text(gx0 + 0.05, gy1 + 0.12, "Galápagos (recuadro)", color=("#E6DDF5" if night else MUTED),
+                        fontproperties=font("Medium", size=7.5))
         if annotate and values:
             names = names or geo.names(layer)
             points = geo.label_points(layer, inset)

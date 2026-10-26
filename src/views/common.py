@@ -63,7 +63,7 @@ def table_workbook(rows: list[dict], layout: list[tuple], title: str, subtitle: 
 
 
 def download_table(frame: pd.DataFrame, layout: list[tuple], *, title: str, subtitle: str, period_label: str, file_name: str,
-                   key: str, share_fields: tuple[str, ...] = ("participacion",)) -> None:
+                   key: str, share_fields: tuple[str, ...] = ("participacion",), label: str = "Descargar cuadro en Excel") -> None:
     """Excel download of a table; ``layout`` items are (header, field, kind, width) and percentages travel as fractions."""
     view = frame.copy()
     for field in share_fields:
@@ -71,7 +71,7 @@ def download_table(frame: pd.DataFrame, layout: list[tuple], *, title: str, subt
             view[field] = pd.to_numeric(view[field], errors="coerce") / 100
     rows = records(view, [field for _h, field, _k, _w in layout])
     content = table_workbook(rows, layout, title, subtitle, period_label, fingerprint(view))
-    st.download_button("Descargar cuadro en Excel", content, file_name=file_name,
+    st.download_button(label, content, file_name=file_name,
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", icon=":material/table_view:",
                        key=key, type="primary")
 

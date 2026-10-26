@@ -279,28 +279,51 @@ def hero_series(svg: str, label: str, average_label: str = "", *, narrow: str = 
                 f'</figcaption></figure>', unsafe_allow_html=True)
 
 
+def _kpi_card(card: dict, i: int) -> str:
+    share = card.get("bar", card.get("share"))
+    share_html = ""
+    if share is not None and share == share:
+        width = max(0.0, min(100.0, float(share)))
+        caption = card.get("bar_label") if "bar" in card else f'{pct(share)} {card.get("share_label", "del total nacional")}'
+        share_html = (f'<div class="kpi-share"><div class="bar"><span style="--w:{width:.2f}%"></span></div>'
+                      f'<small>{_esc(caption)}</small></div>')
+    prefix = f'<small class="pre">{_esc(card["prefix"])}</small>' if card.get("prefix") else ""
+    suffix = f'<small class="suf">{_esc(card["suffix"])}</small>' if card.get("suffix") else ""
+    note = f'<p class="kpi-note">{_esc(card["note"])}</p>' if card.get("note") else ""
+    return (f'<article class="kpi tone-{card.get("tone", "morado")}" style="--i:{i}"><header><span class="kpi-icon">{icon(card.get("icon", "chart"), 22)}</span>'
+            f'<h3>{_esc(card["label"])}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
+            f'{note}{share_html}</article>')
+
+
 def kpi_grid(cards: list[dict], *, overlap: bool = True) -> None:
     """Cards: label, value, decimals, prefix, suffix, note, icon, tone, share (or bar with bar_label for rates)."""
-    items = []
-    for i, card in enumerate(cards):
-        share = card.get("bar", card.get("share"))
-        share_html = ""
-        if share is not None and share == share:
-            width = max(0.0, min(100.0, float(share)))
-            caption = card.get("bar_label") if "bar" in card else f'{pct(share)} {card.get("share_label", "del total nacional")}'
-            share_html = (f'<div class="kpi-share"><div class="bar"><span style="--w:{width:.2f}%"></span></div>'
-                          f'<small>{_esc(caption)}</small></div>')
-        prefix = f'<small class="pre">{_esc(card["prefix"])}</small>' if card.get("prefix") else ""
-        suffix = f'<small class="suf">{_esc(card["suffix"])}</small>' if card.get("suffix") else ""
-        note = f'<p class="kpi-note">{_esc(card["note"])}</p>' if card.get("note") else ""
-        items.append(
-            f'<article class="kpi tone-{card.get("tone", "morado")}" style="--i:{i}"><header><span class="kpi-icon">{icon(card.get("icon", "chart"), 22)}</span>'
-            f'<h3>{_esc(card["label"])}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
-            f'{note}{share_html}</article>'
-        )
+    items = [_kpi_card(card, i) for i, card in enumerate(cards)]
     css_class = "kpi-grid" if overlap else "kpi-grid kpi-inline"
     st.markdown(f'<section class="{css_class} n{len(cards)}" aria-label="Indicadores principales">{"".join(items)}</section>',
                 unsafe_allow_html=True)
+
+
+def kpi_groups(groups: list[dict]) -> None:
+    """Two families of figures side by side and with the same weight (in Riesgos, the exposure and the response).
+
+    Each group carries ``title``, ``subtitle``, ``icon``, ``tone`` (morado or oro) and ``cards`` as in :func:`kpi_grid`.
+    """
+    blocks, offset = [], 0
+    for group in groups:
+        cards = "".join(_kpi_card(card, offset + i) for i, card in enumerate(group["cards"]))
+        offset += len(group["cards"])
+        blocks.append(f'<div class="kpi-group tone-{group.get("tone", "morado")}"><header><span class="kg-icon">{icon(group["icon"], 18)}</span>'
+                      f'<div><h3>{_esc(group["title"])}</h3><p>{_esc(group["subtitle"])}</p></div></header>'
+                      f'<div class="kpi-grid kpi-inline n{len(group["cards"])}">{cards}</div></div>')
+    st.markdown(f'<section class="kpi-duo n{len(groups)}" aria-label="Indicadores principales">{"".join(blocks)}</section>',
+                unsafe_allow_html=True)
+
+
+def chapter(title: str, subtitle: str, symbol: str, tone: str = "morado", anchor: str = "") -> None:
+    """Opens one of the large parts of a page (in Riesgos, the exposure of the units and the response of the Ministry)."""
+    anchor_attr = f' id="{_esc(anchor)}"' if anchor else ""
+    st.markdown(f'<div class="chapter tone-{tone}"{anchor_attr}><span class="ch-icon">{icon(symbol, 26)}</span><div><h2>{_esc(title)}</h2>'
+                f'<p>{_esc(subtitle)}</p></div></div>', unsafe_allow_html=True)
 
 
 def reach_strip(tiles: list[dict]) -> None:
@@ -395,7 +418,7 @@ def _cell_format(decimals: int, scale: float, suffix: str):
 
 
 def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | str = "auto", key: str | None = None,
-               bar: str | None = None) -> None:
+               bar: str | None = None, tones: dict[str, dict[str, tuple[str, str]]] | None = None) -> None:
     """Sortable table with Ecuadorian figures (127.982 · 55.867.299,38 · 32,0 %) whatever the browser language.
 
     ``columns`` maps a field to ``(label, kind[, width[, help[, phone label]]])`` with kind text, int, pct, money or
@@ -432,8 +455,85 @@ def data_table(frame: pd.DataFrame, columns: dict[str, tuple], *, height: int | 
     view = view[order].reset_index(drop=True)
     if height == "auto" and len(view) <= 20:
         height = 35 * (max(1, len(view)) + 1) + 3
-    st.dataframe(view.style.format(formats), hide_index=True, width="stretch", height=height, key=key,
-                 placeholder="—", column_config=config)
+    styler = view.style.format(formats)
+    for field, palette in (tones or {}).items():
+        if field in view:
+            # A category reads by its colour as well as by its word (``palette`` maps a value to background and ink).
+            styler = styler.map(lambda value, palette=palette: (f"background-color:{palette[value][0]};color:{palette[value][1]};"
+                                                                "font-weight:600") if value in palette else "", subset=[field])
+    st.dataframe(styler, hide_index=True, width="stretch", height=height, key=key, placeholder="—", column_config=config)
+
+
+# --- Designed tables (short lists) ---------------------------------------------------
+
+_MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+
+def _date_text(value: object) -> str:
+    try:
+        stamp = pd.Timestamp(value)
+    except (TypeError, ValueError):
+        return str(value)
+    return f"{stamp.day} {_MONTHS_SHORT[stamp.month - 1]} {stamp.year}"
+
+
+def rich_table(columns: list[dict], rows: list[dict], *, total: dict | None = None, height: int | None = None,
+               flag: str | None = None) -> None:
+    """A designed table for short lists: status pills, unit codes, dates, figures with a bar and a second line.
+
+    ``columns`` items carry ``key``, ``label`` and ``kind``: text, strong, muted, num, money, pct, date, pill (with
+    ``tones``: value -> tone), code or bar (a figure with a bar relative to the largest of its column).  ``sub`` names
+    a field written under the main one.  ``total`` adds a closing row; ``flag`` names a field that marks a row in gold.
+    The table scrolls sideways on narrow screens and, with ``height``, vertically under a sticky header.
+    """
+    peaks = {c["key"]: max([float(r.get(c["key"]) or 0) for r in rows] or [1]) or 1 for c in columns if c.get("kind") == "bar"}
+
+    def cell(column: dict, row: dict, footer: bool = False) -> str:
+        kind, value = column.get("kind", "text"), row.get(column["key"])
+        numeric = kind in ("num", "money", "pct", "bar")
+        empty = value is None or (isinstance(value, float) and value != value) or (numeric and not footer and value == 0
+                                                                                     and column.get("zero") == "dash")
+        if empty and footer:
+            body = ""
+        elif empty:
+            body = '<span class="rt-dash">—</span>'
+        elif kind == "num":
+            body = number(value)
+        elif kind == "money":
+            body = f"USD {number(value, 2)}"
+        elif kind == "pct":
+            body = pct(value)
+        elif kind == "date":
+            body = _esc(_date_text(value))
+        elif kind == "pill":
+            tone = column.get("tones", {}).get(value, "lila")
+            body = f'<span class="pill tone-{tone}">{_esc(value)}</span>'
+        elif kind == "code":
+            body = f"<code>{_esc(value)}</code>"
+        elif kind == "bar" and not footer:
+            share = max(0.0, min(100.0, float(value) / peaks[column["key"]] * 100))
+            suffix = row.get(column["share"]) if column.get("share") else None
+            extra = f'<em>{pct(suffix)}</em>' if suffix is not None and suffix == suffix else ""
+            body = f'<div class="cell-bar"><span>{number(value)}{extra}</span><i style="--w:{share:.1f}%"></i></div>'
+        elif kind == "bar":
+            body = number(value)
+        elif kind == "strong":
+            body = f"<b>{_esc(value)}</b>"
+        else:
+            body = _esc(value)
+        if column.get("sub") and not footer and row.get(column["sub"]) not in (None, ""):
+            body += f"<small>{_esc(row[column['sub']])}</small>"
+        css = ["num" if numeric else "", "muted" if kind == "muted" else ""]
+        return f'<td class="{" ".join(c for c in css if c)}">{body}</td>'
+
+    head = "".join(f'<th class="{"num" if c.get("kind") in ("num", "money", "pct", "bar") else ""}">{_esc(c["label"])}</th>'
+                   for c in columns)
+    body = "".join(f'<tr class="{"flag" if flag and r.get(flag) else ""}">' + "".join(cell(c, r) for c in columns) + "</tr>"
+                   for r in rows)
+    foot = ("<tfoot><tr>" + "".join(cell(c, total, footer=True) for c in columns) + "</tr></tfoot>") if total else ""
+    style = f' style="max-height:{height}px"' if height else ""
+    st.markdown(f'<div class="rt-wrap"{style}><table class="rt"><thead><tr>{head}</tr></thead><tbody>{body}</tbody>{foot}</table></div>',
+                unsafe_allow_html=True)
 
 
 # --- Report previews -------------------------------------------------------------

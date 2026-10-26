@@ -34,11 +34,17 @@ def test_filtered_risk_exports_preserve_counts_scope_methodology_and_codes():
     assert len(pdf) == 2
     text = " ".join(" ".join(p.get_text().split()) for p in pdf)
     assert METHODOLOGY in text and "Inundaciones" in text and "287" in text
+    # The response of the selection: its alerts (service filter included) and the kits and bonus of its territory.
+    r = ctx["response"]
+    assert r["alert_count"] == 4 and {a["province"] for a in r["alerts"]} == {"Guayas"} and r["kits_total"] == 400
+    assert "Respuesta del Ministerio" in text and "Exposición de las unidades de atención" in text
     pptx = generate_pptx(ctx)
     slides = Presentation(BytesIO(pptx)).slides
-    assert len(slides) == 6
-    assert METHODOLOGY in " ".join(s.text for s in slides[5].shapes if s.has_text_frame)
-    # Threats, threats at once, combinations, services and provinces: native, editable charts.
+    titles = [" ".join(s.text for s in slide.shapes if s.has_text_frame) for slide in slides]
+    assert len(slides) == 7
+    assert METHODOLOGY in titles[6]
+    assert "Exposición por amenaza" in titles[1] and "Alertas con afectación" in titles[3] and "Kits y bono" in titles[4]
+    # Threats, threats at once, combinations, services and kits by canton: native, editable charts.
     assert len([n for n in ZipFile(BytesIO(pptx)).namelist() if n.startswith("ppt/charts/chart") and n.endswith(".xml")]) == 5
     xlsx = generate_xlsx(ctx)
     wb = openpyxl.load_workbook(BytesIO(xlsx), data_only=True)
@@ -51,6 +57,18 @@ def test_filtered_risk_exports_preserve_counts_scope_methodology_and_codes():
     assert all(r[1].data_type == "s" and r[2].value and r[4].value == "Guayas" and r[5].value == "Alta" for r in rows)
     assert sheet.auto_filter.ref and sheet.freeze_panes
     assert METHODOLOGY in [c.value for row in wb["Ficha técnica"] for c in row]
+    response = [c.value for row in wb["Respuesta"] for c in row if c.value is not None]
+    assert "ALT-2026-000325" in response and "Entregas de kits" in response and "Planificación El Niño 2026–2027" in response
+    header = next(r for r in wb["Provincias"] if r[1].value == "Provincia")
+    assert [c.value for c in header if c.value][-4:] == ["Alertas", "Kits", "Bono gestionado (personas)", "En articulación (personas)"]
+
+
+def test_service_filter_reaches_the_alerts_but_not_kits_or_bonus():
+    ctx = view((), ("PAM_SERV",)).report_context("Riesgos")
+    r = ctx["response"]
+    assert r["alert_count"] == 0 and r["kits_total"] == 802 and r["managed_people"] == 113
+    national = view().report_context("Riesgos")["response"]
+    assert national["alert_count"] == 8
 
 
 def test_risk_report_scope_invalidates_download_and_rejects_empty_or_incomplete_detail():

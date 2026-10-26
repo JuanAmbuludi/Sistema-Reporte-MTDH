@@ -108,7 +108,7 @@ def _coverage_frame(d, kind):
     counts = ["usuarios_unicos", "unidades_unicas", "registros"] if kind == "VIS" else ["beneficiarios_unicos", "registros"]
     required = ["periodo", "anio", "mes", *dims, *counts]
     if not set(required) <= set(d):
-        raise ValueError(f"Columnas incompletas en {path}.")
+        raise ValueError(f"Columnas incompletas en la serie {kind}: faltan {sorted(set(required) - set(d))}.")
     parsed = periods(d[required])
     if not (parsed.anio.eq(d.anio) & parsed.mes.eq(d.mes)).all():
         raise ValueError("Año/mes no concilian con periodo.")

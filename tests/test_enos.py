@@ -17,7 +17,7 @@ def view(provinces=()):
 def test_alert_window_and_source_units():
     v=view();a=v.alerts
     assert len(a)==8 and a.codigo.nunique()==8
-    assert pd.to_datetime(a.fecha).ge('2026-09-29').all()
+    assert pd.to_datetime(a.fecha).ge('2026-09-14').all()
     assert a.estado.value_counts().to_dict()=={'Pendiente':6,'En seguimiento':2}
     assert a.provincia.nunique()==3
     assert a.loc[a.codigo_ua.ne(''),'codigo_ua'].nunique()==8
@@ -46,7 +46,7 @@ def test_three_products_keep_counts_and_explicit_limits():
     v=view();ctx=v.report_context('Seguimiento ENOS')
     pdf=pymupdf.open(stream=generate_pdf(ctx),filetype='pdf');assert len(pdf)==2
     text=' '.join(' '.join(p.get_text().split()) for p in pdf)
-    for term in ['802','Los Ríos','145.523','29/09','articulación','no identifica pagos exclusivamente atribuibles a ENOS']:
+    for term in ['802','Los Ríos','145.523','14/09','articulación','no identifica pagos exclusivamente atribuibles a ENOS']:
         assert term in text
     ppt=Presentation(BytesIO(generate_pptx(ctx)));assert len(ppt.slides)==4
     wb=load_workbook(BytesIO(generate_xlsx(ctx)),data_only=True)

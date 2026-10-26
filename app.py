@@ -37,7 +37,6 @@ from src.views.laboral import LabourView  # noqa: E402
 from src.views.presupuesto import BudgetArea, BudgetView, SocialBudgetView  # noqa: E402
 from src.views.territorial import TerritorialView  # noqa: E402
 from src.views.riesgos import RiskView  # noqa: E402
-from src.views.enos import RiskArea  # noqa: E402
 
 ui.inject_styles()
 user = require_login()
@@ -86,7 +85,7 @@ views = {module_id: TerritorialView(module_id, bases["data"], bases["catalog"], 
          for module_id in MODULES}
 risk_view = RiskView()
 if risk_view.catalog():
-    views["riesgos"] = RiskArea(risk_view)
+    views["riesgos"] = risk_view
 if bases["contingency_catalog"]:
     views["contingencias"] = ContingencyView(bases["contingencies"], bases["contingency_places"], bases["contingency_catalog"])
 youth = YouthView()
@@ -142,7 +141,11 @@ if not ready:
 
 if area == "riesgos":
     view.geoportal()
-ui.kpi_grid(view.kpi_cards(), overlap=area != "riesgos")
+groups = view.kpi_groups() if hasattr(view, "kpi_groups") else []
+if groups:
+    ui.kpi_groups(groups)
+else:
+    ui.kpi_grid(view.kpi_cards(), overlap=area != "riesgos")
 
 
 # ---------------------------------------------------------------------------
@@ -187,13 +190,13 @@ def report_center() -> None:
         if spec["kind"] == "resumen":
             if st.session_state.get("report_scope") not in SCOPES:
                 st.session_state["report_scope"] = "seccion"
-            scope = st.segmented_control("Alcance", list(SCOPES), format_func=SCOPES.get, key="report_scope", required=True,
-                                         width="stretch")
+            scope = st.segmented_control("Alcance", list(SCOPES), key="report_scope", required=True, width="stretch",
+                                         format_func=lambda k: f"Solo {AREAS[area]['short']}" if k == "seccion" else SCOPES[k])
             everything = scope == "todas"
         file_id = "todas_las_secciones" if everything else getattr(view, "file_id", view.id)
         if everything:
-            st.caption("Tres páginas como máximo: la cifra principal de cada sección y, para cada una, su corte, cuatro cifras "
-                       "clave y sus hallazgos, a nivel nacional.")
+            st.caption("Tres páginas como máximo, a nivel nacional: cada sección con su último corte, cuatro cifras clave, un "
+                       "gráfico propio y dos hallazgos. Las secciones no se suman entre sí.")
             title = st.text_input("Título", value="Resumen de todas las secciones", max_chars=80,
                                   key="report_title_all").strip() or "Resumen de todas las secciones"
             ui.scope_chips([("Secciones", "Todas, cada una con su último corte"), ("Territorio", "Nacional"),
@@ -240,8 +243,7 @@ def report_center() -> None:
             ui.report_preview("resumen", title, "Último corte de cada sección", "Nacional",
                               [("Sección", AREAS[a]["short"], SECTION_ICONS.get(a, "chart")) for a in list(views)[:4]], [], silhouette,
                               pages=3)
-            ui.content_list([("grid", "Cifra principal de cada sección", "Una por sección, con su propio corte"),
-                             *[(SECTION_ICONS.get(a, "chart"), AREAS[a]["label"], "Corte, cuatro cifras clave y hallazgos") for a in views],
+            ui.content_list([*[(SECTION_ICONS.get(a, "chart"), AREAS[a]["label"], "Corte, cifras clave, gráfico y hallazgos") for a in views],
                              ("clock", "Cortes de la información", "Corte, actualización y frecuencia de cada sección")])
         else:
             kpis = [(card["label"], kpi_text(card), card["icon"]) for card in view.kpi_cards()]

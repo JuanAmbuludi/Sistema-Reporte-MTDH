@@ -2,14 +2,13 @@
 
 El ámbito **Riesgos** muestra el inventario de UA de septiembre de 2026, sus servicios, territorio y susceptibilidad a inundaciones, movimientos en masa, sequía e incendios forestales. Los filtros de corte, provincia, servicio, amenazas (una o varias) y categorías de susceptibilidad (media, alta, muy alta; una o varias) actualizan todo el tablero:
 
-- **Mapa** por provincia con cuatro indicadores: UA expuestas, porcentaje del inventario expuesto, UA en susceptibilidad muy alta y registros de multiamenaza; las provincias elegidas se marcan en dorado.
-- **Cifras clave:** UA expuestas (con su porcentaje del inventario), multiamenaza, UA con alguna amenaza en muy alta, UA con dos o más amenazas y provincias con UA expuestas.
-- **Exposición por amenaza:** categorías de cada amenaza, amenazas simultáneas (1 a 4) y combinaciones más frecuentes.
-- **Exposición por servicio:** UA expuestas según su susceptibilidad más alta y la matriz servicio × amenaza.
-- **Exposición por territorio:** alcance territorial, ranking de provincias (UA, porcentaje del inventario o muy alta) y la matriz provincia × amenaza.
-- **Unidades de atención expuestas:** tabla con búsqueda y descarga en CSV o Excel; nota metodológica con definiciones y fuentes.
+- **Mapa** por provincia con seis indicadores: UA expuestas, porcentaje del inventario expuesto, UA en susceptibilidad muy alta, registros de multiamenaza, alertas y kits; las provincias elegidas se marcan en dorado.
+- **Cifras clave en dos grupos con el mismo peso:** exposición (UA expuestas con su porcentaje del inventario, multiamenaza y muy alta) y respuesta del Ministerio (alertas en servicios MTDH, kits entregados y personas con bono gestionado).
+- **Exposición de las unidades de atención:** por amenaza (categorías, amenazas simultáneas y combinaciones), por servicio (susceptibilidad más alta y matriz servicio × amenaza), por territorio (alcance, ranking de provincias y matriz provincia × amenaza) y la tabla de UA con búsqueda y descarga.
+- **Respuesta del Ministerio:** cronología, acciones de cada provincia junto a su exposición (tabla con cantones, estados, entregas e importes del bono), alertas una a una, entregas de kits y planificación El Niño 2026–2027. El territorio filtra todas las acciones; el servicio, solo las alertas (por la UA afectada); la amenaza y la susceptibilidad, solo la exposición.
+- Ningún gráfico repite lo que muestra otro: las cifras de la respuesta están en la banda y en la tabla por provincia, no en tarjetas ni gráficos duplicados.
 
-En Reportes se generan PDF (dos páginas), PowerPoint (seis diapositivas con gráficos nativos) y Excel (seis hojas) con la selección vigente y la línea gráfica institucional. El contenido «Seguimiento y respuesta» (alertas, kits y bono) se documenta en [SEGUIMIENTO_ENOS.md](SEGUIMIENTO_ENOS.md).
+En Reportes se generan PDF (dos páginas: exposición y respuesta), PowerPoint (siete diapositivas con gráficos nativos) y Excel (siete hojas, con la hoja Respuesta) con la selección vigente. Sin corte de seguimiento, los productos conservan la versión de exposición (seis diapositivas y seis hojas). El detalle de las fuentes de la respuesta está en [SEGUIMIENTO_ENOS.md](SEGUIMIENTO_ENOS.md).
 
 Fuente: `UA_SEP26_AMENAZAS(1).xlsx`, hoja `UA_SEPTIEMBRE_2026`, elaborado por DGID / SGDE / MTDH a partir del reporte territorial SIIMTDH. Capas espaciales: MAGAP 2015 (inundaciones y sequía), SNGR 2011 (movimientos en masa) y SNGR 2015 (incendios forestales). La fecha del inventario no cambia la antigüedad de estas capas.
 

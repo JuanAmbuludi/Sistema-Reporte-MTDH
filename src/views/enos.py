@@ -51,7 +51,7 @@ class EnosView:
         return True
 
     def hero_copy(self):
-        return ('Seguimiento desde el 29 de septiembre', 'Riesgos y respuesta',
+        return ('Seguimiento desde el 14 de septiembre', 'Riesgos y respuesta',
                 'Afectaciones a servicios MTDH, entregas de kits y estado de la información sobre el bono de contingencia ante El Niño.')
 
     def update_stamp(self):
@@ -65,7 +65,7 @@ class EnosView:
                 'frequency': 'Actualización según los cortes recibidos', 'short': f'Alertas al {cut}', 'line': f'Alertas al {cut}'}
 
     def kpi_cards(self):
-        return [{'label': 'Alertas de servicios MTDH', 'value': len(self.alerts), 'icon': 'storm', 'note': 'Desde el 29/09/2026'},
+        return [{'label': 'Alertas de servicios MTDH', 'value': len(self.alerts), 'icon': 'storm', 'note': 'Desde el 14/09/2026'},
                 {'label': 'Alertas abiertas', 'value': int(self.alerts.estado.ne('Resuelto').sum()), 'icon': 'clock',
                  'note': 'Pendientes o en seguimiento'},
                 {'label': 'UA con afectación documentada', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
@@ -103,7 +103,7 @@ class EnosView:
                       height=320 if len(frame)>7 else 'auto', key=key)
 
     def dashboard(self):
-        ui.section_heading('Afectaciones a servicios MTDH', f"29/09/2026 al {pd.Timestamp(self.data['corte']):%d/%m/%Y}", 'storm')
+        ui.section_heading('Afectaciones a servicios MTDH', f"14/09/2026 al {pd.Timestamp(self.data['corte']):%d/%m/%Y}", 'storm')
         st.caption(f'{self.alerts.provincia.nunique()} provincias · {self.alerts[["provincia","canton"]].drop_duplicates().shape[0]} cantones · '
                    f'{int(self.alerts.estado.eq("Resuelto").sum())} alertas resueltas. La ausencia de registros no prueba ausencia de afectación.')
         columns = [st.container(),st.container()] if compact() else st.columns(2, gap='medium')
@@ -145,14 +145,14 @@ class EnosView:
         st.caption('Fuentes: Subsecretaría Territorial, análisis de alertas del 26/10; reporte ministerial de kits al 25/10; ayuda memoria del bono al 23/10.')
 
     def scope_items(self):
-        return [('Ámbito','Solo afectaciones documentadas a servicios MTDH'),('Alertas desde','29/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
+        return [('Ámbito','Solo afectaciones documentadas a servicios MTDH'),('Alertas desde','14/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
                 ('Kits','24–25/10/2026'),('Bonos','Referencia al 23/10; sin atribución ENOS confirmada')]
 
     def digest(self):
         return fingerprint(self.data,self.provinces)
 
     def products_notes(self):
-        return {'resumen':'Dos páginas: alertas desde el 29/09, kits, planificación y estado del bono con sus alcances.',
+        return {'resumen':'Dos páginas: alertas desde el 14/09, kits, planificación y estado del bono con sus alcances.',
                 'presentacion':'Cuatro diapositivas institucionales: cifras clave, alertas, kits y bono.',
                 'datos':'Libro con alertas, kits, bonos por inundaciones, planificación y fuentes.'}
 
@@ -167,7 +167,7 @@ class EnosView:
         return 'Afectaciones a servicios MTDH','Kits y bono de contingencia'
 
     def report_contents(self,kind):
-        return [('storm','Alertas desde el 29/09','Estado, territorio y unidades identificadas'),
+        return [('storm','Alertas desde el 14/09','Estado, territorio y unidades identificadas'),
                 ('life-buoy','Kits entregados','Entregas del fin de semana, con fecha y cantón'),
                 ('banknote','Bono de contingencia','Planificación ENOS y referencia de inundaciones'),
                 ('document','Fuentes y alcances','Cortes distintos y datos pendientes de validación')]
@@ -178,26 +178,3 @@ class EnosView:
 
 
 ROOT = enos.ROOT
-
-
-class RiskArea:
-    id = 'riesgos'
-
-    def __init__(self, exposure):
-        self.views = {'exposicion': exposure}
-        followup = EnosView()
-        if followup.catalog():self.views['seguimiento'] = followup
-
-    @property
-    def active(self):
-        return self.views.get(st.session_state.get('risk_content')) or self.views['exposicion']
-
-    def pre_controls(self):
-        if len(self.views)<2:return
-        if st.session_state.get('risk_content') not in self.views:st.session_state['risk_content']='exposicion'
-        st.segmented_control('Contenido de Riesgos',list(self.views),key='risk_content',required=True,width='stretch',
-                             format_func=lambda x:{'exposicion':'Exposición de UA','seguimiento':'Seguimiento y respuesta'}[x])
-
-    def __getattr__(self,name):
-        if name.startswith('__') or name=='views':raise AttributeError(name)
-        return getattr(self.active,name)

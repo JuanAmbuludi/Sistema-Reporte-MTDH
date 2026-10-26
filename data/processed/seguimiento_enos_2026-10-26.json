@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "corte": "2026-10-26",
-  "desde": "2026-09-29",
+  "desde": "2026-09-14",
   "generado_utc": "2026-10-26T18:05:54.029364+00:00",
   "alertas": [
     {
@@ -232,7 +232,9 @@
     "alertas_con_afectacion_servicios": 8,
     "alertas_excluidas": 9,
     "alertas_sin_revision": 0,
-    "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas."
+    "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas.",
+    "alertas_revisadas_desde": "2026-09-29",
+    "ventana_desde": "2026-09-14"
   },
   "fuentes": [
     {

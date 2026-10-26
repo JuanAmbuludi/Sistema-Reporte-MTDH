@@ -4,16 +4,17 @@ import json
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-ALERT_NOTE = ("Solo se incluyen alertas con afectación documentada a instalaciones, acceso, continuidad o modalidad de atención de los servicios MTDH, registradas desde el 29 de septiembre de 2026. "
+ALERT_NOTE = ("Solo se incluyen alertas con afectación documentada a instalaciones, acceso, continuidad o modalidad de atención de los servicios MTDH, registradas desde el 14 de septiembre de 2026. "
               "Se excluyen daños externos o a viviendas de familias usuarias sin impacto documentado en el servicio. Un código UA por sí solo no acredita afectación. "
               "La fecha corresponde al registro de la alerta; una alerta no equivale necesariamente a un evento único. "
               "El campo Afectados mezcla personas, familias y usuarios, por lo que no se presenta un total de personas únicas. "
               "La base no certifica atribución causal a ENOS.")
-BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 29/09. "
+BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
              "Gestionado no acredita cobro; articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
-KIT_NOTE = "Entregas documentadas del 24 y 25 de octubre de 2026, corte 25/10 a las 19:00. No representan el acumulado desde el 29/09."
+KIT_NOTE = "Entregas documentadas del 24 y 25 de octubre de 2026, corte 25/10 a las 19:00. No representan el acumulado desde el 14/09."
 QUALITY_NOTE = ("Se revisaron Detalle y Acciones realizadas de cada alerta. Los casos sin evidencia de afectación al servicio no se incorporan a indicadores ni exportables.")
+START = "2026-09-14"   # start of the follow-up: alerts registered from this date
 REFERENCE = "Ámbito: afectaciones a servicios MTDH y acciones institucionales de respuesta."
 
 ALERT_COLUMNS = ['codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad',

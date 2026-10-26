@@ -107,7 +107,7 @@ def main():
     p.add_argument('--service-review', type=Path, required=True,
                    help='CSV de revisión documental: solo incluir=si con impacto en servicios se publica.')
     p.add_argument('--kits', type=Path, default=ROOT/'data/reference/enos_kits_2026-10-25.csv')
-    p.add_argument('--start', default='2026-09-29')
+    p.add_argument('--start', default='2026-09-14')
     p.add_argument('--cut', required=True)
     p.add_argument('--kits-cut', default='2026-10-25')
     p.add_argument('--bonos-cut', default='2026-10-23')

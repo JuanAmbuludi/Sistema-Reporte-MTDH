@@ -15,7 +15,7 @@ def build_context(view,title):
                reference=enos.REFERENCE, sources=view.data['fuentes'],
                bonos=[{**r,'stage':label} for key,label in [('gestionados','Gestionado'),('articulacion','En articulación')]
                        for r in view.frames[key].to_dict('records')],
-               insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con afectación a servicios MTDH desde el 29/09 en {view.alerts.provincia.nunique()} provincias."},
+               insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con afectación a servicios MTDH desde el 14/09 en {view.alerts.provincia.nunique()} provincias."},
                          {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits documentados en el fin de semana del 24–25/10."}])
     return ctx
 
@@ -80,7 +80,7 @@ def render_pptx(prs,ctx):
     if rows:_bar_chart(s,[r['name'] for r in rows],[r['value'] for r in rows],'Alertas',x=.5,y=1.4,w=7.3,h=4.55)
     _table(s,8.1,1.7,4.6,[('Estado','name',None,'text'),('Alertas','value',1.1,'int')],ctx['states'],row_h=.5)
     _text(s,8.1,4,4.6,1.6,'Solo afectaciones documentadas a servicios MTDH. Se excluyen daños externos sin impacto en su atención. El campo Afectados mezcla unidades y no se suma.',size=15)
-    _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 29/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
+    _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 14/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
     s=slide('Kits entregados','Fin de semana 24–25/10/2026 · '+ctx['territory_label'])
     _text(s,.65,1.4,12,.6,f"{number(sum(r['kits'] for r in ctx['kits']))} kits documentados",size=28,bold=True,color=theme.MORADO)
     _table(s,.65,2.2,12,[('Fecha','fecha',1.8,'text'),('Provincia','provincia',2.6,'text'),('Cantón','canton',None,'text'),('Kits','kits',1.2,'int')],ctx['kits'],row_h=.43)
@@ -108,7 +108,7 @@ def render_workbook(book):
     ws,row=_sheet(book,'Alertas',theme.MORADO,'Afectaciones a servicios MTDH',[2.4,23,16,25,30,21,18,48,30,65,24,2.4])
     columns=[('Alerta','codigo','text'),('Fecha de registro','fecha','text'),('Provincia','provincia','text'),('Cantón','canton','text'),
              ('Estado','estado','text'),('Código UA','codigo_ua','code'),('Unidad de atención','unidad','text'),('Servicio','servicio','text'),('Afectación al servicio','afectacion_servicio','text'),('Afectados (campo fuente)','afectados_fuente','int')]
-    first,end,row=_block(book,ws,row+1,'Detalle desde el 29/09',columns,ctx['alerts'],last=10,height=45,autofilter=True)
+    first,end,row=_block(book,ws,row+1,'Detalle desde el 14/09',columns,ctx['alerts'],last=10,height=45,autofilter=True)
     ws.freeze_panes(first,3);book.note(ws,row+1,ctx['alert_note'],last=10,height=70)
     ws,row=_sheet(book,'Kits',theme.VIOLETA_500,'Kits entregados',[2.4,18,28,32,18,2.4])
     _f,_e,row=_block(book,ws,row+1,'Entregas de fin de semana',[(h,k,'int' if k=='kits' else 'text') for h,k,_w,_t in KIT_COLUMNS],

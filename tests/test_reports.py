@@ -282,10 +282,15 @@ def test_budget_exports_read_execution_by_program_and_zone(budget):
 
 
 def test_labour_exports_keep_each_figure_with_its_reference(labour):
-    assert labour["stock"]["vigentes"] == 2789748 and labour["levels"] == ["provincia", "canton"]
+    # The cut is daily: the figures of the published cut, never a number frozen in the test.
+    from src.ui import number
+    stock = labour["stock"]
+    assert stock["registrados"] > stock["vigentes"] > 2_000_000 and stock["empresas"] > 300_000
+    assert labour["levels"] == ["provincia", "canton"]
     assert labour["update"]["frequency"] == "Actualización diaria"
     text = _pdf_text(generate_pdf(labour), pages=2)
-    for expected in ["Gestión laboral", "2.789.748", "325.877", "Contratos vigentes por provincia", "Perfil de los contratos vigentes",
+    for expected in ["Gestión laboral", number(stock["vigentes"]), number(stock["empresas"]), "Contratos vigentes por provincia",
+                     "Perfil de los contratos vigentes",
                      "Compensación jubilar por año", "Contratos registrados por mes en 2026", "El corazón de Ecuador."]:
         assert expected in text, expected
     deck, texts = _deck_texts(generate_pptx(labour))

@@ -156,16 +156,27 @@ def test_institutional_budget_is_an_area_of_its_own():
     _generate_every_product(app)
 
 
+def _labour_figures(provinces=()) -> list[str]:
+    """Contracts and companies of the published daily cut (it changes every day, so the test reads it)."""
+    from src.gestion_laboral import load_labour
+    from src.ui import number
+    from src.views.laboral import LabourView
+    view = LabourView(load_labour())
+    view.select(view.catalog()[0], provinces)
+    assert view.prepare()
+    return [number(card["value"]) for card in view.kpi_cards()[:2]]
+
+
 def test_labour_management_shows_contracts_and_retirement():
     app = _logged_in_app()
     app.segmented_control(key="module").set_value("laboral").run()
     assert not app.exception
     html = _markdown(app)
-    for expected in ["Gestión laboral", "2.789.748", "325.877", "4.686", "Actualización diaria", "Contratos vigentes por provincia",
+    for expected in ["Gestión laboral", *_labour_figures(), "4.686", "Actualización diaria", "Contratos vigentes por provincia",
                      "Perfil de los contratos vigentes", "Compensación jubilar", "Contratos registrados por mes"]:
         assert expected in html, expected
     app.multiselect(key="labour_provinces").set_value(["09"]).run()
-    assert not app.exception and "Gestión laboral en Guayas" in _markdown(app) and "890.175" in _markdown(app)
+    assert not app.exception and "Gestión laboral en Guayas" in _markdown(app) and _labour_figures(["09"])[0] in _markdown(app)
     app.segmented_control(key="workspace").set_value("Reportes").run()
     assert app.segmented_control(key="report_level_labour").options == ["Provincia", "Cantón", "Todo"]
     app.segmented_control(key="workspace").set_value("Tablero").run()
@@ -241,7 +252,13 @@ def test_executive_summary_of_every_section_fits_three_pages():
     for section in ["Transferencias monetarias", "Servicios de protección integral", "Riesgos", "Contingencias y compensaciones",
                     "Jóvenes en Acción", "Gestión laboral", "Presupuesto institucional", "Presupuesto social"]:
         assert section in text, section
-    assert "1.578.019" in text and "9.460" in text and "2.789.748" in text
+    assert "1.578.019" in text and "9.460" in text and _labour_figures()[0] in text
+    # One block for Riesgos (exposure and response together) and a chart of its own in every section.
+    assert text.count("Riesgos: exposición y respuesta") == 1 and "Riesgos: seguimiento" not in text
+    for chart in ["Beneficiarios por provincia", "Usuarios por servicio", "UA expuestas por amenaza y susceptibilidad",
+                  "Monto entregado por mes", "Jóvenes con pago acreditado por mes", "Contratos vigentes por rama de actividad",
+                  "Ejecución presupuestaria por zona", "Ejecución acumulada frente al ritmo uniforme"]:
+        assert chart in text, chart
 
 
 def test_risks_area_reads_exposure_by_threat_service_and_territory():
