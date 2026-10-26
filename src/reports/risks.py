@@ -17,18 +17,19 @@ def build_context(view, *, title: str) -> dict:
     from src.views.riesgos import METHODOLOGY
     if view.selected.empty:
         raise ValueError("No hay unidades expuestas con los filtros seleccionados.")
+    if not view.matrix_available:
+        raise ValueError("La matriz fuente de multiamenaza no está disponible para este corte.")
     units = view.detail_selected.copy()
     total = riesgos.count_units(view.selected)
     if len(units) != total or units.codigo_ua.duplicated().any():
         raise ValueError("El detalle de unidades no coincide con el resumen de este corte.")
     units["provincia"] = units.provincia.map(names.place)
     units = units.sort_values(["provincia", "servicio", "nombre", "codigo_ua"])
-    high = riesgos.exposed(view.selected, view.threat, tuple(v for v in view.levels if v in ("Alta", "Muy alta")))
     services = [{"name": str(name), "units": int(value)} for name, value in
                 view.selected.groupby("servicio").unidades.sum().sort_values(ascending=False).items()]
-    high_provinces = high.groupby("provincia_codigo").unidades.sum().to_dict()
+    multi_provinces = view.multihazard.groupby("provincia_codigo").registros.sum().to_dict()
     provinces = [{"code": str(code), "name": names.place(str(name)), "units": int(value),
-                  "high": int(high_provinces.get(code, 0)), "share": value / total}
+                  "multihazard": int(multi_provinces.get(code, 0)), "share": value / total}
                  for (code, name), value in view.selected.groupby(["provincia_codigo", "provincia"]).unidades.sum()
                  .sort_values(ascending=False).items()]
     counts = riesgos.threat_counts(view.selected, view.threat, view.levels)
@@ -45,7 +46,7 @@ def build_context(view, *, title: str) -> dict:
         ctx["programs_label"] = f"{len(view.programs)} servicios seleccionados"
     ctx.update(source="Fuente: SIIMTDH · DGID / SGDE / MTDH", kpis=kpis_from_cards(view.kpi_cards()),
                services=services, provinces=provinces, threats=threats, units=units.to_dict("records"),
-               scope=view.scope_items(), methodology=METHODOLOGY, sources=SOURCES, caution=CAUTION,
+               scope=view.scope_items(), methodology=METHODOLOGY, sources=SOURCES, caution=CAUTION, multi_note=riesgos.MULTI_NOTE,
                geoportal=ui.GEOPORTAL_URL,
                selection=f"{riesgos.THREATS.get(view.threat, 'Todas las amenazas')} · {', '.join(view.levels)}",
                insights=[{"icon": "building", "text": f"{number(total)} unidades únicas expuestas en la selección."},
@@ -99,9 +100,10 @@ def render_pdf(c, ctx: dict, pages: int) -> None:
     y = paragraph(" · ".join(f"{key}: {value}" for key, value in ctx["scope"] if key in ("Territorio", "Servicios")), y - 12, 8)
     y = _table(c, M, y - 16, width,
                [("Provincia", "name", None, "text"), ("UA expuestas", "units", 90, "int"),
-                ("Alta o muy alta", "high", 100, "int")], ctx["provinces"], row_h=14.2)
+                ("Multiamenaza*", "multihazard", 100, "int")], ctx["provinces"], row_h=14.2)
     _heading(c, "Nota metodológica", M, y - 23, width)
     y = paragraph(ctx["methodology"], y - 42)
+    y = paragraph("* " + ctx["multi_note"], y, 8)
     y = paragraph(ctx["caution"], y, 8)
     y = paragraph(ctx["sources"], y, 7.5)
     c.setFillColor(C(theme.MORADO))
@@ -157,12 +159,12 @@ def render_pptx(prs, ctx: dict) -> None:
           size=11, color=theme.PIZARRA)
     s = slide("Unidades expuestas por provincia")
     columns = [("Provincia", "name", None, "text"), ("UA expuestas", "units", 1.15, "int"),
-               ("Alta o muy alta", "high", 1.3, "int")]
+               ("Multiamenaza*", "multihazard", 1.3, "int")]
     split = (len(ctx["provinces"]) + 1) // 2
     for x, rows in [(0.55, ctx["provinces"][:split]), (6.95, ctx["provinces"][split:])]:
         if rows:
             _table(s, x, 1.5, 5.85, columns, rows, row_h=.36, size=11)
-    _text(s, .55, 6.58, 12.2, .32, "Alta o muy alta: unidades dentro de la selección vigente, contadas una sola vez.", size=11, color=theme.PIZARRA)
+    _text(s, .55, 6.4, 12.2, .5, "* " + ctx["multi_note"], size=11, color=theme.PIZARRA)
     s = slide("Nota metodológica")
     _text(s, .65, 1.52, 12, 2.55, ctx["methodology"], size=18, spacing=1.15)
     _text(s, .65, 4.25, 12, .85, ctx["caution"], size=14, color=theme.PIZARRA)
@@ -205,9 +207,11 @@ def render_workbook(book) -> None:
 
     ws, row = _sheet(book, "Provincias", theme.VIOLETA_500, "Unidades expuestas por provincia", [2.4, 34, 20, 22, 20, 2.4])
     first, end, row = _block(book, ws, row + 1, "Distribución territorial", [("Provincia", "name", "text"),
-        ("UA expuestas", "units", "int"), ("Alta o muy alta", "high", "int"), ("Participación", "share", "pct")],
+        ("UA expuestas", "units", "int"), ("Multiamenaza*", "multihazard", "int"), ("Participación", "share", "pct")],
         ctx["provinces"], last=4, note=ctx["selection"], total={"units": len(ctx["units"]),
-            "high": sum(r["high"] for r in ctx["provinces"]), "share": 1}, autofilter=True, height=23)
+            "multihazard": sum(r["multihazard"] for r in ctx["provinces"]), "share": 1}, autofilter=True, height=23)
+    ws.merge_range(row + 1, 1, row + 1, 4, "* " + ctx["multi_note"], book.f(font_size=10, text_wrap=True, font_color=theme.PIZARRA))
+    ws.set_row(row + 1, 55)
     ws.freeze_panes(first, 2)
 
     ws, row = _sheet(book, "Unidades", theme.MORADO, "Unidades de atención expuestas",
@@ -224,10 +228,10 @@ def render_workbook(book) -> None:
     ws.set_zoom(75)
 
     facts = [("Institución", ctx["institution"]), *ctx["scope"], *book.update_facts(),
-             ("Generado", ctx["generated_label"]), ("Unidad de medida", "Unidades de atención (UA), identificadas por código único")]
+             ("Generado", ctx["generated_label"]), ("Unidad de medida", "UA únicas; multiamenaza conserva el conteo de registros de la matriz fuente.")]
     book.facts_sheet(facts,
         [("UA expuestas", "Unidades únicas con susceptibilidad media, alta o muy alta en las amenazas seleccionadas."),
-         ("Alta o muy alta", "Unidades únicas de la selección en estas categorías; no se suman entre amenazas."),
+         ("Multiamenaza", ctx["multi_note"]),
          ("Detalle", "Una fila por código UA; las cuatro amenazas conservan la categoría reportada en la fuente.")],
         [("Resumen", "Cifras clave y servicios"), ("Amenazas", "Categorías por amenaza"), ("Provincias", "Distribución territorial"),
          ("Unidades", "Código, nombre, servicio, provincia y susceptibilidad")],

@@ -73,3 +73,31 @@ def test_unit_detail_reconciles_with_aggregates_and_filters():
             units = riesgos.exposed(riesgos.select(detail, "2026-09", ["09"], ["DII"]), threat, levels)
             aggregate = riesgos.exposed(riesgos.select(totals, "2026-09", ["09"], ["DII"]), threat, levels)
             assert len(units) == riesgos.count_units(aggregate)
+
+
+def test_multihazard_matches_source_matrix_and_every_province_in_supplied_table():
+    matrix = riesgos.select(pd.read_parquet(riesgos.MATRIX_PATH), "2026-09")
+    assert riesgos.count_records(matrix) == 9869
+    assert not {"codigo_ua", "nombre", "modalidad", "canton", "parroquia"} & set(matrix)
+    multi = riesgos.multihazard(matrix)
+    assert riesgos.count_records(multi) == 6220
+    expected = dict(zip([f"{i:02}" for i in range(1, 25)],
+                        [355, 124, 244, 97, 185, 285, 205, 338, 950, 199, 439, 340,
+                         854, 249, 160, 97, 372, 182, 48, 0, 82, 91, 152, 172]))
+    actual = multi.groupby("provincia_codigo").registros.sum().reindex(expected, fill_value=0).to_dict()
+    assert actual == expected
+    filtered = riesgos.exposed(riesgos.select(matrix, "2026-09", ["09"], ["DII"]), "susc_inundacion", ("Alta",))
+    assert riesgos.count_records(riesgos.multihazard(filtered, ("Alta",))) == 287
+    assert riesgos.multihazard(matrix, ()).empty
+
+
+def test_matrix_preserves_source_rows_and_counts_union_once():
+    row = {"co_siimdh": "123", "nombre": "Unidad", "servicio": "DESARROLLO INFANTIL INTEGRAL",
+           "mod": "Modalidad A", "dpa_prov": "01", "dpa_despro": "AZUAY", "dpa_can": "0101",
+           "dpa_descan": "CUENCA", "dpa_par": "010101", "dpa_despar": "BELLAVISTA",
+           **{key: "-" for key in riesgos.THREATS}}
+    source = pd.DataFrame([{**row, "susc_inundacion": "Alta", "susc_movimientos_masa": "Media"}, row])
+    matrix = riesgos.aggregate_matrix(riesgos.normalize(source, "2026-09", deduplicate=False))
+    assert riesgos.count_records(matrix) == 2
+    assert riesgos.count_records(riesgos.multihazard(matrix)) == 1
+    assert riesgos.multihazard(matrix, ("Muy alta",)).empty

@@ -7,6 +7,10 @@ import pandas as pd
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "riesgos_ua.parquet"
 DETAIL_PATH = DATA_PATH.with_name("riesgos_ua_detalle.parquet")
+MATRIX_PATH = DATA_PATH.with_name("riesgos_ua_matriz.parquet")
+MULTI_THREATS = ("susc_inundacion", "susc_movimientos_masa")
+MULTI_NOTE = ("Multiamenaza reproduce los registros de la matriz fuente expuestos a inundaciones o movimientos en masa, "
+              "con los filtros vigentes; puede incluir códigos UA repetidos. Los demás indicadores cuentan unidades únicas.")
 THREATS = {
     "susc_inundacion": "Inundaciones",
     "susc_movimientos_masa": "Movimientos en masa",
@@ -26,11 +30,12 @@ DETAIL_FIELDS = ["periodo_id", "codigo_ua", "nombre", "provincia_codigo", "provi
                  *THREATS, "susceptibilidad_maxima"]
 
 
-def normalize(source: pd.DataFrame, period: str) -> pd.DataFrame:
+def normalize(source: pd.DataFrame, period: str, *, deduplicate: bool = True) -> pd.DataFrame:
     """Keep only the UA inventory needed by the dashboard; collapse repeated codes.
 
     Repeated codes may have different modalities. Retain their modalities and the
-    highest *reported* category per threat. Never infer damage or a zero risk.
+    highest *reported* category per threat. With deduplicate=False, preserve source
+    rows for the separate matrix counts. Never infer damage or a zero risk.
     """
     fields = {"co_siimdh": "codigo_ua", "nombre": "nombre", "servicio": "servicio",
               "mod": "modalidad", "dpa_prov": "provincia_codigo", "dpa_despro": "provincia",
@@ -62,7 +67,8 @@ def normalize(source: pd.DataFrame, period: str) -> pd.DataFrame:
     aggregations["modalidad"] = lambda values: " / ".join(dict.fromkeys(v for v in values if v))
     for key in THREATS:
         aggregations[key] = lambda values: max(values, key=RANK.get)
-    data = grouped.agg(aggregations).reset_index()
+    if deduplicate:
+        data = grouped.agg(aggregations).reset_index()
     data["programa_id"] = data.servicio.map(lambda value: SERVICES[value][0])
     data["servicio"] = data.servicio.map(lambda value: SERVICES[value][1])
     data["periodo_id"] = period
@@ -92,6 +98,21 @@ def aggregate_inventory(data: pd.DataFrame) -> pd.DataFrame:
 
 def count_units(data: pd.DataFrame) -> int:
     return int(data.unidades.sum())
+
+
+def aggregate_matrix(data: pd.DataFrame) -> pd.DataFrame:
+    """Source-row counts by category combination, without publishing unit identifiers."""
+    keys = ["periodo_id", "provincia_codigo", "provincia", "programa_id", "servicio", *THREATS, "susceptibilidad_maxima"]
+    return data.groupby(keys, as_index=False, observed=True).size().rename(columns={"size": "registros"})
+
+
+def multihazard(data: pd.DataFrame, levels=LEVELS) -> pd.DataFrame:
+    """Union of inundation OR mass movement, counting each source row only once."""
+    return data.loc[data[list(MULTI_THREATS)].isin(levels).any(axis=1)].copy()
+
+
+def count_records(data: pd.DataFrame) -> int:
+    return int(data.registros.sum())
 
 
 def exposed(data: pd.DataFrame, threat: str | None = None, levels=LEVELS) -> pd.DataFrame:

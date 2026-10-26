@@ -16,7 +16,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src.riesgos import DATA_PATH, DETAIL_FIELDS, THREATS, aggregate_inventory, exposed, normalize
+from src.riesgos import DATA_PATH, DETAIL_FIELDS, THREATS, aggregate_inventory, aggregate_matrix, exposed, multihazard, normalize
 
 
 def main():
@@ -43,6 +43,8 @@ def main():
     if "corte" not in source or set(source.corte.str.strip().str.casefold().dropna()) != {expected}:
         raise ValueError("El corte de la matriz no coincide con --period")
     clean = normalize(source, args.period)
+    matrix_rows = normalize(source, args.period, deduplicate=False)
+    matrix = aggregate_matrix(matrix_rows)
     public = aggregate_inventory(clean)
     combined = public
     if args.output.exists():
@@ -59,6 +61,11 @@ def main():
         previous = pd.read_parquet(detail_path)
         detail = pd.concat([previous.loc[previous.periodo_id.ne(args.period), DETAIL_FIELDS], detail], ignore_index=True)
     detail.to_parquet(detail_path, index=False, compression="zstd")
+    matrix_path = args.output.with_name(f"{args.output.stem}_matriz.parquet")
+    if matrix_path.exists():
+        previous = pd.read_parquet(matrix_path)
+        matrix = pd.concat([previous.loc[previous.periodo_id.ne(args.period)], matrix], ignore_index=True)
+    matrix.to_parquet(matrix_path, index=False, compression="zstd")
     metadata = {
         "generado_utc": datetime.now(timezone.utc).isoformat(),
         "periodo_id": args.period, "archivo_fuente": args.input.name, "hoja": sheet,
@@ -67,9 +74,11 @@ def main():
         "repeticiones_consolidadas": len(source) - len(clean),
         "unidades_expuestas_alguna_amenaza": len(exposed(clean)),
         "inundaciones_o_movimientos_masa": int(clean[list(THREATS)[:2]].isin(["Media", "Alta", "Muy alta"]).any(axis=1).sum()),
+        "registros_multiamenaza_matriz": len(multihazard(matrix_rows)),
         "fuente": "SIIMTDH; elaboración DGID / SGDE / MTDH",
         "capas": {"inundaciones": "MAGAP 2015", "movimientos_masa": "SNGR 2011", "sequia": "MAGAP 2015", "incendios_forestales": "SNGR 2015"},
         "criterio": "Una UA por corte y código. Media, alta o muy alta en al menos una amenaza. No representa afectación confirmada. Guiones y vacíos no acreditan ausencia de riesgo.",
+        "criterio_multiamenaza": "Conteo de registros de la matriz fuente con inundaciones O movimientos en masa en categorías media, alta o muy alta. Conserva las repeticiones de códigos UA de la fuente; cada fila se cuenta una sola vez en la unión.",
     }
     audit = args.output.with_name(f"riesgos_ua_{args.period}.json")
     audit.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

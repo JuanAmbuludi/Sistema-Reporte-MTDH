@@ -19,6 +19,11 @@ def _read_details(version: int) -> pd.DataFrame:
     return pd.read_parquet(riesgos.DETAIL_PATH)
 
 
+@st.cache_data(show_spinner=False)
+def _read_matrix(version: int) -> pd.DataFrame:
+    return pd.read_parquet(riesgos.MATRIX_PATH)
+
+
 METHODOLOGY = (
     "La clasificación de las Unidades de Atención (UA) se realizó mediante el análisis espacial de sus coordenadas "
     "geográficas validadas respecto a las capas de susceptibilidad consideradas. Se clasifican como expuestas aquellas "
@@ -70,6 +75,8 @@ class RiskView:
         self.data = _read(riesgos.DATA_PATH.stat().st_mtime_ns) if riesgos.DATA_PATH.exists() else pd.DataFrame()
         self.inventory = (_read_details(riesgos.DETAIL_PATH.stat().st_mtime_ns) if riesgos.DETAIL_PATH.exists()
                           else pd.DataFrame(columns=riesgos.DETAIL_FIELDS))
+        self.matrix = (_read_matrix(riesgos.MATRIX_PATH.stat().st_mtime_ns) if riesgos.MATRIX_PATH.exists()
+                       else self.data.iloc[:0].rename(columns={"unidades": "registros"}))
 
     def catalog(self) -> list[dict]:
         from src.corte import MONTHS
@@ -108,6 +115,10 @@ class RiskView:
         self.selected = riesgos.exposed(self.scoped, self.threat, self.levels)
         self.detail_selected = riesgos.exposed(
             riesgos.select(self.inventory, self.period["id"], self.provinces, self.programs), self.threat, self.levels)
+        self.matrix_available = self.matrix.periodo_id.eq(self.period["id"]).any()
+        matrix_selected = riesgos.exposed(
+            riesgos.select(self.matrix, self.period["id"], self.provinces, self.programs), self.threat, self.levels)
+        self.multihazard = riesgos.multihazard(matrix_selected, self.levels)
         self.territory_label = (", ".join(sorted(self.scoped.provincia.map(names.place).unique()))
                                 if self.provinces else "Nacional")
         self.programs_label = (", ".join(sorted(self.scoped.servicio.unique())) if self.programs else "Todos los servicios")
@@ -138,17 +149,17 @@ class RiskView:
         ui.hero_map(geo.svg_map(ui.map_fills(values), titles=titles), "Unidades expuestas por provincia")
 
     def kpi_cards(self) -> list[dict]:
-        high = riesgos.exposed(self.selected, self.threat, tuple(value for value in self.levels if value in ("Alta", "Muy alta")))
         return [
             {"label": "Unidades expuestas", "value": riesgos.count_units(self.selected), "icon": "building", "note": "Unidades únicas en la selección"},
-            {"label": "Susceptibilidad alta o muy alta", "value": riesgos.count_units(high), "icon": "storm", "tone": "fucsia",
-             "note": "Dentro de las unidades seleccionadas"},
+            {"label": "Multiamenaza", "value": riesgos.count_records(self.multihazard) if self.matrix_available else None,
+             "icon": "storm", "tone": "fucsia", "note": "Inundaciones o movimientos en masa"},
             {"label": "Provincias con unidades expuestas", "value": self.selected.provincia_codigo.nunique(), "icon": "map",
              "note": "Territorios de la selección"},
         ]
 
     def dashboard(self) -> None:
         ui.section_heading("Exposición a amenazas", self.period["label"], "storm")
+        st.caption(riesgos.MULTI_NOTE)
         if self.selected.empty:
             ui.info_note("No hay unidades con las categorías y filtros seleccionados.", "Sin resultados")
             self.methodology()
@@ -215,7 +226,7 @@ class RiskView:
         return ["Resumen", "Amenazas", "Provincias", "Unidades", "Ficha técnica"]
 
     def report_contents(self, kind: str) -> list[tuple[str, str, str]]:
-        items = [("grid", "Cifras clave", "Unidades únicas expuestas y susceptibilidad alta o muy alta"),
+        items = [("grid", "Cifras clave", "Unidades únicas expuestas y multiamenaza según la matriz fuente"),
                  ("chart", "Servicios y amenazas", "Distribución de la selección vigente"),
                  ("map", "Provincias", "Unidades expuestas por territorio")]
         if kind == "datos":
@@ -230,7 +241,7 @@ class RiskView:
         return ui.svg_columns(counts.tolist(), counts.index.tolist(), width=300, height=170, night=False)
 
     def digest(self) -> str:
-        return fingerprint(self.selected, self.detail_selected, self.period, self.provinces, self.programs,
+        return fingerprint(self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, self.update_stamp())
 
     def report_context(self, title: str) -> dict:
