@@ -74,7 +74,11 @@ def _dash(value: str) -> str:
     return "—" if value in ("0", "0,00") else value
 
 
-def _alert_cells(rows):
+def _alert_cells(rows, *, markup=True):
+    if not markup:
+        return [{**a, "identity": f"{a['code']}\n{a['date']}",
+                 "unit_full": f"{a['unit']}\nUA {a['ua'] or 'sin código en la fuente'} · {a['service']}",
+                 "place_full": f"{a['province']}\n{a['canton']}"} for a in rows]
     muted = "#6E6880"
     out = []
     for a in rows:
@@ -131,40 +135,44 @@ def _pdf_table(c, top, headers, rows, widths, size=8, *, x=None, padding=5, alig
     return top - height
 
 
-def _evolution_png(rows, width, height) -> bytes:
-    """Alerts registered each day (gold columns) and their running total (purple area), from the first day of the follow-up."""
-    from .charts import _LOCK, MUTED, FigureCanvasAgg, Figure, _png, font
-    totals, daily = [r["total"] for r in rows], [r["daily"] for r in rows]
-    peak = max(totals + [1])
-    with _LOCK:
-        fig = Figure(figsize=(width, height), dpi=220, facecolor="#FFFFFF")
-        FigureCanvasAgg(fig)
-        ax = fig.add_axes([0.045, 0.17, 0.94, 0.78])
-        xs = list(range(len(rows)))
-        ax.fill_between(xs, totals, step="post", color=theme.LILA_100, alpha=0.55, lw=0, zorder=1)
-        ax.step(xs, totals, where="post", color=theme.MORADO, lw=1.8, zorder=2)
-        ax.bar(xs, daily, width=0.62, color=theme.ORO, zorder=3)
-        for i, value in enumerate(daily):
-            if value:
-                ax.text(i - 0.45, value + peak * 0.04, f"+{value}", ha="right", va="bottom", color=theme.ORO_700,
-                        fontproperties=font("Bold", size=7.4), zorder=4)
-        ax.text(len(xs) - 1, totals[-1] + peak * 0.06, f"{totals[-1]} alertas", ha="right", va="bottom", color=theme.MORADO_900,
-                fontproperties=font("Bold", size=8), zorder=4)
-        ticks = [i for i in xs if i % 7 == 0]
-        if xs and xs[-1] not in ticks and xs[-1] - ticks[-1] > 2:
-            ticks.append(xs[-1])
-        ax.set_xticks(ticks)
-        ax.set_xticklabels([rows[i]["short"] for i in ticks], fontproperties=font("SemiBold", size=6.8), color=MUTED)
-        step = max(1, math.ceil(peak / 4))
-        ax.set_yticks(list(range(0, int(peak * 1.3) + 1, step)))
-        ax.set_yticklabels([str(t) for t in range(0, int(peak * 1.3) + 1, step)], fontproperties=font(size=6.6), color=MUTED)
-        ax.set_ylim(0, peak * 1.32)
-        ax.set_xlim(-0.8, len(xs) - 0.2)
-        ax.grid(axis="y", color="#EEEAF4", lw=0.6, zorder=0)
-        for side in ("top", "right", "left", "bottom"):
-            ax.spines[side].set_visible(False)
-        ax.tick_params(length=0, pad=3)
-        return _png(fig, dpi=220)
+def _pdf_evolution(c, rows, top, width):
+    """Compact categorical columns for dates with records; all omitted days are explicitly zero."""
+    from .pdf import M, C, _heading
+    _heading(c, "Evolución de las alertas", M, top, width, "Registradas por fecha · acumulado al pie")
+    active = [row for row in rows if row["daily"] > 0]
+    c.setFont("Text", 7.5)
+    c.setFillColor(C(theme.PIZARRA))
+    if not active:
+        c.drawString(M, top - 26, "Sin alertas con código UA en el periodo de la consulta.")
+        return top - 42
+    # Equal categorical spacing avoids an empty month occupying most of the chart.
+    # Daily counts keep a shared zero baseline and the same scale within the selection.
+    peak = max(row["daily"] for row in active)
+    columns = min(6, len(active))
+    slot = width / columns
+    last_bottom = top
+    for start in range(0, len(active), columns):
+        group = active[start:start + columns]
+        base = top - 46 - (start // columns) * 70
+        for index, row in enumerate(group):
+            center = M + slot * (index + .5)
+            bar_w = min(44, slot * .32)
+            bar_h = 24 * row["daily"] / peak
+            c.setStrokeColor(C(theme.LILA_200)); c.setLineWidth(.7)
+            c.line(M + slot * index + 12, base, M + slot * (index + 1) - 12, base)
+            c.setFillColor(C(theme.ORO)); c.roundRect(center - bar_w / 2, base, bar_w, bar_h, 2, stroke=0, fill=1)
+            c.setFillColor(C(theme.MORADO_900)); c.setFont("Text-Bold", 10)
+            c.drawCentredString(center, base + bar_h + 5, number(row["daily"]))
+            day = pd.to_datetime(row["date"], dayfirst=True)
+            label = f"{day.day} {ui._MONTHS_SHORT[day.month - 1]}"
+            c.setFont("Text-Semi", 8); c.drawCentredString(center, base - 11, label)
+            c.setFillColor(C(theme.MORADO)); c.setFont("Text", 7.7)
+            c.drawCentredString(center, base - 22, f"Acumulado: {number(row['total'])}")
+        last_bottom = base - 22
+    c.setFillColor(C(theme.PIZARRA)); c.setFont("Text", 7.2)
+    c.drawString(M, last_bottom - 15,
+                 f"Solo fechas con registros. Los demás días del {rows[0]['date']} al {rows[-1]['date']}: 0 alertas con código UA.")
+    return last_bottom - 25
 
 
 def render_pdf(c, ctx, pages):
@@ -188,7 +196,6 @@ def render_pdf(c, ctx, pages):
     # Page 1: the institutional band, four figures, alerts by province and service, their evolution and two maps.
     from .charts import emblem_png
     from .pdf import H, _band
-    from .pdf_areas import _legend
     selected = set(ctx["selected_codes"])
     top = _band(c, {**ctx, "programs_label": "Respuesta del Ministerio"}, H, emblem_png(selected))
     cards = [dict(k) for k in ctx["kpis"]]
@@ -206,12 +213,8 @@ def render_pdf(c, ctx, pages):
                   for v in rows], x, top - 24, half, 22)
         rows_h = max(rows_h, len(rows))
     top -= 24 + rows_h * 22 + 10
-    _heading(c, "Evolución de las alertas", M, top, full, f"Desde el {r['since']} · registradas en el día y acumuladas")
-    _legend(c, [(theme.ORO, "Registradas en el día"), (theme.MORADO, "Acumuladas")], M + full, top - 15, right=True)
-    chart_h = 104
-    _picture(c, _evolution_png(r["daily"], full / 72, chart_h / 72), M, top - 22, full, chart_h / full)
-    top -= 22 + chart_h + 26
-    map_h = half * 0.66
+    top = _pdf_evolution(c, r["daily"], top, full) - 16
+    map_h = half * 0.81
     for i, (key, title, label) in enumerate([("map_values", "Alertas con código UA", "Alertas"),
                                               ("kits_map_values", "Kits en provincias priorizadas", "Kits")]):
         x = M + i * (half + 22)
@@ -317,7 +320,7 @@ def render_pptx(prs, ctx):
         s = slide(f"Alertas con código UA · {i}/{len(chunks)}")
         _table(s, .55, 1.5, 12.2, [("Alerta / registro", "identity", 1.4, "text"), ("Unidad y servicio", "unit_full", 3, "text"),
                ("Territorio", "place_full", 1.35, "text"), ("Afectación", "impact", None, "text"), ("Estado", "status", 1.2, "text"),
-               ("Prioridad", "priority", .8, "text")], _alert_cells(chunk), row_h=.87, header_h=.5, size=9)
+               ("Prioridad", "priority", .8, "text")], _alert_cells(chunk, markup=False), row_h=.87, header_h=.5, size=9)
         _text(s, .55, 6.43, 12.2, .4, r["notes"]["quality"], size=9)
     s = slide("Acciones del Ministerio en cada provincia")
     _table(s, .55, 1.5, 12.2, [("Provincia / cantones", "place", None, "text"), ("Kits", "kits", .75, "int"),
