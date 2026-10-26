@@ -1,32 +1,32 @@
-codigo,incluir,servicio,afectacion_servicio,motivo_revision,unidad_fuente
-ALT-2026-000346,no,,,Daños a familias usuarias sin afectación documentada a la prestación del servicio,
-ALT-2026-000325,si,Desarrollo Infantil,Ingreso de agua en la unidad; sin energía ni agua,Afectación expresa a la unidad en Detalle,
-ALT-2026-000324,no,,,La fuente indica que los servicios operan con normalidad,
-ALT-2026-000323,si,Desarrollo Infantil,Ingreso de agua y goteras en la unidad,Afectación expresa a la unidad en Detalle,
-ALT-2026-000322,si,Desarrollo Infantil,Agua dentro y fuera de la unidad,Afectación expresa a la unidad en Detalle,
-ALT-2026-000321,si,Desarrollo Infantil,Acumulación de agua en la entrada de la unidad,Afectación expresa a la unidad en Detalle,
-ALT-2026-000320,no,,,La fuente indica que los servicios no registran afectaciones,
-ALT-2026-000319,si,Desarrollo Infantil,Ingreso de agua; cambio temporal a modalidad virtual,Afectación y cambio de modalidad documentados en Detalle y Acciones realizadas,
-ALT-2026-000318,si,Desarrollo Infantil,Ingreso de agua; cambio temporal a modalidad virtual,Afectación y cambio de modalidad documentados en Detalle y Acciones realizadas,
-ALT-2026-000317,no,,,Afectación territorial sin impacto documentado en servicios,
-ALT-2026-000316,no,,,El código UA identifica una unidad pero el relato solo describe inundaciones del sector,
-ALT-2026-000315,no,,,El código UA identifica una unidad pero el relato solo describe inundaciones del sector,
-ALT-2026-000312,no,,,Afectación a cultivos sin impacto documentado en servicios,
-ALT-2026-000310,si,Creciendo con Nuestros Hijos (CNH),Acceso impedido para atención presencial; contacto telefónico temporal,Afectación a las unidades y atención telefónica documentadas en Detalle y Acciones realizadas,
-ALT-2026-000309,si,Creciendo con Nuestros Hijos (CNH),Acceso impedido para atención presencial; contacto telefónico temporal,Afectación a las unidades y atención telefónica documentadas en Detalle y Acciones realizadas,
-ALT-2026-000303,no,,,Daño a vivienda de familia usuaria sin afectación documentada a la prestación del servicio,
-ALT-2026-000301,no,,,Afectación territorial y verificación de usuarios sin impacto documentado en servicios,
-ALT-2026-000293,no,,,Emergencia territorial sin afectación documentada al servicio,
-ALT-2026-000292,no,,,Daños territoriales y en agua potable sin afectación documentada al servicio,
-ALT-2026-000291,si,Creciendo con Nuestros Hijos (CNH),Inundación que afecta la prestación del servicio,Detalle indica afectación expresa a la prestación en CNH Cien Familias; código UA ausente,CNH Cien Familias
-ALT-2026-000294,no,,,Daños a vivienda de usuaria sin afectación documentada al servicio,
-ALT-2026-000282,no,,,Daños a vivienda sin afectación documentada al servicio,
-ALT-2026-000288,si,Desarrollo Infantil,Filtración de agua en instalaciones; limpieza para continuar la atención,Nombre en Detalle; código UA ausente,CDI Divino Niño
-ALT-2026-000289,si,Desarrollo Infantil,Filtraciones e inundación; actividades suspendidas; nombre de UA por validar,Nombre según Detalle; Acciones realizadas menciona Gotitas de Miel; validar identidad; código UA ausente,CDI Mis Pequeños Traviesos
-ALT-2026-000290,no,,,Daños a viviendas de familias usuarias sin interrupción del servicio expresamente documentada,
-ALT-2026-000283,si,Desarrollo Infantil,Ingreso de agua; suspensión del servicio el 24/09 y limpieza; actividades retomadas,Afectación a instalaciones y suspensión expresas en Detalle y Acciones realizadas; código UA ausente,CDI Gotitas de Miel
-ALT-2026-000287,si,Desarrollo Infantil,Filtraciones e ingreso de agua; limpieza sin suspensión del servicio,Afectación a instalaciones documentada aunque el servicio continúa; código UA ausente,CDI Lucerito
-ALT-2026-000271,no,,,Daños territoriales sin afectación documentada a servicios,
-ALT-2026-000270,no,,,Daños en viviendas y vías sin afectación documentada a servicios,
-ALT-2026-000269,no,,,Usuarios afectados y ayuda institucional sin impacto documentado en la prestación,
-ALT-2026-000272,no,,,La fuente constata unidades sin afectaciones y operativas,
+codigo,incluir,servicio,afectacion_servicio,motivo_revision,unidad_fuente,afectacion_confirmada
+ALT-2026-000346,no,,,Daños a familias usuarias sin afectación documentada a la prestación del servicio,,no
+ALT-2026-000325,si,Desarrollo Infantil,Ingreso de agua en la unidad; sin energía ni agua,Afectación expresa a la unidad en Detalle,,si
+ALT-2026-000324,no,,,La fuente indica que los servicios operan con normalidad,,no
+ALT-2026-000323,si,Desarrollo Infantil,Ingreso de agua y goteras en la unidad,Afectación expresa a la unidad en Detalle,,si
+ALT-2026-000322,si,Desarrollo Infantil,Agua dentro y fuera de la unidad,Afectación expresa a la unidad en Detalle,,si
+ALT-2026-000321,si,Desarrollo Infantil,Acumulación de agua en la entrada de la unidad,Afectación expresa a la unidad en Detalle,,si
+ALT-2026-000320,no,,,La fuente indica que los servicios no registran afectaciones,,no
+ALT-2026-000319,si,Desarrollo Infantil,Ingreso de agua; cambio temporal a modalidad virtual,Afectación y cambio de modalidad documentados en Detalle y Acciones realizadas,,si
+ALT-2026-000318,si,Desarrollo Infantil,Ingreso de agua; cambio temporal a modalidad virtual,Afectación y cambio de modalidad documentados en Detalle y Acciones realizadas,,si
+ALT-2026-000317,no,,,Afectación territorial sin impacto documentado en servicios,,no
+ALT-2026-000316,si,Desarrollo Infantil,Alerta por inundación en Tenguel vinculada a la UA; afectación al servicio por confirmar.,Incluida por criterio de código UA solicitado por el responsable; el relato describe inundación territorial y no confirma daño ni interrupción del servicio.,,no
+ALT-2026-000315,si,Desarrollo Infantil,Alerta por inundación en Tenguel vinculada a la UA; afectación al servicio por confirmar.,Incluida por criterio de código UA solicitado por el responsable; el relato describe inundación territorial y no confirma daño ni interrupción del servicio.,,no
+ALT-2026-000312,no,,,Afectación a cultivos sin impacto documentado en servicios,,no
+ALT-2026-000310,si,Creciendo con Nuestros Hijos (CNH),Acceso impedido para atención presencial; contacto telefónico temporal,Afectación a las unidades y atención telefónica documentadas en Detalle y Acciones realizadas,,si
+ALT-2026-000309,si,Creciendo con Nuestros Hijos (CNH),Acceso impedido para atención presencial; contacto telefónico temporal,Afectación a las unidades y atención telefónica documentadas en Detalle y Acciones realizadas,,si
+ALT-2026-000303,no,,,Daño a vivienda de familia usuaria sin afectación documentada a la prestación del servicio,,no
+ALT-2026-000301,no,,,Afectación territorial y verificación de usuarios sin impacto documentado en servicios,,no
+ALT-2026-000293,no,,,Emergencia territorial sin afectación documentada al servicio,,no
+ALT-2026-000292,no,,,Daños territoriales y en agua potable sin afectación documentada al servicio,,no
+ALT-2026-000291,no,Creciendo con Nuestros Hijos (CNH),Inundación que afecta la prestación del servicio,Sin código UA en la fuente; excluida del alcance público por el criterio actualizado del responsable. Detalle indica afectación expresa a la prestación en CNH Cien Familias; código UA ausente,CNH Cien Familias,si
+ALT-2026-000294,no,,,Daños a vivienda de usuaria sin afectación documentada al servicio,,no
+ALT-2026-000282,no,,,Daños a vivienda sin afectación documentada al servicio,,no
+ALT-2026-000288,no,Desarrollo Infantil,Filtración de agua en instalaciones; limpieza para continuar la atención,Sin código UA en la fuente; excluida del alcance público por el criterio actualizado del responsable. Nombre en Detalle; código UA ausente,CDI Divino Niño,si
+ALT-2026-000289,no,Desarrollo Infantil,Filtraciones e inundación; actividades suspendidas; nombre de UA por validar,Sin código UA en la fuente; excluida del alcance público por el criterio actualizado del responsable. Nombre según Detalle; Acciones realizadas menciona Gotitas de Miel; validar identidad; código UA ausente,CDI Mis Pequeños Traviesos,si
+ALT-2026-000290,no,,,Daños a viviendas de familias usuarias sin interrupción del servicio expresamente documentada,,no
+ALT-2026-000283,no,Desarrollo Infantil,Ingreso de agua; suspensión del servicio el 24/09 y limpieza; actividades retomadas,Sin código UA en la fuente; excluida del alcance público por el criterio actualizado del responsable. Afectación a instalaciones y suspensión expresas en Detalle y Acciones realizadas; código UA ausente,CDI Gotitas de Miel,si
+ALT-2026-000287,no,Desarrollo Infantil,Filtraciones e ingreso de agua; limpieza sin suspensión del servicio,Sin código UA en la fuente; excluida del alcance público por el criterio actualizado del responsable. Afectación a instalaciones documentada aunque el servicio continúa; código UA ausente,CDI Lucerito,si
+ALT-2026-000271,no,,,Daños territoriales sin afectación documentada a servicios,,no
+ALT-2026-000270,no,,,Daños en viviendas y vías sin afectación documentada a servicios,,no
+ALT-2026-000269,no,,,Usuarios afectados y ayuda institucional sin impacto documentado en la prestación,,no
+ALT-2026-000272,no,,,La fuente constata unidades sin afectaciones y operativas,,no

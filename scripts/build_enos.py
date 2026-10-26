@@ -43,13 +43,15 @@ def alert_rows(path, start, cut, review_path):
     rows = []
     for r in chosen.to_dict('records'):
         decision = decisions.get(str(r['Código']).strip(), {})
-        # An identified UA alone does not establish a service impact. Unreviewed cases stay out.
+        # Public scope: reviewed alerts with a valid UA code; impact confirmation remains a separate field.
         if decision.get('incluir') != 'si':
             continue
         if not decision.get('afectacion_servicio') or not decision.get('servicio'):
             raise ValueError('Una alerta incluida requiere servicio y afectación documentada.')
         code = str(r['Código SIIMDH']).strip()
         code = '' if code in ('—', '-', 'nan', '') else re.sub(r'\.0$', '', code)
+        if not code:
+            continue
         unit = str(r['Unidad de atención']).strip()
         if unit in ('—', '-', 'nan', '', 'Sin unidad registrada'):
             unit = decision.get('unidad_fuente') or 'Sin unidad registrada'
@@ -57,11 +59,11 @@ def alert_rows(path, start, cut, review_path):
                      'provincia': names.place(r['Provincia']), 'canton': names.place(r['Cantón']),
                      'estado': r['Estado'], 'prioridad': r['Prioridad'], 'codigo_ua': code,
                      'unidad': unit,
-                     'afectacion_servicio_confirmada': True, 'servicio': decision['servicio'],
+                     'afectacion_servicio_confirmada': decision.get('afectacion_confirmada') == 'si', 'servicio': decision['servicio'],
                      'afectacion_servicio': decision['afectacion_servicio'],
                      'afectados_fuente': int(r['Afectados']) if pd.notna(r['Afectados']) else None})
     return rows, {'alertas_detalle_original': len(frame), 'alertas_desde_inicio': len(chosen),
-                  'alertas_con_afectacion_servicios': len(rows), 'alertas_excluidas': len(chosen)-len(rows),
+                  'alertas_con_afectacion_servicios': sum(r['afectacion_servicio_confirmada'] for r in rows), 'alertas_con_codigo_ua': len(rows), 'alertas_excluidas': len(chosen)-len(rows),
                   'alertas_revision_inicio_solicitado': start,
                   'alertas_sin_revision': sum(str(code).strip() not in decisions for code in chosen.Código)}
 
@@ -109,7 +111,7 @@ def main():
     p.add_argument('--alerts', type=Path, required=True)
     p.add_argument('--bonos', type=Path, required=True)
     p.add_argument('--service-review', type=Path, required=True,
-                   help='CSV de revisión documental: solo incluir=si con impacto en servicios se publica.')
+                   help='CSV de revisión documental: incluir=si y código UA; afectacion_confirmada=si/no distingue evidencia de impacto.')
     p.add_argument('--kits', type=Path, default=ROOT/'data/reference/enos_kits_2026-10-25.csv')
     p.add_argument('--start', default='2026-09-14')
     p.add_argument('--cut', required=True)
@@ -123,7 +125,7 @@ def main():
     kits = pd.read_csv(a.kits)
     if kits.kits.lt(0).any() or not pd.to_datetime(kits.fecha).between(a.start, a.kits_cut).all():
         raise ValueError('Las entregas de kits no corresponden a su corte.')
-    result = {'schema': 2, 'corte': a.cut, 'desde': a.start, 'generado_utc': datetime.now(timezone.utc).isoformat(),
+    result = {'schema': 3, 'criterio_alertas': 'codigo_ua', 'corte': a.cut, 'desde': a.start, 'generado_utc': datetime.now(timezone.utc).isoformat(),
               'alertas': alerts, 'kits': kits.to_dict('records'), 'bonos': bono_rows(a.bonos),
               'cortes': {'alertas': a.cut, 'kits': a.kits_cut, 'bonos': a.bonos_cut, 'bonos_desde': a.bonos_start},
               'control': {**control,

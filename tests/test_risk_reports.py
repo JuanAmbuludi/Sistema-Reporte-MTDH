@@ -1,105 +1,74 @@
-"""The three risk products use the same filtered snapshot and preserve unit identities."""
+"""The public risk products contain the response only, at the dashboard's grain."""
 from io import BytesIO
-from zipfile import ZipFile
-
 import openpyxl
-import pytest
 import pymupdf
 from pptx import Presentation
-
 from src import riesgos
 from src.reports import generate_pdf, generate_pptx, generate_xlsx
-from src.views.riesgos import METHODOLOGY, RiskView
+from src.views.riesgos import RiskView
 
 
 def view(provinces=(), programs=(), threat=None, levels=riesgos.LEVELS):
     v = RiskView()
-    v.period = next(p for p in v.catalog() if p["id"] == "2026-09")
-    v.provinces, v.programs, v.threat, v.levels = provinces, programs, threat, levels
-    v.prepare()
+    v.select(v.catalog()[-1], provinces, programs, threat, levels)
+    assert v.prepare()
     return v
 
 
-def test_filtered_risk_exports_preserve_counts_scope_methodology_and_codes():
-    v = view(("09",), ("DII",), "susc_inundacion", ("Alta",))
-    ctx = v.report_context("Riesgos")
-    assert len(ctx["units"]) == 287 == ctx["kpis"][0]["value"]
-    assert [{k: t[k] for k in ("name", "media", "alta", "muy_alta", "units")} for t in ctx["threats"]] == \
-        [{"name": "Inundaciones", "media": 0, "alta": 287, "muy_alta": 0, "units": 287}]
-    assert round(ctx["threats"][0]["share"], 1) == round(287 / ctx["inventory"] * 100, 1)
-    assert ctx["territory_label"] == "Guayas"
-    assert ctx["kpis"][1]["label"] == "Multiamenaza" and ctx["kpis"][1]["value"] == 287
-    assert ctx["provinces"][0]["multihazard"] == 287
+def test_counts_distinguish_alerts_from_units_and_services():
+    v = view(); r = v.response
+    assert len(r.alerts) == r.alerts.codigo.nunique() == 10
+    assert r.units == 10
+    assert r.alerts.codigo_ua.eq("").sum() == 0
+    assert r.alerts.groupby("servicio").size().to_dict() == {"Desarrollo Infantil": 8, "Creciendo con Nuestros Hijos (CNH)": 2}
+    cards = v.kpi_cards()
+    assert [c["value"] for c in cards] == [10, 802, 113, 33200.8]
+    assert "Núcleos" in cards[2]["label"]
+    assert v.kpi_groups() == []
+    # The exposure calculation is retained internally, outside the public context.
+    assert riesgos.count_records(v.multihazard) == 6220
+    assert not {"units", "exposed", "threats", "multihazard"}.intersection(v.report_context("Riesgos"))
+
+
+def test_response_exports_are_complete_and_exclude_hidden_exposure():
+    v = view(); ctx = v.report_context("Riesgos")
     pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
-    assert len(pdf) == 2
-    text = " ".join(" ".join(p.get_text().split()) for p in pdf)
-    assert METHODOLOGY in text and "Inundaciones" in text and "287" in text
-    # The response of the selection: its alerts (service filter included) and the kits and bonus of its territory.
-    r = ctx["response"]
-    assert r["alert_count"] == 5 and {a["province"] for a in r["alerts"]} == {"Guayas"} and r["kits_total"] == 400
-    assert "Respuesta del Ministerio" in text and "Exposición de las unidades de atención" in text
-    pptx = generate_pptx(ctx)
-    slides = Presentation(BytesIO(pptx)).slides
-    titles = [" ".join(s.text for s in slide.shapes if s.has_text_frame) for slide in slides]
-    assert len(slides) == 7
-    assert METHODOLOGY in titles[6]
-    assert "Exposición por amenaza" in titles[1] and "Alertas con afectación" in titles[3] and "Kits y bono" in titles[4]
-    # Threats, threats at once, combinations, services and kits by canton: native, editable charts.
-    assert len([n for n in ZipFile(BytesIO(pptx)).namelist() if n.startswith("ppt/charts/chart") and n.endswith(".xml")]) == 5
-    xlsx = generate_xlsx(ctx)
-    wb = openpyxl.load_workbook(BytesIO(xlsx), data_only=True)
-    assert wb.sheetnames == v.sheets()
-    sheet = wb["Unidades"]
-    header = next(r for r in sheet if r[1].value == "Código UA")
-    rows = list(sheet.iter_rows(min_row=header[0].row + 1, max_col=9))
-    assert len(rows) == 287
-    assert {r[1].value for r in rows} == {u["codigo_ua"] for u in ctx["units"]}
-    assert all(r[1].data_type == "s" and r[2].value and r[4].value == "Guayas" and r[5].value == "Alta" for r in rows)
-    assert sheet.auto_filter.ref and sheet.freeze_panes
-    assert METHODOLOGY in [c.value for row in wb["Ficha técnica"] for c in row]
-    response = [c.value for row in wb["Respuesta"] for c in row if c.value is not None]
-    assert "ALT-2026-000325" in response and "Entregas de kits" in response and "Planificación El Niño 2026–2027" in response
-    header = next(r for r in wb["Provincias"] if r[1].value == "Provincia")
-    assert [c.value for c in header if c.value][-4:] == ["Alertas", "Kits", "Bono gestionado (personas)", "En articulación (personas)"]
-
-
-def test_service_filter_reaches_the_alerts_but_not_kits_or_bonus():
-    ctx = view((), ("PAM_SERV",)).report_context("Riesgos")
-    r = ctx["response"]
-    assert r["alert_count"] == 0 and r["kits_total"] == 802 and r["managed_people"] == 113
-    national = view().report_context("Riesgos")["response"]
-    assert national["alert_count"] == 13
-
-
-def test_risk_report_scope_invalidates_download_and_rejects_empty_or_incomplete_detail():
-    v = view()
-    original = v.digest()
-    assert len(v.report_context("Riesgos")["units"]) == 9460
-    v.levels = ("Alta",)
-    v.prepare()
-    assert v.digest() != original
-    v.detail_selected = v.detail_selected.iloc[1:]
-    with pytest.raises(ValueError, match="no coincide"):
-        v.report_context("Riesgos")
-    with pytest.raises(ValueError, match="No hay unidades"):
-        view(("99",)).report_context("Riesgos")
-
-
-def test_national_multihazard_reaches_all_three_exports():
-    ctx = view().report_context("Riesgos")
-    assert ctx["kpis"][1]["value"] == 6220
-    assert sum(r["multihazard"] for r in ctx["provinces"]) == 6220
-    pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
-    text = " ".join(p.get_text() for p in pdf)
-    assert "6.220" in text and "Multiamenaza" in text
-    assert "6.788" not in text and "Susceptibilidad alta o muy alta" not in text
-    deck = Presentation(BytesIO(generate_pptx(ctx)))
-    cover = " ".join(s.text for s in deck.slides[0].shapes if s.has_text_frame)
-    assert "6.220" in cover and "Multiamenaza" in cover and "6.788" not in cover
+    assert len(pdf) == ctx["pdf_pages"] == 5
+    pdf_text = " ".join(page.get_text() for page in pdf)
+    slides = Presentation(BytesIO(generate_pptx(ctx))).slides
+    ppt_text = " ".join(shape.text if shape.has_text_frame else " ".join(cell.text for row in shape.table.rows for cell in row.cells)
+                        if shape.has_table else "" for slide in slides for shape in slide.shapes)
     wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
-    summary = [c.value for row in wb["Resumen"] for c in row]
-    assert 6220 in summary and "Multiamenaza" in summary and 6788 not in summary
-    provinces = wb["Provincias"]
-    total = next(row for row in provinces if row[1].value == "Total de la selección")
-    assert total[3].value == 6220
-    assert riesgos.MULTI_NOTE in [c.value for row in wb["Ficha técnica"] for c in row]
+    assert wb.sheetnames == v.sheets()
+    xlsx_text = " ".join(str(c.value) for sheet in wb for row in sheet for c in row if c.value is not None)
+    for text in [pdf_text, ppt_text, xlsx_text]:
+        for hidden in ["UA expuestas", "Multiamenaza", "Susceptibilidad muy alta", "Exposición de las unidades", "6 pendientes · 7 en seguimiento"]:
+            assert hidden not in text
+        for a in ctx["response"]["alerts"]:
+            assert a["code"] in text
+            # All names and impacts survive wrapping, including the longest entries.
+            compact = " ".join(text.split())
+            assert " ".join(a["unit"].split()) in compact
+            assert " ".join(a["impact"].split()) in compact
+        assert "Núcleos" in text and "provincias priorizadas" in text
+    assert "33.200,80" in pdf_text and "33.200,80" in ppt_text
+    assert 33200.8 in [c.value for row in wb["Resumen"] for c in row]
+    assert len(slides) == 9
+
+
+def test_filters_apply_consistently_to_response_and_do_not_depend_on_exposure():
+    ctx = view(("09",), ("DII",), "susc_inundacion", ("Alta",)).report_context("Riesgos")
+    assert ctx["response"]["alert_count"] == 6
+    assert ctx["response"]["kits_total"] == 400
+    assert ctx["response"]["managed_people"] == 67
+    assert sum(a["value"] for a in ctx["response"]["by_province"]) == 6
+    assert sum(a["value"] for a in ctx["response"]["by_service"]) == 6
+    empty = view((), ("PAM_SERV",), levels=()).report_context("Riesgos")
+    assert empty["response"]["alert_count"] == 0 and empty["response"]["kits_total"] == 802
+    assert generate_pdf(empty)
+
+
+def test_timeline_preserves_the_full_reporting_window():
+    r = view().report_context("Riesgos")["response"]
+    assert r["daily"][0] == {"date": "14/09/2026", "short": "14/09", "daily": 0, "total": 0}
+    assert sum(a["daily"] for a in r["daily"]) == r["daily"][-1]["total"] == r["alert_count"]

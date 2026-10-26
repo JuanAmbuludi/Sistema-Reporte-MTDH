@@ -62,7 +62,7 @@ MAP_INDICATORS = {"expuestas": "UA expuestas", "porcentaje": "% expuesto", "muy_
                   "alertas": "Alertas", "kits": "Kits"}
 MAP_LABELS = {"expuestas": "UA expuestas por provincia", "porcentaje": "Porcentaje de las UA de cada provincia que está expuesto",
               "muy_alta": "UA con susceptibilidad muy alta por provincia", "multiamenaza": "Registros de multiamenaza por provincia",
-              "alertas": "Alertas con afectación a servicios MTDH por provincia", "kits": "Kits entregados en provincias priorizadas"}
+              "alertas": "Alertas con código UA por provincia", "kits": "Kits entregados en provincias priorizadas"}
 SUSCEPTIBILITY_CELLS = {"Media": ("#F3EFFC", "#5B46A0"), "Alta": ("#E2D9F6", "#3D216D"), "Muy alta": ("#F9DDEB", "#A32C74"),
                         "Sin categoría reportada": ("#FFFFFF", "#A59CB6"), "Sin categoría": ("#FFFFFF", "#A59CB6")}
 RESPONSE_SCOPES = [("Alertas", enos.ALERT_NOTE), ("Kits", enos.KIT_NOTE), ("Bono de contingencia", enos.BONO_NOTE),
@@ -259,7 +259,10 @@ class RiskView:
     label = "Riesgos"
     kind = "riesgos"
     empty_message = "La matriz de riesgos no registra unidades de atención para esta combinación de territorio y servicio."
-    summary_pages = 2
+    @property
+    def summary_pages(self):
+        import math
+        return 3 + max(1, math.ceil(len(self.response.alerts) / 7)) if self.response else 4
 
     def __init__(self):
         self.data = _read(riesgos.DATA_PATH.stat().st_mtime_ns) if riesgos.DATA_PATH.exists() else pd.DataFrame()
@@ -268,7 +271,7 @@ class RiskView:
         self.matrix = (_read_matrix(riesgos.MATRIX_PATH.stat().st_mtime_ns) if riesgos.MATRIX_PATH.exists()
                        else self.data.iloc[:0].rename(columns={"unidades": "registros"}))
         self.provinces, self.programs, self.threat, self.levels = [], [], None, riesgos.LEVELS
-        self.map_indicator = "expuestas"
+        self.map_indicator = "alertas"
         # The response of the Ministry: one snapshot per cut of the follow-up (alerts, kits and contingency bonus).
         self.snapshots = enos.snapshots()
         self.response_path = self.snapshots[-1] if self.snapshots else None
@@ -312,15 +315,7 @@ class RiskView:
         with right:
             self.programs = st.multiselect("Servicio", list(service_names), format_func=service_names.get,
                                            placeholder="Todos los servicios", key="risk_programs")
-        left, right = st.columns([1.15, 1], gap="small")
-        with left:
-            threats = st.multiselect("Amenaza", list(riesgos.THREATS), format_func=riesgos.THREATS.get,
-                                     placeholder="Todas las amenazas", key="risk_threats")
-        with right:
-            levels = st.segmented_control("Susceptibilidad", list(riesgos.LEVELS), selection_mode="multi", key="risk_levels",
-                                          width="stretch")
-        self.threat = threats or None
-        self.levels = tuple(level for level in riesgos.LEVELS if level in (levels or []))
+        self.threat, self.levels = None, riesgos.LEVELS
         if len(self.snapshots) > 1:
             cuts = {path.stem[-10:]: path for path in self.snapshots}
             if st.session_state.get("risk_response_cut") not in cuts:
@@ -330,7 +325,7 @@ class RiskView:
             self.response_path = cuts[cut]
         elif self.snapshots:
             self.response_path = self.snapshots[-1]
-        if self.provinces or self.programs or threats or len(self.levels) != len(riesgos.LEVELS):
+        if self.provinces or self.programs:
             st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=self._clear, type="tertiary",
                       key="risk_reset_filters")
 
@@ -393,27 +388,17 @@ class RiskView:
 
     # ----------------------------------------------------------------------------------------------- band
     def hero_copy(self) -> tuple[str, str, str]:
-        follow = f" · respuesta al {self.response.cut:%d/%m/%Y}" if self.response else ""
-        return (f"Exposición: {self.period['label'].lower()}{follow}", "Riesgos",
-                "Unidades de atención expuestas a amenazas de El Niño y respuesta del Ministerio.")
+        follow = self.response.scope_text() if self.response else "Seguimiento institucional"
+        return (follow, "Riesgos", "Alertas en los servicios MTDH y acciones de respuesta del Ministerio.")
 
     def update_stamp(self) -> dict:
         from src.corte import ECUADOR, long_date
-        path = riesgos.DATA_PATH.with_name(f"riesgos_ua_{self.period['id']}.json")
-        metadata = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-        value = metadata.get("generado_utc")
-        updated = long_date(datetime.fromisoformat(value).astimezone(ECUADOR)) if value else ""
-        moments = [datetime.fromisoformat(value).astimezone(ECUADOR)] if value else []
-        response = ""
-        if self.response:
-            moments.append(datetime.fromisoformat(self.response.data["generado_utc"]).astimezone(ECUADOR))
-            response = f" · respuesta al {self.response.cut:%d/%m/%Y}"
-        updated = long_date(max(moments)) if moments else ""
-        cut = f"Exposición: {self.period['label']}{response}"
-        line = cut + (f" · Actualizado el {updated}" if updated else "")
-        short = f"Exposición {self.period['label'].lower()}" + (f" · respuesta al {self.response.cut:%d/%m/%Y}" if self.response else "")
-        return {"cut": cut, "updated": updated, "short": short, "line": line,
-                "frequency": "Exposición según matriz; respuesta según cortes recibidos", "frequency_short": "según cortes recibidos"}
+        r = self.response
+        updated = long_date(datetime.fromisoformat(r.data["generado_utc"]).astimezone(ECUADOR)) if r else ""
+        cut = f"Respuesta al {r.cut:%d/%m/%Y}" if r else "Sin seguimiento disponible"
+        return {"cut": cut, "updated": updated, "short": cut,
+                "line": cut + (f" · Actualizado el {updated}" if updated else ""),
+                "frequency": "Según cortes recibidos", "frequency_short": "según cortes recibidos"}
 
     def national_table(self) -> pd.DataFrame:
         """Exposure of every province (service and threat filters) with the actions of the Ministry in it."""
@@ -436,13 +421,9 @@ class RiskView:
                 continue
             value = row[column]
             values[code] = float(value) if value == value else None
-            extra = f"\nMultiamenaza: {ui.number(row['multiamenaza'])} registros" if "multiamenaza" in row else ""
-            actions = [f"{ui.number(row['alertas'])} alertas" if row["alertas"] else "", f"{ui.number(row['kits'])} kits" if row["kits"] else "",
-                       f"{ui.number(row['gestionados'])} personas con bono gestionado" if row["gestionados"] else ""]
-            actions = [a for a in actions if a]
-            titles[code] = (f"{names.place(row['provincia'])}\n{_units(row['expuestas'])} expuestas de {_units(row['inventario'])} "
-                            f"({ui.pct(row['porcentaje'])})\nMuy alta: {_units(row['Muy alta'])}{extra}"
-                            + (f"\nRespuesta: {', '.join(actions)}" if actions else ""))
+            titles[code] = (f"{names.place(row['provincia'])}\n{ui.number(row['alertas'])} alertas en servicios MTDH"
+                            f"\n{ui.number(row['kits'])} kits en provincias priorizadas"
+                            f"\n{ui.number(row['gestionados'])} núcleos con bono gestionado")
         return values, titles
 
     def map_svg(self, indicator: str | None = None, night: bool = True, width: int = 640) -> tuple[str, str]:
@@ -460,11 +441,7 @@ class RiskView:
         return svg, MAP_LABELS[indicator]
 
     def hero_visual(self) -> None:
-        options = [key for key in MAP_INDICATORS if key != "multiamenaza" or self.matrix_available]
-        if not self.response:
-            options = [key for key in options if key not in ("alertas", "kits")]
-        if "Muy alta" not in self.levels:
-            options = [key for key in options if key != "muy_alta"]
+        options = ["alertas", "kits"]
         if st.session_state.get("risk_map_indicator") not in options:
             st.session_state["risk_map_indicator"] = options[0]
         self.map_indicator = st.segmented_control("Indicador territorial", options, format_func=MAP_INDICATORS.get,
@@ -488,70 +465,33 @@ class RiskView:
 
     def _response_kpis(self) -> list[dict]:
         r = self.response
-        states = [(r.pending, respuesta._n(r.pending, "pendiente")), (r.following, f"{r.following} en seguimiento"),
-                  (r.resolved, respuesta._n(r.resolved, "resuelta"))]
-        kit_provinces, _cantons = r.places(r.kits)
-        managed, articulation = int(r.managed.personas.sum()), int(r.articulation.personas.sum())
-        bonus = [f"USD {ui.number(r.managed.monto.sum(), 2)}" if managed else "",
-                 f"{ui.number(articulation)} en articulación" if articulation else ""]
+        kit_provinces, _ = r.places(r.kits)
         return [
-            {"label": "Alertas en servicios MTDH", "value": len(r.alerts), "icon": "shield", "tone": "oro",
-             "note": " · ".join(text for count, text in states if count) or "Sin alertas en la consulta"},
+            {"label": "Alertas con código UA", "value": len(r.alerts), "icon": "shield", "tone": "oro",
+             "note": f"Registros distintos · desde {r.since:%d/%m/%Y}"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
-             "note": (f"{respuesta._n(kit_provinces, 'provincia')} priorizadas · 24 y 25/10" if len(r.kits)
-                      else "Sin entregas en la consulta")},
-            {"label": "Personas con bono gestionado", "value": managed, "icon": "hand-coins", "tone": "lila",
-             "note": " · ".join(t for t in bonus if t) or "Sin registros en la consulta"},
+             "note": f"{kit_provinces} provincias priorizadas · 24 y 25/10"},
+            {"label": "Núcleos con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
+             "note": "Por inundaciones · gestión del bono"},
+            {"label": "Monto de bonos gestionados", "value": float(r.managed.monto.sum()), "prefix": "USD", "decimals": 2,
+             "icon": "banknote", "tone": "morado", "note": "Gestionado no acredita cobro"},
         ]
 
     def kpi_cards(self) -> list[dict]:
-        """With the response, UA expuestas, multiamenaza, alertas and kits lead (the documents show those four)."""
-        if self.response:
-            exposure, response = self._exposure_kpis(), self._response_kpis()
-            return [exposure[0], exposure[1], response[0], response[1], response[2], exposure[2]]
-        exposed = riesgos.count_units(self.selected)
-        provinces_with = int(self.province_rows.expuestas.gt(0).sum())
-        provinces_all = int(self.province_rows.inventario.gt(0).sum())
-        return self._exposure_kpis() + [
-            {"label": "Dos o más amenazas", "value": self.several, "icon": "layers", "tone": "violeta",
-             "note": f"{ui.pct(self.several / exposed * 100 if exposed else 0)} de las UA expuestas"},
-            {"label": "Provincias con UA expuestas", "value": provinces_with, "icon": "map", "tone": "lila",
-             "note": f"De {provinces_all} provincia{'s' if provinces_all != 1 else ''} con UA en la selección"},
-        ]
+        return self._response_kpis() if self.response else []
 
     def kpi_groups(self) -> list[dict]:
-        """The exposure and the response side by side, three figures each; without the follow-up, the cards alone."""
-        if not self.response:
-            return []
-        return [{"title": "Exposición de las unidades de atención", "icon": "storm", "tone": "morado",
-                 "subtitle": f"Susceptibilidad territorial · matriz de {self.period['label'].lower()}", "cards": self._exposure_kpis()},
-                {"title": "Respuesta del Ministerio", "icon": "life-buoy", "tone": "oro",
-                 "subtitle": f"Seguimiento {self.response.scope_text().lower()}", "cards": self._response_kpis()}]
+        # One full-width row; exposure calculations remain internal.
+        return []
 
-    # ------------------------------------------------------------------------------------------ dashboard
     def dashboard(self) -> None:
         r = self.response
-        where = self.territory_label if self.provinces else "todo el país"
-        if r:
-            ui.chapter("Exposición de las unidades de atención",
-                       f"Susceptibilidad territorial de las UA ante amenazas naturales · {self.period['label']} · {where}", "storm",
-                       anchor="exposicion")
-        if not self.levels:
-            ui.info_note("Elija al menos una categoría de susceptibilidad: media, alta o muy alta.", "Sin categorías elegidas",
-                         tone="warn")
-        elif self.selected.empty:
-            ui.info_note("No hay unidades expuestas con las amenazas y categorías elegidas en este territorio y servicio.",
-                         "Sin unidades expuestas", tone="warn")
-        else:
-            self._threats()
-            self._services()
-            self._territory()
-            self.table()
         if r:
             ui.chapter("Respuesta del Ministerio", f"Alertas en los servicios, kits entregados y bono de contingencia · "
-                                                   f"seguimiento {r.scope_text().lower()} · {where}", "life-buoy", tone="oro",
-                       anchor="respuesta")
+                       f"seguimiento {r.scope_text().lower()} · {self.territory_label}", "life-buoy", tone="oro", anchor="respuesta")
             self._response()
+        else:
+            ui.info_note("No hay un corte de seguimiento disponible.", "Respuesta del Ministerio")
         self.methodology()
 
     def _pair(self, ratio=(1, 1)):
@@ -573,14 +513,20 @@ class RiskView:
                                                             "cronología y provincias", "map")
             with st.container(border=True, key="card_response_evolution"):
                 ui.chart_title(f"Evolución de las alertas desde el {r.since:%d/%m/%Y}",
-                               f"Alertas con afectación documentada registradas cada día y su acumulado al {r.cut:%d/%m/%Y}")
+                               f"Alertas con código UA registradas cada día y su acumulado al {r.cut:%d/%m/%Y}")
                 show_chart(respuesta.alerts_evolution(r), "response_evolution")
+            left, right = self._pair()
+            for column, field, title in [(left, "provincia", "Alertas por provincia"), (right, "servicio", "Alertas por servicio")]:
+                with column, st.container(border=True, key=f"card_response_{field}_chart"):
+                    ui.chart_title(title, "Número de alertas vinculadas a unidades con código")
+                    show_chart(respuesta.alerts_breakdown(r, field), f"response_{field}_chart")
+            ui.info_note(r.count_note(), "Cómo se cuenta")
             with st.container(border=True, key="card_response_provinces"):
                 ui.chart_title("Acciones del Ministerio en cada provincia",
-                               "Con la exposición de sus UA según los filtros de servicio, amenaza y susceptibilidad")
+                               "Kits entregados y bono de contingencia por territorio")
                 self._actions_table(acting)
         if not r.alerts.empty:
-            ui.section_heading("Alertas en servicios MTDH", f"{respuesta._n(len(r.alerts), 'alerta')} con afectación documentada · "
+            ui.section_heading("Alertas con código UA", f"{respuesta._n(len(r.alerts), 'alerta')} con código UA · "
                                                             f"{respuesta._n(r.units, 'UA', 'UA')} con código · {r.scope_text().lower()}", "shield")
             with st.container(border=True, key="card_response_alert_table"):
                 ui.chart_title("Cada alerta con su unidad, territorio, afectación y estado",
@@ -608,34 +554,28 @@ class RiskView:
         rows["kits_sub"] = [details.get(code, {}).get("deliveries", "") for code in rows.provincia_codigo]
         rows["gestionados_sub"] = [f"USD {ui.number(v, 2)}" if v else "" for v in rows.monto_gestionado]
         rows["articulacion_sub"] = [f"USD {ui.number(v, 2)}" if v else "" for v in rows.monto_articulacion]
-        return rows
+        return rows.sort_values("nombre").reset_index(drop=True)
 
     def _actions_table(self, rows: pd.DataFrame) -> None:
         if rows.empty:
             ui.info_note("Las provincias de la consulta no registran acciones del Ministerio en este seguimiento.", "Sin acciones registradas")
         else:
             columns = [{"key": "nombre", "label": "Provincia", "kind": "strong", "sub": "provincia_sub"},
-                       {"key": "expuestas", "label": "UA expuestas", "kind": "num", "sub": "expuestas_sub"},
-                       {"key": "Muy alta", "label": "Muy alta", "kind": "num", "zero": "dash"},
-                       {"key": "alertas", "label": "Alertas", "kind": "num", "zero": "dash", "sub": "alertas_sub"},
                        {"key": "kits", "label": "Kits", "kind": "num", "zero": "dash", "sub": "kits_sub"},
-                       {"key": "gestionados", "label": "Bono gestionado", "kind": "num", "zero": "dash", "sub": "gestionados_sub"},
-                       {"key": "articulacion", "label": "En articulación", "kind": "num", "zero": "dash", "sub": "articulacion_sub"}]
+                       {"key": "gestionados", "label": "Bono gestionado (núcleos)", "kind": "num", "zero": "dash", "sub": "gestionados_sub"},
+                       {"key": "articulacion", "label": "En articulación (personas)", "kind": "num", "zero": "dash", "sub": "articulacion_sub"}]
             total = {"nombre": f"Total de {respuesta._n(len(rows), 'provincia')}", **{c["key"]: rows[c["key"]].sum() for c in columns[1:]}}
             ui.rich_table(columns, rows.to_dict("records"), total=total)
-            st.caption("Bono gestionado y en articulación: personas por inundaciones (pagos gestionados desde el "
+            st.caption("Bono gestionado: núcleos familiares; en articulación: personas por inundaciones (gestiones desde el "
                        f"{pd.Timestamp(self.response.cuts['bonos_desde']):%d/%m/%Y} y casos en articulación al "
                        f"{pd.Timestamp(self.response.cuts['bonos']):%d/%m/%Y}). Las acciones no se suman entre sí.")
-        rows = self.integrated_rows()
-        layout = [("Provincia", "nombre", "text", 26.0), ("UA", "inventario", "int", 10.0), ("UA expuestas", "expuestas", "int", 13.0),
-                  ("% expuesto", "porcentaje", "pct", 12.0), ("Muy alta", "Muy alta", "int", 10.0),
-                  ("Multiamenaza", "multiamenaza", "int", 13.0), ("Alertas", "alertas", "int", 10.0), ("Kits", "kits", "int", 10.0),
-                  ("Bono gestionado (personas)", "gestionados", "int", 16.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 18.0),
-                  ("En articulación (personas)", "articulacion", "int", 16.0), ("Monto en articulación (USD)", "monto_articulacion", "usd", 18.0)]
-        download_table(rows, layout, title="Exposición y respuesta por provincia", subtitle=f"{self.context_label} · {self.selection_label}",
-                       period_label=self.period["label"], file_name=f"MTDH_riesgos_provincias_{self.period['id']}.xlsx",
-                       key="risk_integrated_xlsx", share_fields=("porcentaje",),
-                       label=f"Descargar exposición y respuesta de {respuesta._n(len(rows), 'provincia')} (Excel)")
+        rows = self.action_rows()
+        layout = [("Provincia", "nombre", "text", 26.0), ("Kits", "kits", "int", 12.0),
+                  ("Bono gestionado (núcleos)", "gestionados", "int", 22.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 22.0),
+                  ("En articulación (personas)", "articulacion", "int", 22.0), ("Monto en articulación (USD)", "monto_articulacion", "usd", 24.0)]
+        download_table(rows, layout, title="Acciones del Ministerio por provincia", subtitle=self.response.scope_text(),
+                       period_label=self.response.scope_text(), file_name=f"MTDH_riesgos_acciones_{self.response.cut:%Y-%m-%d}.xlsx",
+                       key="risk_integrated_xlsx", share_fields=(), label="Descargar acciones por provincia (Excel)")
 
     def integrated_rows(self) -> pd.DataFrame:
         """Provinces of the consultation: exposure (service and threat filters) and the actions of the Ministry."""
@@ -774,17 +714,12 @@ class RiskView:
                                key="risk_xlsx", share_fields=())
 
     def methodology(self) -> None:
-        items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in DEFINITIONS)
-        scopes = ""
-        if self.response:
-            scopes = ('<h4>Alcance de la respuesta</h4><dl class="method-defs">'
-                      + "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in RESPONSE_SCOPES)
-                      + f'<div><dt>Revisión de alertas</dt><dd>{ui._esc(enos.QUALITY_NOTE)}</dd></div></dl>')
-        st.markdown(
-            f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span><h3>Nota metodológica</h3></header>'
-            f'<p>{ui._esc(METHODOLOGY)}</p><dl class="method-defs">{items}</dl>{scopes}<p class="method-source">{ui._esc(SOURCES)} '
-            'Respuesta: Subsecretaría Territorial (análisis de alertas), reporte ministerial de kits y ayuda memoria del bono de '
-            'contingencia. Hay unidades sin coordenadas en la fuente.</p></section>', unsafe_allow_html=True)
+        scopes = RESPONSE_SCOPES + [("Revisión de alertas", enos.QUALITY_NOTE)]
+        items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in scopes)
+        st.markdown(f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span>'
+                    f'<h3>Nota metodológica</h3></header><dl class="method-defs">{items}</dl>'
+                    '<p class="method-source">Fuentes: Subsecretaría Territorial (análisis de alertas), reporte ministerial de kits '
+                    'y ayuda memoria del bono de contingencia.</p></section>', unsafe_allow_html=True)
 
     @staticmethod
     def geoportal() -> None:
@@ -793,51 +728,32 @@ class RiskView:
 
     # ---------------------------------------------------------------------------------------------- reports
     def scope_items(self) -> list[tuple[str, str]]:
-        items = [("Exposición", self.period["label"]), ("Territorio", self.territory_label), ("Servicios", self.programs_label),
-                 ("Amenaza", self.threat_label), ("Susceptibilidad", self.levels_label)]
-        if self.response:
-            items.insert(1, ("Respuesta", self.response.scope_text()))
-        return items
+        return [("Seguimiento", self.response.scope_text() if self.response else "Sin corte"),
+                ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
 
     def products_notes(self) -> dict[str, str]:
-        if not self.response:
-            return {"resumen": "Dos páginas en PDF: cifras clave, mapa, amenazas, servicios, provincias y nota metodológica.",
-                    "presentacion": "Seis diapositivas editables: cifras clave, amenazas, combinaciones y servicios, mapa, provincias "
-                                    "y metodología.",
-                    "datos": "Excel con resumen, amenazas, servicios, provincias, unidades y ficha técnica."}
-        return {"resumen": "Dos páginas en PDF: la exposición de las unidades de atención (mapa, amenazas y combinaciones) y la "
-                           "respuesta del Ministerio (alertas, provincias con acciones, kits y bono), con sus alcances.",
-                "presentacion": "Siete diapositivas editables: cifras clave, amenazas, combinaciones y servicios, alertas, kits y "
-                                "bono, exposición y respuesta por provincia, y metodología.",
-                "datos": "Excel con resumen, amenazas, servicios, provincias (exposición y acciones), respuesta, unidades y ficha técnica."}
+        return {"resumen": "Boletín PDF completo: indicadores, gráficas, todas las alertas, acciones provinciales, kits, bono y alcances.",
+                "presentacion": "Diapositivas con toda la información visible y gráficas editables.",
+                "datos": "Excel con indicadores, evolución, alertas, acciones, kits, planificación y ficha técnica."}
 
     def sheets(self) -> list[str]:
-        middle = ["Respuesta"] if self.response else []
-        return ["Resumen", "Amenazas", "Servicios", "Provincias", *middle, "Unidades", "Ficha técnica"]
+        return ["Resumen", "Evolución", "Alertas", "Provincias", "Kits y bono", "Ficha técnica"]
 
     def report_contents(self, kind: str) -> list[tuple[str, str, str]]:
-        items = [("grid", "Cifras clave", "Exposición de las UA y respuesta del Ministerio, con el mismo peso" if self.response
-                  else "UA expuestas, multiamenaza, muy alta y amenazas simultáneas"),
-                 ("storm", "Exposición", "Amenazas, categorías, amenazas simultáneas, combinaciones y servicios")]
-        if self.response:
-            items.append(("life-buoy", "Respuesta del Ministerio", "Alertas en servicios, kits entregados y bono de contingencia"))
-        items.append(("map", "Provincias", "Exposición y acciones de cada provincia, con su mapa" if self.response
-                      else "Exposición de cada provincia, con su mapa"))
-        if kind == "datos":
-            items.append(("table", "Unidades de atención", "Código, nombre, servicio, provincia y amenazas"))
-        return items + [("document", "Nota metodológica", "Alcances, definiciones, fuentes y acceso al geoportal")]
+        return [("grid", "Cifras clave", "Alertas, kits, núcleos y monto gestionado"),
+                ("chart", "Alertas", "Evolución, provincia, servicio y detalle completo con código y nombre de UA"),
+                ("map", "Acciones", "Kits, bono por provincia y planificación nacional"),
+                ("document", "Nota metodológica", "Alcances, fuentes y acceso al geoportal")]
 
     def slide_titles(self) -> tuple[str, str]:
-        return ("Exposición por amenaza", "Alertas con afectación a servicios MTDH") if self.response else \
-            ("Exposición por amenaza", "Unidades expuestas por provincia")
+        return ("Alertas por provincia y servicio", "Respuesta del Ministerio")
 
     def preview_visual(self) -> str:
-        svg, _label = self.map_svg("expuestas", night=False, width=300)
-        return svg
+        return self.map_svg("alertas", night=False, width=300)[0]
 
     def digest(self) -> str:
         response = self.response.data.get("generado_utc") if self.response else ""
-        return fingerprint(self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        return fingerprint("response-only-v1", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, self.update_stamp(), str(self.response_path), response)
 
     def report_context(self, title: str) -> dict:

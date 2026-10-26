@@ -140,6 +140,9 @@ def _insights(view, ctx: dict) -> list[dict]:
 
 
 def build_context(view, *, title: str) -> dict:
+    from .risk_response import build_context as response_context
+    return response_context(view, title=title)
+
     from src.views.riesgos import DEFINITIONS, METHODOLOGY
     if getattr(view, "selected", None) is None or view.selected.empty:
         raise ValueError("No hay unidades expuestas con los filtros seleccionados.")
@@ -685,6 +688,9 @@ def _response_tiles(c, r: dict, x: float, top: float, width: float, height: floa
 
 
 def render_pdf(c, ctx: dict, pages: int) -> None:
+    from .risk_response import render_pdf as response_render
+    return response_render(c, ctx, pages)
+
     """Page 1: both families of key figures and the exposure of the units; page 2: the response of the Ministry, the
     provinces with their exposure and actions, and the scopes."""
     if not ctx.get("response"):
@@ -844,6 +850,9 @@ def _exposure_pdf(c, ctx: dict, pages: int) -> None:
 
 # --------------------------------------------------------------------------------------------- slides (PPTX)
 def render_pptx(prs, ctx: dict) -> None:
+    from .risk_response import render_pptx as response_render
+    return response_render(prs, ctx)
+
     from lxml import etree
     from pptx.chart.data import CategoryChartData
     from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION
@@ -1082,6 +1091,9 @@ def render_pptx(prs, ctx: dict) -> None:
 
 # --------------------------------------------------------------------------------------------- workbook (XLSX)
 def render_workbook(book) -> None:
+    from .risk_response import render_workbook as response_render
+    return response_render(book)
+
     from .excel import DISPLAY, TEXT
     from .excel_areas import _block, _finish_summary, _sheet, _summary
     from .charts import map_png

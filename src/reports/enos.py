@@ -15,7 +15,7 @@ def build_context(view,title):
                reference=enos.REFERENCE, sources=view.data['fuentes'],
                bonos=[{**r,'stage':label} for key,label in [('gestionados','Gestionado'),('articulacion','En articulación')]
                        for r in view.frames[key].to_dict('records')],
-               insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con afectación a servicios MTDH desde el 14/09 en {view.alerts.provincia.nunique()} provincias."},
+               insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con código UA desde el 14/09 en {view.alerts.provincia.nunique()} provincias."},
                          {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits entregados en provincias priorizadas el 24–25/10."}])
     return ctx
 
@@ -79,7 +79,7 @@ def render_pptx(prs,ctx):
     rows=ctx['provinces'][::-1]
     if rows:_bar_chart(s,[r['name'] for r in rows],[r['value'] for r in rows],'Alertas',x=.5,y=1.4,w=7.3,h=4.55)
     _table(s,8.1,1.7,4.6,[('Estado','name',None,'text'),('Alertas','value',1.1,'int')],ctx['states'],row_h=.5)
-    _text(s,8.1,4,4.6,1.6,'Solo afectaciones documentadas a servicios MTDH. Se excluyen daños externos sin impacto en su atención. El campo Afectados mezcla unidades y no se suma.',size=15)
+    _text(s,8.1,4,4.6,1.6,'Alertas revisadas con código UA. Tener código no confirma afectación; los casos de Tenguel requieren validación. El campo Afectados mezcla unidades y no se suma.',size=15)
     _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 14/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
     s=slide('Kits en provincias priorizadas','Fin de semana 24–25/10/2026 · '+ctx['territory_label'])
     _text(s,.65,1.4,12,.6,f"{number(sum(r['kits'] for r in ctx['kits']))} kits documentados",size=28,bold=True,color=theme.MORADO)

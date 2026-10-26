@@ -115,6 +115,8 @@ def _heading(c, text: str, x: float, y: float, width: float, note: str = "") -> 
 
 def value_text(kpi: dict) -> str:
     """Key figure as printed: 1.578.019 · USD 1.011,2 M · 71,0 % · Más de USD 229 M."""
+    if kpi.get("display_value"):
+        return kpi["display_value"]
     if kpi["value"] is None:
         return "—"
     if kpi["kind"] == "rate":
@@ -750,7 +752,7 @@ def _budget_detail(c, ctx: dict) -> None:
 def page_count(context: dict) -> int:
     """Pages of the summary: two, except the areas that fit one (Jóvenes en Acción)."""
     from .pdf_areas import PAGES
-    return PAGES.get(context.get("kind"), 2)
+    return context.get("pdf_pages", PAGES.get(context.get("kind"), 2))
 
 
 def generate_pdf(context: dict) -> bytes:

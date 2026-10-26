@@ -16,12 +16,12 @@ def view(provinces=()):
 
 def test_alert_window_and_source_units():
     v=view();a=v.alerts
-    assert len(a)==13 and a.codigo.nunique()==13
+    assert len(a)==10 and a.codigo.nunique()==10
     assert pd.to_datetime(a.fecha).ge('2026-09-14').all()
-    assert a.estado.value_counts().to_dict()=={'En seguimiento':7,'Pendiente':6}
+    assert a.estado.value_counts().to_dict()=={'Pendiente':8,'En seguimiento':2}
     assert a.provincia.nunique()==3
-    assert a.loc[a.codigo_ua.ne(''),'codigo_ua'].nunique()==8
-    assert [k['value'] for k in v.kpi_cards()]==[13,13,8,802]
+    assert a.loc[a.codigo_ua.ne(''),'codigo_ua'].nunique()==10
+    assert [k['value'] for k in v.kpi_cards()]==[10,10,10,802]
     assert set(a.columns)=={'codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad','afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio'}
     assert v.data['control']['alertas_detalle_original']==31
 
@@ -37,7 +37,7 @@ def test_kit_deliveries_bono_scopes_and_merged_province():
     assert b.loc[b.provincia.eq('Los Ríos'),'personas'].item()==109
     assert set(a.evento)|set(b.evento)=={'Inundación'}
     assert v.data['bonos']['planificacion']=={'personas':145523,'nucleos':44098,'monto':13405351.02}
-    g=view(['Guayas']);assert len(g.alerts)==5 and g.kits.kits.sum()==400
+    g=view(['Guayas']);assert len(g.alerts)==6 and g.kits.kits.sum()==400
     assert g.frames['gestionados'].personas.sum()==67
     assert g.digest()!=v.digest()
 
@@ -58,11 +58,12 @@ def test_three_products_keep_counts_and_explicit_limits():
 
 def test_only_documented_service_impacts_reach_exports():
     v=view()
-    expected={'ALT-2026-000'+n for n in ['325','323','322','321','319','318','310','309','291','288','289','283','287']}
+    expected={'ALT-2026-000'+n for n in ['325','323','322','321','319','318','310','309','316','315']}
     assert set(v.alerts.codigo)==expected
-    assert v.alerts.afectacion_servicio_confirmada.all()
+    assert v.alerts.afectacion_servicio_confirmada.sum()==8
+    assert set(v.alerts.loc[~v.alerts.afectacion_servicio_confirmada, "codigo"])=={"ALT-2026-000315","ALT-2026-000316"}
     assert v.alerts.afectacion_servicio.str.len().gt(0).all()
-    assert v.data['control']['alertas_excluidas']==18
+    assert v.data['control']['alertas_excluidas']==21
     # A code alone is not evidence; legacy/unreviewed rows cannot reach any product.
     data=json.loads(json.dumps(v.data))
     data['alertas'].append({'codigo':'NEW','codigo_ua':'123','provincia':'Guayas'})
@@ -82,15 +83,14 @@ def test_september_alerts_and_evolution_reconcile_with_review():
     assert v.data['control']['alertas_desde_inicio']==31
     assert v.data['control']['alertas_sin_revision']==0
     september=a.loc[a.fecha.lt('2026-09-29')]
-    assert len(september)==5 and september.codigo_ua.eq('').all()
-    assert set(september.unidad)=={'CNH Cien Familias','CDI Divino Niño','CDI Mis Pequeños Traviesos','CDI Gotitas de Miel','CDI Lucerito'}
-    assert a[['provincia','canton']].drop_duplicates().shape[0]==6
+    assert september.empty
+    assert a[['provincia','canton']].drop_duplicates().shape[0]==4
     r=Response(v.data);fig=alerts_evolution(r)
     assert pd.Timestamp(fig.data[0].x[0])==pd.Timestamp('2026-09-14')
-    assert fig.data[0].y[-1]==13 and sum(fig.data[1].y)==13
+    assert fig.data[0].y[-1]==10 and sum(fig.data[1].y)==10
     daily=dict(zip(pd.to_datetime(fig.data[1].x).strftime('%Y-%m-%d'),fig.data[1].y))
-    assert daily['2026-09-14']==0 and daily['2026-09-24']==4 and daily['2026-09-27']==1
+    assert daily['2026-09-14']==0 and daily['2026-09-24']==0 and daily['2026-09-27']==0
     data=json.loads(json.dumps(v.data))
     for code,day in [('BEFORE','2026-09-13'),('AFTER','2026-10-27')]:
         data['alertas'].append({**data['alertas'][0],'codigo':code,'fecha':day})
-    assert len(enos.frames(data)['alertas'])==13
+    assert len(enos.frames(data)['alertas'])==10

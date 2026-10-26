@@ -1,9 +1,9 @@
 """Respuesta del Ministerio ante El Niño, junto a la exposición de las unidades de atención en Riesgos.
 
-Three actions with their own sources and cuts (see :mod:`src.enos`): alerts with a documented impact on MTDH services
+Three actions with their own sources and cuts (see :mod:`src.enos`): reviewed alerts linked to identified MTDH units
 since 14 September 2026, kits delivered (the weekend of 24–25 October) and the contingency bonus (payments managed and
 cases in articulation for floods, and the national plan for El Niño 2026–2027).  Each keeps its unit: alerts are alerts,
-kits are kits and bonus figures are people with a managed payment or in articulation; they are never added together.
+kits are kits and bonus figures are nuclei with a managed payment or people in articulation; they are never added together.
 """
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ import plotly.graph_objects as go
 
 from src import charts, depuracion, enos, theme, ui
 
-FILTERS_NOTE = ("El territorio se aplica a todas las acciones; el servicio, solo a las alertas (según la UA afectada); la amenaza y "
-                "la susceptibilidad, solo a la exposición. Kits y bono no se asocian a un servicio.")
+FILTERS_NOTE = ("El territorio se aplica a todas las acciones; el servicio, solo a las alertas según la UA registrada. "
+                "Kits y bono no se asocian a un servicio. La planificación del bono es nacional.")
 STATUS_TONES = {"Pendiente": "oro", "En seguimiento": "lila", "Resuelto": "ok"}
 PRIORITY_TONES = {"Alta": "fucsia", "Media": "lila", "Baja": "gris"}
 
@@ -72,6 +72,13 @@ class Response:
         self.plan = data["bonos"]["planificacion"]
         self.cut, self.since = pd.Timestamp(data["corte"]), pd.Timestamp(data["desde"])
         self.cuts = data["cortes"]
+
+    def count_note(self) -> str:
+        confirmed = int(self.alerts.afectacion_servicio_confirmada.sum())
+        parts = [f"{count} {service}" for service, count in self.alerts.groupby("servicio").size().sort_values(ascending=False).items()]
+        return (f"{len(self.alerts)} alertas con {self.units} códigos UA distintos" + (": " + "; ".join(parts) if parts else "")
+                + f". {confirmed} con afectación documentada y {len(self.alerts) - confirmed} por confirmar. "
+                "Se excluyen los registros sin código UA; el código por sí solo no confirma una afectación.")
 
     # ------------------------------------------------------------------------------------------- figures
     @property
@@ -138,6 +145,19 @@ class Response:
 
 
 # --------------------------------------------------------------------------------------------------- charts
+def alerts_breakdown(r: Response, field: str) -> go.Figure:
+    counts = r.alerts.groupby(field).size().sort_values(ascending=True)
+    labels = [str(x).replace("Creciendo con Nuestros Hijos (CNH)", "Creciendo con Nuestros Hijos<br>(CNH)") for x in counts.index]
+    fig = go.Figure(go.Bar(x=counts.values, y=labels, orientation="h", marker=dict(color=theme.MORADO, cornerradius=4),
+                          text=counts.values, textposition="outside", cliponaxis=False,
+                          hovertemplate="<b>%{y}</b><br>%{x} alertas<extra></extra>"))
+    charts.base(fig, 240, dict(l=8, r=36, t=12, b=16))
+    fig.update_xaxes(showgrid=False, showticklabels=False, range=[0, max(counts.max() if len(counts) else 0, 1) * 1.25])
+    fig.update_yaxes(showgrid=False, tickfont=dict(size=12), categoryorder="array", categoryarray=labels)
+    fig.update_layout(showlegend=False, bargap=0.4)
+    return fig
+
+
 def alerts_evolution(r: Response) -> go.Figure:
     """Alerts registered each day from the first day of the follow-up (columns) and their running total (step line)."""
     days = pd.date_range(r.since.normalize(), r.cut.normalize(), freq="D")

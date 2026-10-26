@@ -28,7 +28,7 @@ SHORT = {"transferencias": "Transferencias", "servicios": "Servicios", "riesgos"
 SECTIONS = [
     ("transferencias", "Transferencias monetarias", "hand-coins"),
     ("servicios", "Servicios de protección integral", "users"),
-    ("riesgos", "Riesgos: exposición y respuesta", "storm"),
+    ("riesgos", "Riesgos: respuesta del Ministerio", "storm"),
     ("contingencias", "Contingencias y compensaciones", "shield"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
     ("laboral", "Gestión laboral", "briefcase"),
@@ -82,8 +82,8 @@ def _visual(key: str, ctx: dict) -> dict | None:
                 "rows": [{"name": p["short"], "value": p["people"], "text": f"{_number(p['people'])} · {_number(p['units'])} UA"}
                          for p in programs[:5]]}
     if key == "riesgos":
-        return {"kind": "levels", "title": "UA expuestas por amenaza y susceptibilidad", "rows": ctx["threats"], "levels": ctx["levels"],
-                "note": f"% sobre las {_number(ctx['inventory'])} UA del inventario"}
+        return {"kind": "bars", "title": "Alertas por provincia", "rows": [dict(r, text=str(r["value"])) for r in ctx["response"]["by_province"]],
+                "note": "Alertas revisadas con código UA"}
     if key == "contingencias":
         months = [m for m in ctx["months"] if m.get("amount")]
         return {"kind": "columns", "title": "Monto entregado por mes (USD)", "labels": [m["short"] for m in months],

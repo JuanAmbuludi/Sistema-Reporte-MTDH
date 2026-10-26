@@ -361,6 +361,8 @@ class Workbook:
     # ------------------------------------------------------------------ data
     @staticmethod
     def kpi_format(kpi: dict) -> str:
+        if kpi.get("exact_money"):
+            return '"USD "#,##0.00'
         if kpi["kind"] == "rate":
             return PCT
         if kpi["kind"] == "money":

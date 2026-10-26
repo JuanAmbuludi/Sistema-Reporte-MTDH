@@ -68,7 +68,7 @@ class EnosView:
         return [{'label': 'Alertas de servicios MTDH', 'value': len(self.alerts), 'icon': 'storm', 'note': 'Desde el 14/09/2026'},
                 {'label': 'Alertas abiertas', 'value': int(self.alerts.estado.ne('Resuelto').sum()), 'icon': 'clock',
                  'note': 'Pendientes o en seguimiento'},
-                {'label': 'UA afectadas con código', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
+                {'label': 'UA identificadas con código', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
                  'icon': 'building', 'note': 'Solo códigos registrados en la fuente'},
                 {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Provincias priorizadas · 24–25/10'}]
 
@@ -107,7 +107,7 @@ class EnosView:
         st.caption(f'{self.alerts.provincia.nunique()} provincias · {self.alerts[["provincia","canton"]].drop_duplicates().shape[0]} cantones · '
                    f'{int(self.alerts.estado.eq("Resuelto").sum())} alertas resueltas. La ausencia de registros no prueba ausencia de afectación.')
         columns = [st.container(),st.container()] if compact() else st.columns(2, gap='medium')
-        for box,field,title,subtitle,color in [(columns[0],'provincia','Alertas por provincia','Alertas con afectación documentada al servicio',theme.SERIE_BONOS),
+        for box,field,title,subtitle,color in [(columns[0],'provincia','Alertas por provincia','Alertas revisadas con código UA',theme.SERIE_BONOS),
                                               (columns[1],'estado','Estado de las alertas','Pendientes, en seguimiento o resueltas',theme.FUCSIA)]:
             with box, st.container(border=True, key=f'card_enos_{field}'):
                 ui.chart_title(title, subtitle)
@@ -145,7 +145,7 @@ class EnosView:
         st.caption('Fuentes: Subsecretaría Territorial, análisis de alertas del 26/10; reporte ministerial de kits al 25/10; ayuda memoria del bono al 23/10.')
 
     def scope_items(self):
-        return [('Ámbito','Solo afectaciones documentadas a servicios MTDH'),('Alertas desde','14/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
+        return [('Ámbito','Alertas revisadas con código UA'),('Alertas desde','14/09/2026'),('Corte',self.data['corte']),('Territorio',self.territory_label),
                 ('Kits','24–25/10/2026'),('Bonos','Referencia al 23/10; sin atribución ENOS confirmada')]
 
     def digest(self):
