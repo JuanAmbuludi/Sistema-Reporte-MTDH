@@ -766,4 +766,7 @@ def _social_detail(c, ctx: dict) -> None:
         _two_findings(c, remaining, top - 12, rows=2, bottom=46)
 
 
-RENDERERS = {"contingencias": contingency, "jovenes": youth, "laboral": labour, "presupuesto_social": social_budget}
+from .risks import render_pdf as risk_summary
+
+RENDERERS = {"contingencias": contingency, "jovenes": youth, "laboral": labour, "presupuesto_social": social_budget,
+             "riesgos": risk_summary}

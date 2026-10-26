@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src import charts, names, riesgos, theme, ui
-from src.views.common import compact, show_chart
+from src.views.common import compact, fingerprint, show_chart
 
 
 @st.cache_data(show_spinner=False)
@@ -64,6 +64,7 @@ class RiskView:
     id = "riesgos"
     label = "Riesgos"
     empty_message = "La matriz de riesgos no está disponible para este corte."
+    summary_pages = 2
 
     def __init__(self):
         self.data = _read(riesgos.DATA_PATH.stat().st_mtime_ns) if riesgos.DATA_PATH.exists() else pd.DataFrame()
@@ -107,6 +108,9 @@ class RiskView:
         self.selected = riesgos.exposed(self.scoped, self.threat, self.levels)
         self.detail_selected = riesgos.exposed(
             riesgos.select(self.inventory, self.period["id"], self.provinces, self.programs), self.threat, self.levels)
+        self.territory_label = (", ".join(sorted(self.scoped.provincia.map(names.place).unique()))
+                                if self.provinces else "Nacional")
+        self.programs_label = (", ".join(sorted(self.scoped.servicio.unique())) if self.programs else "Todos los servicios")
         return True
 
     def hero_copy(self) -> tuple[str, str, str]:
@@ -123,6 +127,7 @@ class RiskView:
         value = metadata.get("generado_utc")
         updated = long_date(datetime.fromisoformat(value).astimezone(ECUADOR)) if value else ""
         return {"cut": self.period["label"], "updated": updated,
+                "short": f"Corte: {self.period['label']}", "line": f"Corte: {self.period['label']}",
                 "frequency": "Actualización según matriz disponible"}
 
     def hero_visual(self) -> None:
@@ -190,5 +195,44 @@ class RiskView:
     @staticmethod
     def methodology() -> None:
         ui.info_note(METHODOLOGY, "Nota metodológica")
+
+    @staticmethod
+    def geoportal() -> None:
         ui.geoportal_card("riesgos", "Consulte la ubicación de las unidades de atención y las zonas de amenaza natural "
                                     "y riesgo antrópico en el visor geográfico del Ministerio.")
+
+    def scope_items(self) -> list[tuple[str, str]]:
+        return [("Corte", self.period["label"]), ("Territorio", self.territory_label),
+                ("Servicios", self.programs_label), ("Amenaza", riesgos.THREATS.get(self.threat, "Todas las amenazas")),
+                ("Susceptibilidad", ", ".join(self.levels))]
+
+    def products_notes(self) -> dict[str, str]:
+        return {"resumen": "Dos páginas en PDF: cifras clave, servicios, amenazas, provincias y nota metodológica.",
+                "presentacion": "Cuatro diapositivas editables: cifras clave, exposición, provincias y metodología.",
+                "datos": "Excel con resumen, amenazas, provincias, detalle de unidades con código y nombre y ficha técnica."}
+
+    def sheets(self) -> list[str]:
+        return ["Resumen", "Amenazas", "Provincias", "Unidades", "Ficha técnica"]
+
+    def report_contents(self, kind: str) -> list[tuple[str, str, str]]:
+        items = [("grid", "Cifras clave", "Unidades únicas expuestas y susceptibilidad alta o muy alta"),
+                 ("chart", "Servicios y amenazas", "Distribución de la selección vigente"),
+                 ("map", "Provincias", "Unidades expuestas por territorio")]
+        if kind == "datos":
+            items.append(("building", "Unidades de atención", "Código, nombre, servicio, provincia y amenazas"))
+        return items + [("document", "Nota metodológica", "Alcance, fuentes y acceso al geoportal")]
+
+    def slide_titles(self) -> tuple[str, str]:
+        return "Exposición por servicio y amenaza", "Unidades expuestas por provincia"
+
+    def preview_visual(self) -> str:
+        counts = self.selected.groupby("programa_id").unidades.sum()
+        return ui.svg_columns(counts.tolist(), counts.index.tolist(), width=300, height=170, night=False)
+
+    def digest(self) -> str:
+        return fingerprint(self.selected, self.detail_selected, self.period, self.provinces, self.programs,
+                           self.threat, self.levels, METHODOLOGY, self.update_stamp())
+
+    def report_context(self, title: str) -> dict:
+        from src.reports.risks import build_context
+        return build_context(self, title=title)

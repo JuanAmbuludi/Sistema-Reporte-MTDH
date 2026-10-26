@@ -480,7 +480,7 @@ SLOGAN = ("El corazón de Ecuador.", "Velamos por la calidad de vida de los ecua
 
 
 def footer(period: str, stamp: dict | None = None) -> None:
-    """Brand, source, period, cut and update of the information, and the institutional slogan."""
+    """Brand, source, period, cut and update of the information."""
     logo = f'<img src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
     stamp = stamp or {}
     update = ""
@@ -491,6 +491,6 @@ def footer(period: str, stamp: dict | None = None) -> None:
     st.markdown(
         f'<footer class="app-footer"><div class="foot-brand">{logo}</div><div class="foot-meta"><strong>{PRODUCT} · Indicadores estratégicos</strong>'
         f'<span>Fuente: Ministerio de Trabajo y Desarrollo Humano</span><span>Periodo: {_esc(period)}</span>{update}</div>'
-        f'<div class="foot-slogan"><b>{SLOGAN[0]}</b><span>{SLOGAN[1]}</span></div></footer>',
+        '</footer>',
         unsafe_allow_html=True,
     )

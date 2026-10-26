@@ -420,4 +420,7 @@ def social_budget_book(book) -> None:
                      contents, sources=ctx.get("sources"))
 
 
-BOOKS = {"contingencias": contingency_book, "jovenes": youth_book, "laboral": labour_book, "presupuesto_social": social_budget_book}
+from .risks import render_workbook as risk_book
+
+BOOKS = {"contingencias": contingency_book, "jovenes": youth_book, "laboral": labour_book, "presupuesto_social": social_budget_book,
+         "riesgos": risk_book}

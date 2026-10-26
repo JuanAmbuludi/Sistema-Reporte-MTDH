@@ -158,7 +158,9 @@ if not ready:
     ui.info_note(view.empty_message, "Sin resultados para esta selección", tone="warn")
     st.stop()
 
-ui.kpi_grid(view.kpi_cards())
+if area == "riesgos":
+    view.geoportal()
+ui.kpi_grid(view.kpi_cards(), overlap=area != "riesgos")
 
 
 # ---------------------------------------------------------------------------
@@ -231,8 +233,6 @@ def report_center() -> None:
 
 if st.session_state.workspace == "Tablero":
     view.dashboard()
-elif area == "riesgos":
-    view.table()
 else:
     report_center()
 

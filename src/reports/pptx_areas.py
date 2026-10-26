@@ -563,4 +563,7 @@ def social_budget(prs, ctx: dict) -> None:
     _closing(slide, ctx, 4, total, [])
 
 
-RENDERERS = {"contingencias": contingency, "jovenes": youth, "laboral": labour, "presupuesto_social": social_budget}
+from .risks import render_pptx as risk_presentation
+
+RENDERERS = {"contingencias": contingency, "jovenes": youth, "laboral": labour, "presupuesto_social": social_budget,
+             "riesgos": risk_presentation}
