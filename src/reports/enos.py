@@ -16,7 +16,7 @@ def build_context(view,title):
                bonos=[{**r,'stage':label} for key,label in [('gestionados','Gestionado'),('articulacion','En articulación')]
                        for r in view.frames[key].to_dict('records')],
                insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con afectación a servicios MTDH desde el 14/09 en {view.alerts.provincia.nunique()} provincias."},
-                         {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits documentados en el fin de semana del 24–25/10."}])
+                         {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits entregados en provincias priorizadas el 24–25/10."}])
     return ctx
 
 
@@ -52,7 +52,7 @@ def render_pdf(c,ctx,pages):
     paragraph(ctx['quality_note'],y,8)
     _next_page(c,ctx,1,pages)
     y=_slim_band(c,ctx,'Kits y bono de contingencia',ctx['territory_label'])
-    _heading(c,'Entregas documentadas de kits',M,y-15,width)
+    _heading(c,'Kits entregados en provincias priorizadas',M,y-15,width)
     y=_table(c,M,y-31,width,KIT_COLUMNS,ctx['kits'],row_h=17)
     y=paragraph(ctx['kit_note'],y-12,8)
     _heading(c,'Planificación nacional El Niño 2026–2027',M,y-6,width)
@@ -81,7 +81,7 @@ def render_pptx(prs,ctx):
     _table(s,8.1,1.7,4.6,[('Estado','name',None,'text'),('Alertas','value',1.1,'int')],ctx['states'],row_h=.5)
     _text(s,8.1,4,4.6,1.6,'Solo afectaciones documentadas a servicios MTDH. Se excluyen daños externos sin impacto en su atención. El campo Afectados mezcla unidades y no se suma.',size=15)
     _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 14/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
-    s=slide('Kits entregados','Fin de semana 24–25/10/2026 · '+ctx['territory_label'])
+    s=slide('Kits en provincias priorizadas','Fin de semana 24–25/10/2026 · '+ctx['territory_label'])
     _text(s,.65,1.4,12,.6,f"{number(sum(r['kits'] for r in ctx['kits']))} kits documentados",size=28,bold=True,color=theme.MORADO)
     _table(s,.65,2.2,12,[('Fecha','fecha',1.8,'text'),('Provincia','provincia',2.6,'text'),('Cantón','canton',None,'text'),('Kits','kits',1.2,'int')],ctx['kits'],row_h=.43)
     _text(s,.65,6.15,12,.6,ctx['kit_note'],size=13,color=theme.PIZARRA)
@@ -110,7 +110,7 @@ def render_workbook(book):
              ('Estado','estado','text'),('Código UA','codigo_ua','code'),('Unidad de atención','unidad','text'),('Servicio','servicio','text'),('Afectación al servicio','afectacion_servicio','text'),('Afectados (campo fuente)','afectados_fuente','int')]
     first,end,row=_block(book,ws,row+1,'Detalle desde el 14/09',columns,ctx['alerts'],last=10,height=45,autofilter=True)
     ws.freeze_panes(first,3);book.note(ws,row+1,ctx['alert_note'],last=10,height=70)
-    ws,row=_sheet(book,'Kits',theme.VIOLETA_500,'Kits entregados',[2.4,18,28,32,18,2.4])
+    ws,row=_sheet(book,'Kits',theme.VIOLETA_500,'Kits entregados en provincias priorizadas',[2.4,18,28,32,18,2.4])
     _f,_e,row=_block(book,ws,row+1,'Entregas de fin de semana',[(h,k,'int' if k=='kits' else 'text') for h,k,_w,_t in KIT_COLUMNS],
                      ctx['kits'],total={'kits':sum(r['kits'] for r in ctx['kits'])},last=4,height=23,autofilter=True)
     book.note(ws,row+1,ctx['kit_note'],last=4,height=45)

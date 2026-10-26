@@ -206,7 +206,7 @@ def build_context(view, *, title: str) -> dict:
         r = ctx["response"]
         note(kpis, 2, f"{_n(r['units'], 'UA', 'UA')} con código · {_n(r['alert_provinces'], 'provincia')}" if r["alert_count"]
               else "Sin alertas en la consulta", "Alertas en servicios")
-        note(kpis, 3, f"{_n(r['deliveries'], 'entrega')} · 24 y 25/10" if r["deliveries"] else "Sin entregas en la consulta")
+        note(kpis, 3, "Provincias priorizadas" if r["deliveries"] else "Sin entregas en la consulta")
         note(kpis, 4, f"USD {number(r['managed_amount'], 2)} · inundaciones" if r["managed_people"] else "Sin pagos en la consulta")
     else:
         if view.very_high is not None:
@@ -274,7 +274,7 @@ def _response_insights(r: dict) -> list[dict]:
                                               + (f": {states_text}." if states_text else ".")})
     if r["kits_total"]:
         lead = r["kits_by_place"][0] if r["kits_by_place"] else None
-        text = (f"Se entregaron {number(r['kits_total'])} kits el 24 y 25 de octubre en {_n(r['kit_provinces'], 'provincia')} y "
+        text = (f"Se entregaron {number(r['kits_total'])} kits el 24 y 25 de octubre en {_n(r['kit_provinces'], 'provincia')} priorizadas y "
                 f"{_n(r['kit_cantons'], 'cantón', 'cantones')}")
         if lead:
             text += f"; la mayor entrega fue en {lead['name']} ({number(lead['value'])} kits)"
@@ -651,7 +651,7 @@ def _response_tiles(c, r: dict, x: float, top: float, width: float, height: floa
     from .pdf import C, INK, MIST, MUTED, NIGHT, _badge, _clip, _wrap
     plan = r["plan"]
     kits = " · ".join(f"{k['name'].split(' · ')[0]} {number(k['value'])}" for k in r["kits_by_place"])
-    tiles = [("life-buoy", theme.VIOLETA_500, "Kits por cantón",
+    tiles = [("life-buoy", theme.VIOLETA_500, "Kits en provincias priorizadas",
               f"{number(r['kits_total'])} kits · {_n(r['deliveries'], 'entrega')} el 24 y 25/10" if r["deliveries"] else "Sin entregas de kits",
               [kits or "En el territorio de la consulta"]),
              ("hand-coins", theme.MORADO, "Bono de contingencia",
@@ -973,7 +973,7 @@ def render_pptx(prs, ctx: dict) -> None:
         # Kits by canton and the contingency bonus (the people by province are on the slide of the provinces).
         s = next_slide("Kits y bono de contingencia")
         if r["kits_by_place"]:
-            _title(s, "Kits entregados por cantón", 0.55, 1.36, 6.2,
+            _title(s, "Kits en provincias priorizadas", 0.55, 1.36, 6.2,
                    f"{_n(r['deliveries'], 'entrega')} del 24 y 25 de octubre de 2026 · {number(r['kits_total'])} kits")
             places = r["kits_by_place"]
             chart = _bar_chart(s, [k["name"] for k in places], [k["value"] for k in places], "Kits", x=0.45, y=2.05, w=6.4,
@@ -1205,7 +1205,7 @@ def render_workbook(book) -> None:
         kits = [dict(k) for k in r["kits"]]
         first, end, row = _block(book, ws, row, "Entregas de kits", [("Fecha", "date", "center"), ("Provincia", "province", "text"),
                                  ("Cantón", "canton", "text"), ("Kits entregados", "kits", "int")], kits,
-                                 note=f"{_n(r['deliveries'], 'entrega')} del 24 y 25 de octubre de 2026 · corte {r['kits_cut']}",
+                                 note=f"Provincias priorizadas · {_n(r['deliveries'], 'entrega')} del 24 y 25 de octubre de 2026 · corte {r['kits_cut']}",
                                  total={"kits": r["kits_total"]}, last=4, height=22)
         row += 1
         bonus = [{key: (value or None) if key != "name" else value for key, value in b.items()} for b in r["bonus"]]

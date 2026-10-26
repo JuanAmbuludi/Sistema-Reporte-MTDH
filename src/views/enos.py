@@ -70,7 +70,7 @@ class EnosView:
                  'note': 'Pendientes o en seguimiento'},
                 {'label': 'UA afectadas con código', 'value': self.alerts.loc[self.alerts.codigo_ua.ne(''),'codigo_ua'].nunique(),
                  'icon': 'building', 'note': 'Solo códigos registrados en la fuente'},
-                {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Fin de semana 24–25/10'}]
+                {'label': 'Kits entregados', 'value': int(self.kits.kits.sum()), 'icon': 'life-buoy', 'note': 'Provincias priorizadas · 24–25/10'}]
 
     def hero_visual(self):
         inventory = pd.read_parquet(ROOT/'data/processed/riesgos_ua.parquet')
@@ -118,13 +118,13 @@ class EnosView:
                         'estado':'Estado','codigo_ua':'Código UA','unidad':'Unidad de atención','servicio':'Servicio','afectacion_servicio':'Afectación al servicio','afectados_fuente':'Afectados (campo fuente)'}, 'enos_alerts')
         ui.info_note(enos.ALERT_NOTE,'Alcance de las alertas')
         st.caption(enos.QUALITY_NOTE)
-        ui.section_heading('Kits entregados', 'Entregas documentadas del fin de semana', 'life-buoy')
+        ui.section_heading('Kits entregados en provincias priorizadas', 'Entregas documentadas del fin de semana', 'life-buoy')
         st.caption(enos.KIT_NOTE)
         st.caption(f'{self.kits.provincia.nunique()} provincias · {self.kits[["provincia","canton"]].drop_duplicates().shape[0]} cantones · '
                    f'{len(self.kits)} entregas registradas')
         columns = [st.container(),st.container()] if compact() else st.columns([1, 1.25], gap='medium')
         with columns[0], st.container(border=True, key='card_enos_kits_chart'):
-            ui.chart_title('Kits entregados por provincia', 'Entregas del 24 y 25 de octubre de 2026')
+            ui.chart_title('Kits en provincias priorizadas', 'Entregas del 24 y 25 de octubre de 2026')
             self._bars(enos.summary(self.kits, 'provincia', 'kits'), 'kits', 'enos_kits_chart', theme.VIOLETA_500)
         with columns[1], st.container(border=True, key='card_enos_kits'):
             ui.chart_title('Entregas registradas', 'Fecha, provincia, cantón y kits de cada entrega')

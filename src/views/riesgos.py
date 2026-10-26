@@ -62,7 +62,7 @@ MAP_INDICATORS = {"expuestas": "UA expuestas", "porcentaje": "% expuesto", "muy_
                   "alertas": "Alertas", "kits": "Kits"}
 MAP_LABELS = {"expuestas": "UA expuestas por provincia", "porcentaje": "Porcentaje de las UA de cada provincia que está expuesto",
               "muy_alta": "UA con susceptibilidad muy alta por provincia", "multiamenaza": "Registros de multiamenaza por provincia",
-              "alertas": "Alertas con afectación a servicios MTDH por provincia", "kits": "Kits entregados por provincia"}
+              "alertas": "Alertas con afectación a servicios MTDH por provincia", "kits": "Kits entregados en provincias priorizadas"}
 SUSCEPTIBILITY_CELLS = {"Media": ("#F3EFFC", "#5B46A0"), "Alta": ("#E2D9F6", "#3D216D"), "Muy alta": ("#F9DDEB", "#A32C74"),
                         "Sin categoría reportada": ("#FFFFFF", "#A59CB6"), "Sin categoría": ("#FFFFFF", "#A59CB6")}
 RESPONSE_SCOPES = [("Alertas", enos.ALERT_NOTE), ("Kits", enos.KIT_NOTE), ("Bono de contingencia", enos.BONO_NOTE),
@@ -498,7 +498,7 @@ class RiskView:
             {"label": "Alertas en servicios MTDH", "value": len(r.alerts), "icon": "shield", "tone": "oro",
              "note": " · ".join(text for count, text in states if count) or "Sin alertas en la consulta"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
-             "note": (f"{respuesta._n(len(r.kits), 'entrega')} · {respuesta._n(kit_provinces, 'provincia')} · 24 y 25/10" if len(r.kits)
+             "note": (f"{respuesta._n(kit_provinces, 'provincia')} priorizadas · 24 y 25/10" if len(r.kits)
                       else "Sin entregas en la consulta")},
             {"label": "Personas con bono gestionado", "value": managed, "icon": "hand-coins", "tone": "lila",
              "note": " · ".join(t for t in bonus if t) or "Sin registros en la consulta"},
@@ -586,11 +586,11 @@ class RiskView:
                 ui.chart_title("Cada alerta con su unidad, territorio, afectación y estado",
                                "Código y nombre de la UA cuando constan en la fuente · de la más reciente a la más antigua")
                 respuesta.alerts_table(r)
-        ui.section_heading("Kits y bono de contingencia", "Entregas del fin de semana y planificación nacional del bono", "hand-coins")
+        ui.section_heading("Kits y bono de contingencia", "Kits en provincias priorizadas y planificación nacional del bono", "hand-coins")
         left, right = self._pair((1.2, 1))
         if not r.kits.empty:
             with left, st.container(border=True, key="card_response_kit_table"):
-                ui.chart_title("Entregas de kits", f"Fecha, provincia, cantón y kits de cada entrega · corte {r.cut_text('kits')}")
+                ui.chart_title("Kits entregados en provincias priorizadas", f"Fecha, provincia, cantón y kits de cada entrega · corte {r.cut_text('kits')}")
                 respuesta.kits_table(r)
         with right if not r.kits.empty else left, st.container(border=True, key="card_response_plan"):
             ui.chart_title("Planificación El Niño 2026–2027", "Bono de contingencia · proyección nacional")
