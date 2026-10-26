@@ -59,3 +59,17 @@ def test_repeated_codes_keep_modalities_and_highest_reported_category():
     source.loc[1, "dpa_prov"] = "02"
     with pytest.raises(ValueError, match="valores distintos"):
         riesgos.normalize(source, "2026-09")
+
+
+def test_unit_detail_reconciles_with_aggregates_and_filters():
+    detail = pd.read_parquet(riesgos.DETAIL_PATH)
+    totals = pd.read_parquet(riesgos.DATA_PATH)
+    assert list(detail.columns) == riesgos.DETAIL_FIELDS
+    assert not detail.duplicated(["periodo_id", "codigo_ua"]).any()
+    assert detail.codigo_ua.ne("").all() and detail.nombre.ne("").all()
+    pd.testing.assert_frame_equal(riesgos.aggregate_inventory(detail), totals)
+    for threat in (None, *riesgos.THREATS):
+        for levels in (riesgos.LEVELS, ("Alta",), ("Muy alta",)):
+            units = riesgos.exposed(riesgos.select(detail, "2026-09", ["09"], ["DII"]), threat, levels)
+            aggregate = riesgos.exposed(riesgos.select(totals, "2026-09", ["09"], ["DII"]), threat, levels)
+            assert len(units) == riesgos.count_units(aggregate)

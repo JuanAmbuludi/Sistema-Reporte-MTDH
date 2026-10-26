@@ -576,10 +576,6 @@ class TerritorialView:
             for column, (key, draw) in zip(columns, row):
                 with column, st.container(border=True, key=key):
                     draw(wide=len(row) == 1)
-        if self.id == "servicios":
-            # The institutional geoportal places every unit of attention next to the hazard zones of the territory.
-            ui.geoportal_card("servicios", "Visor geográfico del Ministerio con las unidades de atención de los servicios y las zonas "
-                                           "de amenaza natural y riesgo antrópico.")
 
     def _ranking_card(self, wide: bool = False) -> None:
         indicator = self.indicator

@@ -16,7 +16,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src.riesgos import DATA_PATH, THREATS, aggregate_inventory, exposed, normalize
+from src.riesgos import DATA_PATH, DETAIL_FIELDS, THREATS, aggregate_inventory, exposed, normalize
 
 
 def main():
@@ -52,6 +52,13 @@ def main():
         combined = pd.concat([old.loc[old.periodo_id.ne(args.period)], public], ignore_index=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     combined.to_parquet(args.output, index=False, compression="zstd")
+    # The requested unit detail contains codes/names and province-level geography only.
+    detail_path = args.output.with_name(f"{args.output.stem}_detalle.parquet")
+    detail = clean[DETAIL_FIELDS].copy()
+    if detail_path.exists():
+        previous = pd.read_parquet(detail_path)
+        detail = pd.concat([previous.loc[previous.periodo_id.ne(args.period), DETAIL_FIELDS], detail], ignore_index=True)
+    detail.to_parquet(detail_path, index=False, compression="zstd")
     metadata = {
         "generado_utc": datetime.now(timezone.utc).isoformat(),
         "periodo_id": args.period, "archivo_fuente": args.input.name, "hoja": sheet,

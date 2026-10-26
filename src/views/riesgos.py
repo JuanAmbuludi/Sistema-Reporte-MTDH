@@ -1,4 +1,4 @@
-"""Sección compacta de riesgos integrada en Servicios."""
+"""Sección independiente de riesgos y detalle de unidades de atención."""
 from __future__ import annotations
 
 import pandas as pd
@@ -12,6 +12,21 @@ from src.views.common import compact, show_chart
 @st.cache_data(show_spinner=False)
 def _read(version: int) -> pd.DataFrame:
     return pd.read_parquet(riesgos.DATA_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def _read_details(version: int) -> pd.DataFrame:
+    return pd.read_parquet(riesgos.DETAIL_PATH)
+
+
+METHODOLOGY = (
+    "La clasificación de las Unidades de Atención (UA) se realizó mediante el análisis espacial de sus coordenadas "
+    "geográficas validadas respecto a las capas de susceptibilidad consideradas. Se clasifican como expuestas aquellas "
+    "UA ubicadas en zonas de susceptibilidad media, alta o muy alta, y como no expuestas aquellas que se encuentran "
+    "fuera de estas categorías. Esta clasificación no implica una afectación efectiva ni descarta la existencia de "
+    "amenazas o riesgos fuera de las zonas identificadas. Los posibles impactos dependen de las condiciones "
+    "territoriales, la intensidad de los eventos y la vulnerabilidad de los elementos expuestos."
+)
 
 
 def service_chart(data: pd.DataFrame) -> go.Figure:
@@ -52,6 +67,8 @@ class RiskView:
 
     def __init__(self):
         self.data = _read(riesgos.DATA_PATH.stat().st_mtime_ns) if riesgos.DATA_PATH.exists() else pd.DataFrame()
+        self.inventory = (_read_details(riesgos.DETAIL_PATH.stat().st_mtime_ns) if riesgos.DETAIL_PATH.exists()
+                          else pd.DataFrame(columns=riesgos.DETAIL_FIELDS))
 
     def catalog(self) -> list[dict]:
         from src.corte import MONTHS
@@ -88,6 +105,8 @@ class RiskView:
     def prepare(self) -> bool:
         self.scoped = riesgos.select(self.data, self.period["id"], self.provinces, self.programs)
         self.selected = riesgos.exposed(self.scoped, self.threat, self.levels)
+        self.detail_selected = riesgos.exposed(
+            riesgos.select(self.inventory, self.period["id"], self.provinces, self.programs), self.threat, self.levels)
         return True
 
     def hero_copy(self) -> tuple[str, str, str]:
@@ -127,6 +146,7 @@ class RiskView:
         ui.section_heading("Exposición a amenazas", self.period["label"], "storm")
         if self.selected.empty:
             ui.info_note("No hay unidades con las categorías y filtros seleccionados.", "Sin resultados")
+            self.methodology()
             return
         columns = [st.container(), st.container()] if compact() else st.columns(2, gap="medium")
         with columns[0], st.container(border=True, key="card_risk_services"):
@@ -139,23 +159,23 @@ class RiskView:
 
     def table(self) -> None:
         with st.container(border=True, key="card_risk_table"):
-            ui.chart_title("Unidades de atención expuestas", "Conteos por provincia, servicio, amenaza y susceptibilidad")
-            query = st.text_input("Buscar provincia o servicio", key="risk_search",
-                                  placeholder="Provincia o servicio")
-            detail = riesgos.detail_counts(self.selected, self.threat, self.levels)
+            ui.chart_title("Unidades de atención expuestas", "Código, nombre, servicio y susceptibilidad por amenaza")
+            query = st.text_input("Buscar código, unidad, provincia o servicio", key="risk_search",
+                                  placeholder="Código o nombre de la unidad, provincia o servicio")
+            detail = self.detail_selected.copy()
             detail["provincia"] = detail.provincia.map(names.place)
             if query.strip():
-                mask = detail[["provincia", "servicio"]].apply(
+                mask = detail[["codigo_ua", "nombre", "provincia", "servicio"]].apply(
                     lambda column: column.str.contains(query.strip(), case=False, regex=False, na=False)).any(axis=1)
                 detail = detail.loc[mask]
-            detail = detail.assign(_rank=detail.susceptibilidad.map(riesgos.RANK)).sort_values(
-                ["_rank", "unidades", "servicio", "provincia"], ascending=[False, False, True, True])
-            labels = {"provincia": "Provincia", "servicio": "Servicio", "amenaza": "Amenaza",
-                      "susceptibilidad": "Susceptibilidad", "unidades": "Unidades expuestas"}
+            detail = detail.assign(_rank=detail.susceptibilidad_maxima.map(riesgos.RANK)).sort_values(
+                ["_rank", "servicio", "provincia", "nombre"], ascending=[False, True, True, True])
+            labels = {"codigo_ua": "Código UA", "nombre": "Unidad de atención", "servicio": "Servicio",
+                      "provincia": "Provincia", **riesgos.THREATS}
             detail = detail[list(labels)]
-            ui.data_table(detail, {key: (label, "int" if key == "unidades" else "text", 240 if key == "servicio" else 170)
+            ui.data_table(detail, {key: (label, "text", 260 if key in ("nombre", "servicio") else 160)
                                    for key, label in labels.items()}, height=350, key="risk_table")
-            st.caption(f"{ui.number(len(detail))} combinaciones en la tabla. Una unidad puede aparecer en varias amenazas. "
+            st.caption(f"{ui.number(len(detail))} unidades únicas en la tabla. "
                        "La búsqueda solo filtra esta tabla.")
             st.download_button("Descargar unidades de la tabla",
                                detail.rename(columns=labels).assign(Corte=self.period["label"]).to_csv(index=False).encode("utf-8-sig"),
@@ -165,3 +185,10 @@ class RiskView:
                    "movimientos en masa, SNGR 2011; incendios forestales, SNGR 2015. "
                    "Los guiones o vacíos se muestran como «Sin categoría reportada» y no acreditan ausencia de riesgo. "
                    "Hay unidades sin coordenadas en la fuente. Los totales entre amenazas no se suman.")
+        self.methodology()
+
+    @staticmethod
+    def methodology() -> None:
+        ui.info_note(METHODOLOGY, "Nota metodológica")
+        ui.geoportal_card("riesgos", "Consulte la ubicación de las unidades de atención y las zonas de amenaza natural "
+                                    "y riesgo antrópico en el visor geográfico del Ministerio.")

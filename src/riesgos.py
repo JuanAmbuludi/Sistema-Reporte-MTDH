@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "riesgos_ua.parquet"
+DETAIL_PATH = DATA_PATH.with_name("riesgos_ua_detalle.parquet")
 THREATS = {
     "susc_inundacion": "Inundaciones",
     "susc_movimientos_masa": "Movimientos en masa",
@@ -21,6 +22,8 @@ SERVICES = {
     "PROTECCION ESPECIAL": ("PE", "Protección Especial"),
     "ACOMPAÑAMIENTO FAMILIAR": ("AF", "Acompañamiento familiar"),
 }
+DETAIL_FIELDS = ["periodo_id", "codigo_ua", "nombre", "provincia_codigo", "provincia", "programa_id", "servicio",
+                 *THREATS, "susceptibilidad_maxima"]
 
 
 def normalize(source: pd.DataFrame, period: str) -> pd.DataFrame:

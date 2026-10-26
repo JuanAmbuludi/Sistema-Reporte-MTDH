@@ -94,8 +94,7 @@ def test_services_are_never_mixed_with_transfers():
     assert "Servicios de protección integral" in html
     assert "453.994" in html and "11.215" in html and "47,2" in html
     assert "1.578.019" not in html and "2.034.375" not in html
-    assert "Geoportal de unidades de atención y amenazas" in html, "El geoportal acompaña a los servicios"
-    assert any(b.url == "https://geoportal.trabajo.gob.ec/ua_amenazas" for b in app.get("link_button")), "Enlace al geoportal"
+    assert "Geoportal de unidades de atención y amenazas" not in html, "El geoportal se trasladó a Riesgos"
 
 
 def test_periods_can_be_chosen_by_year():
