@@ -56,6 +56,8 @@ class Response:
         national = enos.frames(data)
         for frame in national.values():
             frame["provincia_codigo"] = [_code(p) for p in frame.provincia]
+        dates = pd.to_datetime(national["alertas"].fecha, errors="coerce")
+        national["alertas"] = national["alertas"].loc[dates.between(pd.Timestamp(data["desde"]), pd.Timestamp(data["corte"]))].copy()
         if programs:
             alerts = national["alertas"]
             known = alerts.codigo_ua.astype(str).map(unit_programs or {})
@@ -136,6 +138,37 @@ class Response:
 
 
 # --------------------------------------------------------------------------------------------------- charts
+def alerts_evolution(r: Response) -> go.Figure:
+    """Alerts registered each day from the first day of the follow-up (columns) and their running total (step line)."""
+    days = pd.date_range(r.since.normalize(), r.cut.normalize(), freq="D")
+    daily = (pd.to_datetime(r.alerts.fecha).dt.normalize().value_counts().reindex(days, fill_value=0) if not r.alerts.empty
+             else pd.Series(0, index=days))
+    total = daily.cumsum()
+    labels = [f"{d.day} {ui._MONTHS_SHORT[d.month - 1]} {d.year}" for d in days]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=days, y=total, mode="lines", name="Acumuladas", line=dict(color=theme.MORADO, width=2.4, shape="hv"), fill="tozeroy",
+        fillcolor="rgba(118,87,185,.12)", customdata=labels,
+        hovertemplate="<b>%{customdata}</b><br>%{y} alertas acumuladas<extra></extra>"))
+    fig.add_trace(go.Bar(
+        x=days, y=daily, name="Registradas en el día", marker=dict(color=theme.ORO, cornerradius=3), width=86400000 * 0.8,
+        customdata=labels, hovertemplate="<b>%{customdata}</b><br>%{y} alertas registradas<extra></extra>"))
+    for day, count in daily[daily > 0].items():
+        fig.add_annotation(x=day, y=count, text=f"+{count}", showarrow=False, yshift=10, font=dict(size=11.5, color=theme.ORO_700))
+    peak = max(int(total.iloc[-1]) if len(total) else 0, 1)
+    fig.add_annotation(x=days[-1], y=total.iloc[-1] if len(total) else 0, text=f"<b>{int(total.iloc[-1]) if len(total) else 0} alertas</b>",
+                       showarrow=False, xanchor="right", yshift=14, font=dict(size=12.5, color=theme.MORADO_900))
+    fig.add_vline(x=days[0], line=dict(color=theme.LILA_200, width=1.2, dash="dot"))
+    charts.base(fig, 260, dict(l=8, r=16, t=40, b=30))
+    ticks = list(pd.date_range(days[0], days[-1], freq="7D"))
+    fig.update_xaxes(range=[days[0] - pd.Timedelta(days=1), days[-1] + pd.Timedelta(days=1)], showgrid=False, tickvals=ticks,
+                     ticktext=[f"{t.day} {ui._MONTHS_SHORT[t.month - 1]}" for t in ticks], tickfont=dict(size=11))
+    fig.update_yaxes(range=[0, peak * 1.3], showgrid=True, gridcolor="#F1EEF6", dtick=max(1, round(peak / 4)), tickfont=dict(size=11),
+                     rangemode="tozero")
+    fig.update_layout(bargap=0.1, legend=dict(orientation="h", y=1.14, x=0, traceorder="normal"))
+    return fig
+
+
 def timeline(r: Response) -> go.Figure:
     """Alerts registered and kits delivered day by day, from the start of the follow-up to its cut."""
     rows = []

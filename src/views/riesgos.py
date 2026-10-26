@@ -395,8 +395,7 @@ class RiskView:
     def hero_copy(self) -> tuple[str, str, str]:
         follow = f" · respuesta al {self.response.cut:%d/%m/%Y}" if self.response else ""
         return (f"Exposición: {self.period['label'].lower()}{follow}", "Riesgos",
-                "Unidades de atención expuestas a amenazas asociadas al evento El Niño y respuesta del Ministerio: alertas en los "
-                "servicios, kits entregados y bono de contingencia. La susceptibilidad territorial no confirma daños.")
+                "Unidades de atención expuestas a amenazas de El Niño y respuesta del Ministerio.")
 
     def update_stamp(self) -> dict:
         from src.corte import ECUADOR, long_date
@@ -572,10 +571,10 @@ class RiskView:
         else:
             ui.section_heading("Acciones en el territorio", f"{respuesta._n(len(acting), 'provincia')} con acciones registradas · "
                                                             "cronología y provincias", "map")
-            if not (r.alerts.empty and r.kits.empty):
-                with st.container(border=True, key="card_response_timeline"):
-                    ui.chart_title("Cronología de la respuesta", "Alertas registradas y kits entregados por día; el tamaño indica la cantidad")
-                    show_chart(respuesta.timeline(r), "response_timeline")
+            with st.container(border=True, key="card_response_evolution"):
+                ui.chart_title(f"Evolución de las alertas desde el {r.since:%d/%m/%Y}",
+                               f"Alertas con afectación documentada registradas cada día y su acumulado al {r.cut:%d/%m/%Y}")
+                show_chart(respuesta.alerts_evolution(r), "response_evolution")
             with st.container(border=True, key="card_response_provinces"):
                 ui.chart_title("Acciones del Ministerio en cada provincia",
                                "Con la exposición de sus UA según los filtros de servicio, amenaza y susceptibilidad")
@@ -663,7 +662,10 @@ class RiskView:
         with st.container(border=True, key="card_risk_combos"):
             ui.chart_title("Combinaciones de amenazas más frecuentes",
                            f"Cada UA expuesta pertenece a una sola combinación · {len(combos)} de {len(self.combos)} combinaciones")
-            show_chart(share_bars(list(combos.combinacion), list(combos.unidades), list(combos.porcentaje), per=34,
+            # On phones the long combinations wrap so their names stay inside the card.
+            full = list(combos.combinacion)
+            labels = [_label(name, 22) for name in full] if compact() else full
+            show_chart(share_bars(labels, list(combos.unidades), list(combos.porcentaje), hover=full, per=46 if compact() else 34,
                                   color=theme.VIOLETA_500), "risk_combos_chart")
 
     def _services(self) -> None:

@@ -139,11 +139,14 @@ if not ready:
     ui.info_note(view.empty_message, "Sin resultados para esta selección", tone="warn")
     st.stop()
 
-if area == "riesgos":
+dashboard = st.session_state.workspace == "Tablero"
+if area == "riesgos" and dashboard:
     view.geoportal()
-groups = view.kpi_groups() if hasattr(view, "kpi_groups") else []
+groups = view.kpi_groups() if dashboard and hasattr(view, "kpi_groups") else []
 if groups:
     ui.kpi_groups(groups)
+elif area == "riesgos" and not dashboard:
+    ui.kpi_grid(view.kpi_cards()[:4])
 else:
     ui.kpi_grid(view.kpi_cards(), overlap=area != "riesgos")
 
