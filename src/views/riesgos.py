@@ -261,8 +261,7 @@ class RiskView:
     empty_message = "La matriz de riesgos no registra unidades de atención para esta combinación de territorio y servicio."
     @property
     def summary_pages(self):
-        import math
-        return 3 + max(1, math.ceil(len(self.response.alerts) / 7)) if self.response else 4
+        return 3
 
     def __init__(self):
         self.data = _read(riesgos.DATA_PATH.stat().st_mtime_ns) if riesgos.DATA_PATH.exists() else pd.DataFrame()
@@ -474,7 +473,7 @@ class RiskView:
             {"label": "Núcleos con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
              "note": "Por inundaciones · gestión del bono"},
             {"label": "Monto de bonos gestionados", "value": float(r.managed.monto.sum()), "prefix": "USD", "decimals": 2,
-             "icon": "banknote", "tone": "morado", "note": "Gestionado no acredita cobro"},
+             "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
         ]
 
     def kpi_cards(self) -> list[dict]:
@@ -732,7 +731,7 @@ class RiskView:
                 ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
 
     def products_notes(self) -> dict[str, str]:
-        return {"resumen": "Boletín PDF completo: indicadores, gráficas, todas las alertas, acciones provinciales, kits, bono y alcances.",
+        return {"resumen": "Boletín PDF de tres páginas: indicadores, gráficas, todas las alertas, acciones provinciales, kits, bono y alcances.",
                 "presentacion": "Diapositivas con toda la información visible y gráficas editables.",
                 "datos": "Excel con indicadores, evolución, alertas, acciones, kits, planificación y ficha técnica."}
 

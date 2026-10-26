@@ -10,7 +10,7 @@ ALERT_NOTE = ("Se muestran únicamente alertas revisadas con código UA registra
               "El campo Afectados mezcla personas, familias y usuarios; no se suma como personas únicas. La base no certifica atribución causal a ENOS.")
 BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
-             "Gestionado no acredita cobro; articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
+             "Articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
 KIT_NOTE = "Kits entregados en provincias priorizadas el 24–25/10/2026; corte 25/10, 19:00. No es el acumulado desde el 14/09."
 QUALITY_NOTE = ("En el corte nacional hay 10 alertas con 10 códigos UA distintos: 8 con afectación documentada y 2 por confirmar. "
                 "ALT-2026-000315 y ALT-2026-000316 (Tenguel) tienen código UA, pero el relato solo describe inundación territorial; "

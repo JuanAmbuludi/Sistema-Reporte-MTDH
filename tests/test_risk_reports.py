@@ -33,7 +33,7 @@ def test_counts_distinguish_alerts_from_units_and_services():
 def test_response_exports_are_complete_and_exclude_hidden_exposure():
     v = view(); ctx = v.report_context("Riesgos")
     pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
-    assert len(pdf) == ctx["pdf_pages"] == 5
+    assert len(pdf) == ctx["pdf_pages"] == 3
     pdf_text = " ".join(page.get_text() for page in pdf)
     slides = Presentation(BytesIO(generate_pptx(ctx))).slides
     ppt_text = " ".join(shape.text if shape.has_text_frame else " ".join(cell.text for row in shape.table.rows for cell in row.cells)
@@ -42,7 +42,7 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
     assert wb.sheetnames == v.sheets()
     xlsx_text = " ".join(str(c.value) for sheet in wb for row in sheet for c in row if c.value is not None)
     for text in [pdf_text, ppt_text, xlsx_text]:
-        for hidden in ["UA expuestas", "Multiamenaza", "Susceptibilidad muy alta", "Exposición de las unidades", "6 pendientes · 7 en seguimiento"]:
+        for hidden in ["UA expuestas", "Multiamenaza", "Susceptibilidad muy alta", "Exposición de las unidades", "6 pendientes · 7 en seguimiento", "Gestionado no acredita cobro"]:
             assert hidden not in text
         for a in ctx["response"]["alerts"]:
             assert a["code"] in text
@@ -52,6 +52,13 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
             assert " ".join(a["impact"].split()) in compact
         assert "Núcleos" in text and "provincias priorizadas" in text
     assert "33.200,80" in pdf_text and "33.200,80" in ppt_text
+    normalized_pdf = " ".join(pdf_text.split())
+    for note in ctx["response"]["notes"].values():
+        assert " ".join(note.split()) in normalized_pdf
+    for kit in ctx["response"]["kits"]:
+        assert kit["date"] in normalized_pdf and kit["province"] in normalized_pdf and kit["canton"] in normalized_pdf
+    for value in ["145.523", "44.098", "13.405.351,02", "802", "113"]:
+        assert value in normalized_pdf
     assert 33200.8 in [c.value for row in wb["Resumen"] for c in row]
     assert len(slides) == 9
 
