@@ -22,7 +22,7 @@ def test_counts_distinguish_alerts_from_units_and_services():
     assert r.alerts.codigo_ua.eq("").sum() == 0
     assert r.alerts.groupby("servicio").size().to_dict() == {"Desarrollo Infantil": 8, "Creciendo con Nuestros Hijos (CNH)": 2}
     cards = v.kpi_cards()
-    assert [c["value"] for c in cards] == [10, 802, 113, 33200.8]
+    assert [c["value"] for c in cards] == [10, 802, 113, 33200.8, 19]
     assert "Núcleos" in cards[2]["label"]
     assert v.kpi_groups() == []
     # The exposure calculation is retained internally, outside the public context.
@@ -42,7 +42,7 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
     assert wb.sheetnames == v.sheets()
     xlsx_text = " ".join(str(c.value) for sheet in wb for row in sheet for c in row if c.value is not None)
     for text in [pdf_text, ppt_text, xlsx_text]:
-        for hidden in ["UA expuestas", "Multiamenaza", "Susceptibilidad muy alta", "Exposición de las unidades", "6 pendientes · 7 en seguimiento", "Gestionado no acredita cobro"]:
+        for hidden in ["UA expuestas", "Multiamenaza", "Susceptibilidad muy alta", "Exposición de las unidades", "6 pendientes · 7 en seguimiento", "Gestionado no acredita cobro", "El código por sí solo no confirma una afectación"]:
             assert hidden not in text
         for a in ctx["response"]["alerts"]:
             assert a["code"] in text
@@ -79,3 +79,13 @@ def test_timeline_preserves_the_full_reporting_window():
     r = view().report_context("Riesgos")["response"]
     assert r["daily"][0] == {"date": "14/09/2026", "short": "14/09", "daily": 0, "total": 0}
     assert sum(a["daily"] for a in r["daily"]) == r["daily"][-1]["total"] == r["alert_count"]
+
+
+def test_continuity_keeps_suspension_and_virtual_attention_separate():
+    r = view().response
+    assert r.closed_units == 19
+    assert r.continuity_summary()["by_province"] == [{"name": "El Oro", "value": 12}, {"name": "Santa Elena", "value": 7}]
+    assert r.continuity.groupby("estado").unidades.sum().to_dict() == {"Suspendida": 19, "Suspendida presencial": 63, "Atención virtual": 11, "Afectada; modalidad por confirmar": 17}
+    assert view(("07",)).response.closed_units == 12
+    assert view(("09",)).response.closed_units == 0
+    assert view(programs=("PAM_SERV",)).response.closed_units == 0

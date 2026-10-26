@@ -474,6 +474,8 @@ class RiskView:
              "note": "Por inundaciones · gestión del bono"},
             {"label": "Monto de bonos gestionados", "value": float(r.managed.monto.sum()), "prefix": "USD", "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
+            {"label": "Unidades de atención cerradas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
+             "note": "Atención suspendida · base territorial 26/10, 16:00"},
         ]
 
     def kpi_cards(self) -> list[dict]:
@@ -500,6 +502,14 @@ class RiskView:
     def _response(self) -> None:
         r = self.response
         acting = self.action_rows()
+        ui.section_heading("Continuidad de los servicios", "Base territorial de afectaciones por lluvias · corte 26/10/2026, 16:00", "shield")
+        left, right = self._pair()
+        for column, key, title in [(left, "by_province", "Unidades cerradas por provincia"),
+                                   (right, "by_status", "Estado de atención reportado")]:
+            with column, st.container(border=True, key=f"card_continuity_{key}"):
+                ui.chart_title(title, "Unidades reportadas en la base territorial")
+                show_chart(respuesta.continuity_chart(r, key), f"continuity_{key}")
+        ui.info_note(enos.CONTINUITY_NOTE, "Alcance del reporte territorial")
         if self.programs:
             ui.info_note(f"Las alertas corresponden a las UA de {self.programs_label.lower() if len(self.programs) > 1 else self.programs_label}; "
                          "los kits y el bono de contingencia no se asocian a un servicio y se muestran por territorio.",
@@ -713,7 +723,7 @@ class RiskView:
                                key="risk_xlsx", share_fields=())
 
     def methodology(self) -> None:
-        scopes = RESPONSE_SCOPES + [("Revisión de alertas", enos.QUALITY_NOTE)]
+        scopes = RESPONSE_SCOPES + [("Revisión de alertas", enos.QUALITY_NOTE), ("Continuidad de atención", enos.CONTINUITY_NOTE)]
         items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in scopes)
         st.markdown(f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span>'
                     f'<h3>Nota metodológica</h3></header><dl class="method-defs">{items}</dl>'
@@ -752,8 +762,8 @@ class RiskView:
 
     def digest(self) -> str:
         response = self.response.data.get("generado_utc") if self.response else ""
-        return fingerprint("response-only-v1", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
-                           self.threat, self.levels, METHODOLOGY, self.update_stamp(), str(self.response_path), response)
+        return fingerprint("response-continuity-v2", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+                           self.threat, self.levels, METHODOLOGY, enos.CONTINUITY_PATH.read_text(), self.update_stamp(), str(self.response_path), response)
 
     def report_context(self, title: str) -> dict:
         from src.reports.risks import build_context

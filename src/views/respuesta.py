@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 
 from src import charts, depuracion, enos, theme, ui
 
-FILTERS_NOTE = ("El territorio se aplica a todas las acciones; el servicio, solo a las alertas según la UA registrada. "
+FILTERS_NOTE = ("El territorio se aplica a todas las acciones; el servicio, a las alertas y al seguimiento de continuidad de atención. "
                 "Kits y bono no se asocian a un servicio. La planificación del bono es nacional.")
 STATUS_TONES = {"Pendiente": "oro", "En seguimiento": "lila", "Resuelto": "ok"}
 PRIORITY_TONES = {"Alta": "fucsia", "Media": "lila", "Baja": "gris"}
@@ -72,13 +72,34 @@ class Response:
         self.plan = data["bonos"]["planificacion"]
         self.cut, self.since = pd.Timestamp(data["corte"]), pd.Timestamp(data["desde"])
         self.cuts = data["cortes"]
+        continuity = pd.DataFrame(enos.continuity()["registros"])
+        continuity["provincia_codigo"] = continuity.provincia.map(_code)
+        if chosen:
+            continuity = continuity.loc[continuity.provincia_codigo.isin(chosen)]
+        if programs and "DII" not in programs:
+            continuity = continuity.iloc[:0]
+        self.continuity = continuity
+
+    @property
+    def closed_units(self) -> int:
+        return int(self.continuity.loc[self.continuity.estado.eq("Suspendida"), "unidades"].sum())
+
+    def continuity_summary(self) -> dict:
+        f = self.continuity
+        closed = f.loc[f.estado.eq("Suspendida")]
+        labels = {"Suspendida": "Cerradas / suspendidas", "Suspendida presencial": "CNH: suspensión presencial",
+                  "Atención virtual": "CDI: atención virtual", "Afectada; modalidad por confirmar": "Modalidad por confirmar"}
+        return {"closed": self.closed_units, "by_province": enos.summary(closed, "provincia", "unidades"),
+                "by_status": [{"name": labels[a["name"]], "value": a["value"]} for a in enos.summary(f, "estado", "unidades")],
+                "note": enos.CONTINUITY_NOTE, "cut": "26/10/2026 · 16:00"}
+
 
     def count_note(self) -> str:
         confirmed = int(self.alerts.afectacion_servicio_confirmada.sum())
         parts = [f"{count} {service}" for service, count in self.alerts.groupby("servicio").size().sort_values(ascending=False).items()]
         return (f"{len(self.alerts)} alertas con {self.units} códigos UA distintos" + (": " + "; ".join(parts) if parts else "")
                 + f". {confirmed} con afectación documentada y {len(self.alerts) - confirmed} por confirmar. "
-                "Se excluyen los registros sin código UA; el código por sí solo no confirma una afectación.")
+                "Se excluyen los registros sin código UA.")
 
     # ------------------------------------------------------------------------------------------- figures
     @property
@@ -255,3 +276,16 @@ def plan_tiles(r: Response) -> None:
     ui.focus_tile("users", "Personas potenciales", ui.number(plan["personas"]), "Proyección nacional del bono de contingencia")
     ui.focus_tile("layers", "Núcleos familiares potenciales", ui.number(plan["nucleos"]), "Proyección nacional")
     ui.focus_tile("banknote", "Inversión estimada", f"USD {ui.millions(plan['monto'], 2)} millones", "Planificación, no ejecución")
+
+
+def continuity_chart(r: Response, key: str) -> go.Figure:
+    rows = list(reversed(r.continuity_summary()[key]))
+    fig = go.Figure(go.Bar(x=[a["value"] for a in rows], y=[a["name"] for a in rows], orientation="h",
+                          marker=dict(color=theme.MORADO if key == "by_province" else theme.ORO, cornerradius=4),
+                          text=[a["value"] for a in rows], textposition="outside", cliponaxis=False,
+                          hovertemplate="<b>%{y}</b><br>%{x} unidades reportadas<extra></extra>"))
+    charts.base(fig, 220, dict(l=8, r=36, t=12, b=16))
+    fig.update_xaxes(showgrid=False, showticklabels=False, range=[0, max([a["value"] for a in rows] or [1]) * 1.25])
+    fig.update_yaxes(showgrid=False, tickfont=dict(size=11))
+    fig.update_layout(showlegend=False, bargap=.4)
+    return fig

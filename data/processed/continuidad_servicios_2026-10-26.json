@@ -1,0 +1,43 @@
+{
+  "corte": "2026-10-26 16:00",
+  "fuente": "01-Base_afectaciones_lluvias_El_Oro_desagregada.xlsx",
+  "sha256": "2ada6e5558bacb1138fb14b774a27616b080d1d812626c3287523ee9e3ab36d8",
+  "registros": [
+    {
+      "provincia": "Guayas",
+      "servicio": "CDI",
+      "estado": "Afectada; modalidad por confirmar",
+      "unidades": 17
+    },
+    {
+      "provincia": "El Oro",
+      "servicio": "CDI",
+      "estado": "Suspendida",
+      "unidades": 12
+    },
+    {
+      "provincia": "El Oro",
+      "servicio": "CDI",
+      "estado": "Atención virtual",
+      "unidades": 11
+    },
+    {
+      "provincia": "El Oro",
+      "servicio": "CNH",
+      "estado": "Suspendida presencial",
+      "unidades": 63
+    },
+    {
+      "provincia": "Santa Elena",
+      "servicio": "CDI",
+      "estado": "Suspendida",
+      "unidades": 6
+    },
+    {
+      "provincia": "Santa Elena",
+      "servicio": "CNH",
+      "estado": "Suspendida",
+      "unidades": 1
+    }
+  ]
+}

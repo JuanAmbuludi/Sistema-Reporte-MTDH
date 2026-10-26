@@ -5,7 +5,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 ALERT_NOTE = ("Se muestran únicamente alertas revisadas con código UA registrado, desde el 14 de septiembre de 2026. "
-              "El conteo corresponde a códigos de alerta distintos vinculados a unidades identificadas; tener código UA no confirma afectación al servicio. "
+              "El conteo corresponde a códigos de alerta distintos vinculados a unidades identificadas. "
               "Los registros sin código quedan fuera de este alcance. La fecha corresponde al registro y una alerta no equivale necesariamente a un evento único. "
               "El campo Afectados mezcla personas, familias y usuarios; no se suma como personas únicas. La base no certifica atribución causal a ENOS.")
 BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
@@ -59,3 +59,13 @@ def frames(data, provinces=()):
 def summary(frame, group, value=None):
     result = frame.groupby(group)[value].sum() if value else frame.groupby(group).size()
     return [{'name': str(name), 'value': int(value)} for name, value in result.sort_values(ascending=False).items()]
+
+
+CONTINUITY_PATH = ROOT / "data/processed/continuidad_servicios_2026-10-26.json"
+CONTINUITY_NOTE = ("Fuente: base territorial de afectaciones por lluvias, corte 26/10/2026, 16:00. "
+                   "Cerradas corresponde al estado Suspendida (18 CDI y 1 CNH). Los 63 CNH con suspensión presencial "
+                   "y los 11 CDI en atención virtual se muestran por separado. Son cifras reportadas, sin códigos UA "
+                   "en esta base; no se suman a las 10 alertas ni constituyen un censo nacional de cierres.")
+
+def continuity():
+    return json.loads(CONTINUITY_PATH.read_text(encoding="utf-8"))
