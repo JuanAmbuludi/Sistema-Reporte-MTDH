@@ -940,7 +940,7 @@
       "periodos": [
         "2026-09"
       ],
-      "sha256": "bbf7bbfc8268a5bb0eaf82f45b59647f18609dc1e0a6a9f338b8fe41cee2c097"
+      "sha256": "670825cea230c75abfe93096653c54b48ce6a47611b9800bd0899f6ac2a9fde5"
     },
     {
       "base": "jovenes_accion_fases.parquet",
@@ -950,7 +950,7 @@
       "periodos": [
         "2026-09"
       ],
-      "sha256": "a1ce492e80a8f503920911dc4b44dfd7f687a059f1fc05908298166a1f04d7c0"
+      "sha256": "3be73a5e39a34015b3a2188dc52b010816f4b20a879fdf03c7659abedb94a465"
     },
     {
       "base": "laboral/contratos_act.parquet",
@@ -960,7 +960,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "7d9b1535a1dc19ed04f352d4260b6442391e6b52973545f0cdf1917d305f74d5"
+      "sha256": "76ba0b4f6ed239533382f6e21b42cdecaa1477705d0957f87318dd273b6c2adb"
     },
     {
       "base": "laboral/contratos_base.parquet",
@@ -970,7 +970,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "bc81c7c621ecd5e75fb17f394251da4c1b0bd65f848a1f2caefb51801f15a0cf"
+      "sha256": "28e1c1234a3445a7cdec7453b065534f539983049a5cf701382973cf1745e88e"
     },
     {
       "base": "laboral/contratos_canton.parquet",
@@ -980,7 +980,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "c4573109add8ff8aad4da12ed05c911d34d6893ebd96ef2c431c0b9a5b9c23f0"
+      "sha256": "bf599a8d72e88d5b0e01d33eda63ca6a1c3d9ba29e2cb7d3d9299e7f9bcad6f6"
     },
     {
       "base": "laboral/contratos_empresas.parquet",
@@ -990,7 +990,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "a0798ef8d9e2a5514ea54c03cb27468b2bd41bb24b82555aff9d401b3564c84b"
+      "sha256": "5a1bf05b472134d6e5d544a3d71e4978936e7819a78a7264908ca08c56f2ab37"
     },
     {
       "base": "laboral/contratos_etnia.parquet",
@@ -1000,7 +1000,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "e7df0aa46adf80f834e66713e6aae4f39e96eed5cc3e65e48130b39ffb415c9d"
+      "sha256": "2500d1cb7cb561ff261213fae4001fca14f8126d5297609a4aa4d227149540e3"
     },
     {
       "base": "laboral/contratos_nac.parquet",
@@ -1010,7 +1010,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "2e7be59725cd69a8733ec369c88b923fb9f20d7d8923a9b7eff9afabd071c84c"
+      "sha256": "c5dacbd61d2715508a3675e3e00a154511a1b8bca367671afe5dc818f47e9865"
     },
     {
       "base": "laboral/contratos_rama.parquet",
@@ -1020,7 +1020,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "7c19cae3e91d627977401436c3b107c48c2297f060bbf57fe67945fa3dbfa284"
+      "sha256": "26bde214ee6c6ec91dafcbb1f2cb482196e923e97a56e8555b909aec8f48dca4"
     },
     {
       "base": "laboral/contratos_tipo.parquet",
@@ -1030,7 +1030,7 @@
       "periodos": [
         "2026-10"
       ],
-      "sha256": "3fb0a6739a65213707a1a166af4a55eadcb1eb60d3ddd24dae539789b84b3970"
+      "sha256": "922d38c6a5ef4ef4951dd49bfd89cc89c133f189fecb66d0ba3146825efa241f"
     },
     {
       "base": "laboral/jubilados.parquet",
@@ -1043,7 +1043,7 @@
         "2025",
         "2026-09"
       ],
-      "sha256": "24a2b3ff39417d2d886066d4b80862cddded9fb2e7a0c440575d076cd97356d0"
+      "sha256": "439cca4a7cccfb20d66a11907006415f93549f8761f4c3d0e93ebc0554c29da1"
     },
     {
       "base": "presupuesto_social_asignado.parquet",
@@ -1089,7 +1089,7 @@
         "2026-08",
         "2026-09"
       ],
-      "sha256": "17d1540e967889827ac3f096b26aa7f602646844ec144fbff79764309c3a89d3"
+      "sha256": "adc916cfe03b5245ef2f07f9db518b0b782e0bce742d5f588f8aae505a447b39"
     }
   ],
   "periodos_ausentes": {
