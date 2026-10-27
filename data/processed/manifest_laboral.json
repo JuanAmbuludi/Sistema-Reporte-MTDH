@@ -1,7 +1,7 @@
 {
   "schema_version": "1.1.0",
-  "consulta_id": "sgde_2026-10-26_4f8dfe33",
-  "fecha_consulta_utc": "2026-10-26T18:43:02.182825+00:00",
+  "consulta_id": "sgde_2026-10-27_ef9e2513",
+  "fecha_consulta_utc": "2026-10-27T17:12:45.104681+00:00",
   "filas": 12,
   "meses_contratos": [
     "2026-01",
@@ -17,7 +17,7 @@
   "evidencia": "laboral_evidencias/20261022T232229581149Z_9cd411c6.json",
   "evidencia_sha256": "9cd411c6f843bfeef7f1505d0bd6d730e002f70fc6c94d4b7553c4fb08cda80e",
   "copia_del_corte": "laboral_cortes/20261022T232229581149Z_9cd411c6.parquet",
-  "parquet_sha256": "9f480e0500744767650174d5778098e9e17998115cd510c76bfaeb6b706b3d5d",
+  "parquet_sha256": "d89c8c875b972d5a8095b0236f3b415d71dc9783e1c12035aa723ce19aa4cf80",
   "fuentes": {
     "sut_contratos": "https://app.powerbi.com/view?r=eyJrIjoiMTk3MThlMWQtOGYyZC00YWE1LTk1MjgtODBhZjI4ZWFhY2ZhIiwidCI6IjcyMzhjNzFmLWE2OWMtNGE5ZC05MmFjLThkMTE1MTA0OTU3MSIsImMiOjR9",
     "sgde_contratos": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
@@ -35,12 +35,12 @@
     "La jubilación SGDE mide expedientes y monto acumulado anual al corte publicado, no personas únicas ni gasto de un solo mes."
   ],
   "actualizacion_stock_sgde": {
-    "fecha_corte": "2026-10-26",
-    "fecha_hora_corte": "2026-10-26T03:02",
-    "registrados": 13516872,
+    "fecha_corte": "2026-10-27",
+    "fecha_hora_corte": "2026-10-27T03:35",
+    "registrados": 13521147,
     "por_estado": {
-      "Finalizado": 10726180,
-      "Vigente": 2790692
+      "Finalizado": 10729835,
+      "Vigente": 2791312
     },
     "territorio": "Provincia y cantón; la fuente no publica parroquia.",
     "naturaleza": "Stock registrado a fecha_corte, no nuevos contratos del mes.",
@@ -48,7 +48,7 @@
     "empresas": "Conteos distintos por estado/territorio; TOTAL es un agregado aparte, no sumable con provincias."
   },
   "fuentes_stock": {
-    "consulta_utc": "2026-10-26T18:43:02.182825+00:00",
+    "consulta_utc": "2026-10-27T17:12:45.104681+00:00",
     "recursos": [
       {
         "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
@@ -62,8 +62,8 @@
       },
       {
         "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/contratos/dashboard_data.json",
-        "sha256": "4f8dfe33f266dffec8fea654f7f3727ec369fa2b3d6a517c83f7ee2b8ee2a02f",
-        "bytes": 1654081
+        "sha256": "ef9e2513819db034bed47fbf589218f82c784ff43b35deb6344305e838fb5f23",
+        "bytes": 1654557
       },
       {
         "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/kpi_trabajo.csv",
@@ -100,7 +100,7 @@
       "unidad": "contratos"
     },
     "contratos_vigentes_total": {
-      "fecha_corte": "26/10/2026 03:02:00",
+      "fecha_corte": "27/10/2026 03:35:00",
       "fuente": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
       "unidad": "contratos"
     },

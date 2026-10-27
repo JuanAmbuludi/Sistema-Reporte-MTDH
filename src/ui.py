@@ -370,7 +370,7 @@ def update_stamp(stamp: dict) -> None:
         return
     items = []
     if stamp.get("updated"):
-        items.append(f'<span>{icon("clock", 15)}Actualizado el {_esc(stamp["updated"])}</span>')
+        items.append(f'<span>{icon("clock", 15)}{_esc(stamp.get("updated_label", "Actualizado el"))} {_esc(stamp["updated"])}</span>')
     if stamp.get("frequency"):
         items.append(f'<span>{icon("refresh", 15)}{_esc(stamp["frequency"])}</span>')
     if items:
@@ -587,7 +587,7 @@ def footer(period: str, stamp: dict | None = None) -> None:
     stamp = stamp or {}
     update = ""
     if stamp.get("updated"):
-        update += f'<span>Actualizado el {_esc(stamp["updated"])}</span>'
+        update += f'<span>{_esc(stamp.get("updated_label", "Actualizado el"))} {_esc(stamp["updated"])}</span>'
     if stamp.get("frequency"):
         update += f'<span>{_esc(stamp["frequency"])}</span>'
     st.markdown(

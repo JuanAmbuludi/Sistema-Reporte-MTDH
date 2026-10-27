@@ -6,6 +6,7 @@ province/canton, but neither parish nor historical contract-start months.
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
@@ -28,19 +29,32 @@ NAMES = {"estado": "estado", "sexo": "sexo", "edad": "grupo_edad", "disc": "disc
          "rama": "rama_actividad"}
 
 
+def _session():
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    session = requests.Session()
+    session.headers.update({"User-Agent": "InfoReport-MTDH/2.0 (public aggregate data)"})
+    retry = Retry(total=2, backoff_factor=1, allowed_methods={"GET"},
+                  status_forcelist=(429, 500, 502, 503, 504))
+    for scheme in ("https://", "http://"):
+        session.mount(scheme, HTTPAdapter(max_retries=retry))
+    return session
+
+
 def collect(local=None):
     data, receipts = {}, []
-    for path in [*PAGES, *FILES]:
-        if local:
-            raw = (Path(local)/path).read_bytes()
-        else:
-            import requests
-            response = requests.get(urljoin(BASE, path), timeout=(15, 60),
-                                    headers={"User-Agent": "InfoReport-MTDH/2.0 (public aggregate data)"})
-            response.raise_for_status()
-            raw = response.content
-        data[path] = raw.decode("utf-8-sig")
-        receipts.append({"url": urljoin(BASE, path), "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)})
+    with nullcontext(None) if local else _session() as session:
+        for path in [*PAGES, *FILES]:
+            if local:
+                raw = (Path(local)/path).read_bytes()
+            else:
+                response = session.get(urljoin(BASE, path), timeout=(15, 60))
+                response.raise_for_status()
+                raw = response.content
+            data[path] = raw.decode("utf-8-sig")
+            receipts.append({"url": urljoin(BASE, path), "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)})
     for page in PAGES:
         if "../datos/kpis/contratos/dashboard_data.json" not in data[page]:
             raise ValueError(f"La página {page} cambió de fuente de contratos.")

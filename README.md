@@ -131,7 +131,7 @@ python -m pip install -r requirements-data.txt
 python scripts/update_history.py --entrada "/ruta/a/insumos" --web
 ```
 
-Para actualizar únicamente las fuentes laborales públicas, omita `--entrada`. También puede ejecutar manualmente **Actualizar datos laborales** en GitHub Actions; la consulta automática está programada a las 07:15 de Ecuador. El procedimiento y las reglas de sustitución de meses están en [data/README.md](data/README.md).
+Para actualizar únicamente las fuentes laborales públicas, omita `--entrada`. **Actualizar datos laborales** en GitHub Actions consulta automáticamente todos los días a las **07:15 de Ecuador (12:15 UTC)**; también admite ejecución manual y se ejecuta al cambiar el proceso de extracción. Publica en `main` solo después de validar los datos y ejecutar las pruebas, para que Streamlit recoja la actualización. Gestión laboral muestra la última consulta validada por separado del corte publicado por la fuente, incluso cuando no hay cifras nuevas. El procedimiento y las reglas de sustitución de meses están en [data/README.md](data/README.md).
 
 Para reconstruir el detalle territorial anterior desde sus fuentes Parquet, use `python scripts/build_data.py --config config/actualizacion_datos.json`. Su metodología está en [docs/ACTUALIZACION_DATOS.md](docs/ACTUALIZACION_DATOS.md).
 

@@ -413,7 +413,8 @@ class LabourView:
         return svg
 
     def digest(self) -> str:
-        return fingerprint(self.stock, tuple(self.provinces), self.cut["contracts_label"], self.report_level)
+        return fingerprint(self.stock, tuple(self.provinces), self.cut["contracts_label"], self.report_level,
+                           self.update_stamp(), self.years.to_dict("records"))
 
     def report_context(self, title: str) -> dict:
         from src.reports.areas import labour_context

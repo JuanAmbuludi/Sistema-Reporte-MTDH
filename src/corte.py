@@ -68,10 +68,27 @@ def labour_cut() -> datetime | None:
     return moment.replace(tzinfo=ECUADOR) if moment.tzinfo is None else moment.astimezone(ECUADOR)
 
 
+def labour_consulted_at() -> datetime | None:
+    """Last validated labour query, independent of unrelated modules and source cuts."""
+    for path, field in ((SERIES / "laboral/ultima_consulta.json", "consulta_utc"),
+                        (PROCESSED / "manifest_laboral.json", "fecha_consulta_utc")):
+        if path.exists():
+            try:
+                value = json.loads(path.read_text(encoding="utf-8")).get(field)
+                if value:
+                    moment = datetime.fromisoformat(value)
+                    if moment.tzinfo is not None:
+                        return moment.astimezone(ECUADOR)
+            except (OSError, ValueError, TypeError):
+                continue
+    return None
+
+
 def stamp(area: str, period: dict | None = None) -> dict:
     """Cut, update and frequency of an area, in words for the dashboard and the documents."""
     frequency = FREQUENCY.get(area, "mensual")
-    updated = updated_at()
+    updated = labour_consulted_at() if area == "laboral" else updated_at()
+    updated_label = "Última consulta:" if area == "laboral" else "Actualizado el"
     if area == "laboral":
         cut = labour_cut()
         cut_text = long_date(cut) if cut else ""
@@ -86,11 +103,12 @@ def stamp(area: str, period: dict | None = None) -> dict:
     if cut_text:
         parts.append(f"Corte de la información: {cut_text}")
     if updated_text:
-        parts.append(f"actualizada el {updated_text}")
+        parts.append(f"última consulta: {updated_text}" if area == "laboral" else f"actualizada el {updated_text}")
     parts.append(f"actualización {frequency}")
     line = " · ".join(parts)
-    short = " · ".join(([f"Corte: {cut_text}"] if cut_text else []) + ([f"Actualizado: {updated:%d/%m/%Y %H:%M}"] if updated else [])
+    short_label = "Última consulta" if area == "laboral" else "Actualizado"
+    short = " · ".join(([f"Corte: {cut_text}"] if cut_text else []) + ([f"{short_label}: {updated:%d/%m/%Y %H:%M}"] if updated else [])
                        + [f"Actualización {frequency}"])
     return {"cut": cut_text, "updated": updated_text, "updated_short": f"{updated:%d/%m/%Y %H:%M}" if updated else "",
             "frequency": f"Actualización {frequency}", "frequency_word": frequency, "line": line[:1].upper() + line[1:],
-            "short": short}
+            "short": short, "updated_label": updated_label}

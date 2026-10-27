@@ -143,12 +143,15 @@ def _province_code(name: object) -> str | None:
     return depuracion.gazetteer().province(name)
 
 
-_TABLES: dict[str, pd.DataFrame] = {}
+_TABLES: dict[str, tuple[tuple, pd.DataFrame]] = {}
 
 
 def contracts(name: str) -> pd.DataFrame:
     """Latest cut of a contract tabulation, with the DPA code of its province (and canton)."""
-    if name not in _TABLES:
+    path = SGDE / f"contratos_{name}.parquet"
+    stat = path.stat() if path.exists() else None
+    version = (str(path), stat.st_mtime_ns, stat.st_size) if stat else (str(path), None, None)
+    if name not in _TABLES or _TABLES[name][0] != version:
         frame = _sgde(name)
         if not frame.empty and "provincia" in frame:
             codes = {p: _province_code(p) for p in frame.provincia.unique()}
@@ -158,8 +161,8 @@ def contracts(name: str) -> pd.DataFrame:
                 gaz = depuracion.gazetteer()
                 pairs = {(p, c): gaz.canton(codes.get(p), c) for p, c in frame[["provincia", "canton"]].drop_duplicates().itertuples(index=False)}
                 frame["canton_codigo"] = [pairs[(p, c)] for p, c in zip(frame.provincia, frame.canton)]
-        _TABLES[name] = frame
-    return _TABLES[name]
+        _TABLES[name] = (version, frame)
+    return _TABLES[name][1]
 
 
 def retirement_table() -> pd.DataFrame:

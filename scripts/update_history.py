@@ -146,6 +146,13 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
             from src.sgde_scraper import collect, contracts, retirement, youth, youth_phases, FILES
             raw, receipt = collect(sgde_local)
             tables, checks = contracts(raw[FILES[0]])
+            previous_cut = audit.get("controles", {}).get("contratos", {}).get("fecha_corte")
+            if web and previous_cut and checks["fecha_corte"] < previous_cut:
+                raise ValueError("SGDE publicó un corte anterior al vigente; se conserva la última base validada.")
+            consultation = {"estado": "validada", "consulta_utc": receipt["consulta_utc"],
+                "origen": "web" if web and not sgde_local else "copia_local",
+                "fecha_corte": checks["fecha_corte"], "fecha_hora_corte": checks.get("fecha_hora_corte"),
+                "recursos_consultados": len(receipt["recursos"])}
             audit["controles"]["contratos"] = checks
             for name, table in tables.items():
                 dims = [c for c in table if c not in {"periodo", "anio", "mes", "mes_nombre", "fecha_corte", "contratos", "empresas"}]
@@ -166,6 +173,10 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
             evidence.write_text(json.dumps(receipt, ensure_ascii=False, indent=2)+"\n")
             audit["fuentes"]["web"] = receipt
             update_current_labour(stage, tables["contratos_base"], checks, receipt, table)
+            # A successful repeat query is recorded separately from the source's
+            # original receipt and cut. It is published only after ALL checks pass.
+            (series/"laboral/ultima_consulta.json").write_text(
+                json.dumps(consultation, ensure_ascii=False, indent=2)+"\n")
         derived_tables(series, audit, save)
         inventory = []
         for path in sorted(series.rglob("*.parquet")):
