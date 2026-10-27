@@ -72,6 +72,14 @@ def build_context(view, *, title: str) -> dict:
                source="Fuente: MTDH · Subsecretaría Territorial · Kobo de kits y bono de contingencia",
                sources="Subsecretaría Territorial (análisis de alertas); corte Kobo de kits; ayuda memoria del bono de contingencia; base territorial de afectaciones por lluvias.",
                insights=_findings(r, response))
+    archive = r.data.get("pdf_publicado")
+    if archive and r.whole and not view.provinces and not view.programs:
+        # Only the complete national historical publication uses the original PDF.
+        # Filtered exports remain generated from their own selected rows.
+        if [card["value"] for card in view.kpi_cards()] != archive["kpis"]:
+            raise ValueError("Las cifras históricas no concilian con el PDF aprobado.")
+        ctx["archived_risk_pdf"] = archive
+        ctx["pdf_pages"] = archive["paginas"]
     return ctx
 
 

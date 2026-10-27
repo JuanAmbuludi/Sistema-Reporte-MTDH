@@ -83,9 +83,8 @@ class Response:
 
     The period (``since`` to ``until``; by default the reporting period of the publication) cuts every source by its own
     dates: alerts by their date of registration or report, kits by their date of delivery and the suspended units by the
-    date of their territorial report.  The contingency bonus has no date per record: with the strict temporal filter, a
-    stage enters only when the period confirmed for it lies within the one consulted, and is not available otherwise
-    (never a zero).
+    date of their territorial report. The confirmed contingency bonus is an accumulated balance, independent of the
+    date selection; the territory filter still applies to its provincial breakdown.
 
     With a service filter, the alerts keep only those of its units (the service of each unit comes from the inventory,
     or from the wording of the source when the unit is not in it); kits and the bonus have no service and keep the
@@ -169,6 +168,8 @@ class Response:
     def _stage(self, key: str, cut) -> bool:
         """A stage of the bonus belongs to the period: with the strict filter, its confirmed period lies within the one
         consulted; with dates of its own, always (its records are cut by them); otherwise, its cut falls inside the period."""
+        if enos.fixed_bonus(self.data, key):
+            return True
         if self.data.get("bonos_con_fecha_individual"):
             return True
         if self.data.get("filtro_temporal_estricto"):
@@ -208,8 +209,8 @@ class Response:
 
     def period_note(self) -> str:
         text = (f"Periodo del {_date(self.start)} al {_date(self.end)}. Alertas por su fecha de registro o reporte validada; kits por su "
-                "fecha de entrega; unidades suspendidas por la fecha del corte territorial. El bono de contingencia no tiene fecha por "
-                "registro: se presenta solo cuando el periodo confirmado por el responsable está dentro del consultado. "
+                "fecha de entrega; unidades suspendidas por la fecha del corte territorial. El bono de contingencia se mantiene "
+                "como acumulado confirmado al cambiar la fecha del reporte; no representa un flujo diario. "
                 + self.publication_text())
         missing = self.missing_text()
         return f"{text} {missing}" if missing else text

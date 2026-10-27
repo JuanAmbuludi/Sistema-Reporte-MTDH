@@ -6,6 +6,8 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import hashlib
+import pytest
 
 import openpyxl
 import pandas as pd
@@ -78,24 +80,24 @@ def test_a_period_cuts_alerts_kits_and_territorial_reports_by_their_own_dates():
     assert len(part.alerts) == int(alert_days.ge("2026-10-20").sum()) == 34
     assert part.kits_total == int(full.kits.loc[kit_days.ge("2026-10-20"), "kits"].sum())
     assert pd.to_datetime(part.alerts.fecha).ge("2026-10-20").all() and pd.to_datetime(part.kits.fecha).ge("2026-10-20").all()
-    # The territorial report of 26/10 is inside the period; the bonus has no date per record and its confirmed period
-    # (28/09–27/10) is not inside 20/10–27/10: no figure for it, never a zero.
+    # The confirmed bonus is an accumulated reference, independent of the selected dates.
     assert part.closed_units == 99
     cards = v.kpi_cards()
-    assert cards[2]["value"] is None and cards[3]["value"] is None
-    assert "sin desglose temporal" in part.missing_text()
-    early = view(until="2026-10-20")
-    assert early.response.available["continuidad"] is False and early.kpi_cards()[4]["value"] is None
-    assert len(early.response.alerts) == int(alert_days.le("2026-10-20").sum())
+    assert cards[2]["value"] == 1171 and cards[3]["value"] == 354987.39
+    assert "flujo diario" in part.period_note()
     # The alerts of a province or a service stay inside the period too.
     assert len(view(since="2026-10-20", provinces=("09",)).response.alerts) <= len(view(provinces=("09",)).response.alerts)
 
 
-def test_before_the_first_publication_the_period_is_rebuilt_and_says_so():
-    r = view(until="2026-10-20").response
-    assert r.publication == {"dia": pd.Timestamp("2026-10-27"), "exacta": False}
-    assert r.publication_text().startswith("No hay una publicación guardada al 20/10/2026")
-    assert "Periodo del 28/09/2026 al 20/10/2026" in r.notes()["period"]
+def test_before_the_first_publication_no_later_data_are_used():
+    assert enos.in_force(enos.SNAPSHOT, "2026-10-25") == (None, False)
+    assert enos.in_force(enos.CONTINUITY, "2026-10-25") == (None, False)
+    v = RiskView()
+    v.select(v.catalog()[-1], until="2026-10-25")
+    assert not v.prepare()
+    assert v.response is None and v.kpi_cards() == []
+    with pytest.raises(ValueError, match="No hay un corte"):
+        v.report_context("Riesgos")
 
 
 def test_the_end_of_a_period_reproduces_what_was_reported_that_day(tmp_path, monkeypatch):
@@ -137,28 +139,76 @@ def test_documents_carry_the_period_and_the_publication():
     pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
     cover = pdf[0].get_text()
     assert "Resumen ejecutivo · Del 20/10/2026 al 27/10/2026" in cover
-    # The bonus has no figure for this period: a dash, not a zero.
+    # The bonus keeps the approved accumulated balance when the dates change.
     headline = cover.split("Unidades de atención cerradas")[0]
-    assert "Sin desglose temporal" in headline and "USD 0" not in headline
+    assert "1.171" in headline and "354.987,39" in headline and "Sin desglose temporal" not in headline
     wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
     cells = [str(c.value) for row in wb["Ficha técnica"].iter_rows() for c in row if c.value is not None]
     assert "Del 20/10/2026 al 27/10/2026" in cells and "27/10/2026" in cells
     assert any(c.startswith("Periodo del 20/10/2026 al 27/10/2026") for c in cells)
 
 
-def test_the_dashboard_reads_a_period_of_days():
+def test_the_dashboard_selects_the_reported_day_and_can_return_to_today():
     from test_interface import _logged_in_app, _markdown
     app = _logged_in_app()
     app.segmented_control(key="module").set_value("riesgos").run()
     assert not app.exception
-    assert [(d.label, d.value) for d in app.date_input] == [("Desde", date(2026, 9, 28)), ("Hasta", date(2026, 10, 27))]
+    assert [(d.label, d.value) for d in app.date_input] == [("Fecha del reporte", date(2026, 10, 27))]
     assert "Del 28/09/2026 al 27/10/2026" in _markdown(app)
-    app.date_input(key="risk_until").set_value(date(2026, 10, 20)).run()
+    app.date_input(key="risk_until").set_value(date(2026, 10, 26)).run()
     assert not app.exception
     html = _markdown(app)
-    assert "Del 28/09/2026 al 20/10/2026" in html and "No hay una publicación guardada al 20/10/2026" in html
-    # «Desde» after «Hasta» moves the end with it.
-    app.date_input(key="risk_since").set_value(date(2026, 10, 25)).run()
-    assert [d.value for d in app.date_input] == [date(2026, 10, 25), date(2026, 10, 25)]
+    assert "Del 29/08/2026 al 26/10/2026" in html
+    assert "13.390" in html and "1.171" in html and "354.987,39" in html
+    assert "Sin desglose temporal disponible" not in html
     next(b for b in app.button if b.label == "Restablecer filtros").click().run()
-    assert [d.value for d in app.date_input] == [date(2026, 9, 28), date(2026, 10, 27)]
+    assert [d.value for d in app.date_input] == [date(2026, 10, 27)]
+    assert "10.607" in _markdown(app) and "1.171" in _markdown(app)
+
+
+def test_yesterday_matches_the_approved_pdf_and_every_provincial_total():
+    v = view(until="2026-10-26")
+    assert values(v) == [10, 13390, 1171, 354987.39, 99]
+    assert v.response.publication == {"dia": pd.Timestamp("2026-10-26"), "exacta": True}
+    assert set(v.response.alerts.codigo) == {f"ALT-2026-{n:06d}" for n in (325, 323, 322, 321, 319, 318, 316, 315, 310, 309)}
+    expected = {"Azuay": 527, "Bolívar": 141, "Carchi": 780, "Chimborazo": 7, "Cotopaxi": 250,
+        "El Oro": 66, "Esmeraldas": 3820, "Guayas": 6850, "Imbabura": 498, "Loja": 79, "Los Ríos": 64,
+        "Manabí": 75, "Napo": 60, "Pastaza": 7, "Pichincha": 64, "Santa Elena": 13,
+        "Santo Domingo de los Tsáchilas": 17, "Sucumbíos": 44, "Tungurahua": 17, "Zamora Chinchipe": 11}
+    assert v.response.kits.groupby("provincia").kits.sum().to_dict() == expected
+    assert v.response.alerts.groupby("provincia").size().to_dict() == {"El Oro": 2, "Guayas": 6, "Manabí": 2}
+    continuity = v.response.continuity_summary()
+    assert {r["name"]: r["value"] for r in continuity["by_province"]} == {"El Oro": 75, "Guayas": 17, "Santa Elena": 7}
+    assert {r["name"]: r["value"] for r in continuity["by_service"]} == {"CNH": 64, "CDI": 35}
+    ctx = v.report_context("Riesgos")
+    content = generate_pdf(ctx)
+    assert hashlib.sha256(content).hexdigest() == "da6fb7c6032c1824a41834e5a34867abe934e94fb201712af2a51737b9ffa905"
+    assert len(pymupdf.open(stream=content, filetype="pdf")) == ctx["pdf_pages"] == 3
+
+
+def test_bonus_keeps_every_provincial_person_and_cent_between_report_dates():
+    yesterday, today = view(until="2026-10-26"), view(until="2026-10-27")
+    a = yesterday.response.articulation.groupby("provincia")[["personas", "monto"]].sum()
+    b = today.response.articulation.groupby("provincia")[["personas", "monto"]].sum()
+    pd.testing.assert_frame_equal(a, b)
+    assert a.personas.to_dict() == {"El Oro": 181, "Esmeraldas": 530, "Guayas": 344, "Imbabura": 5, "Los Ríos": 111}
+    assert a.monto.round(2).to_dict() == {"El Oro": 55022.19, "Esmeraldas": 160558.20, "Guayas": 104246.01,
+                                       "Imbabura": 1519.95, "Los Ríos": 33641.04}
+    assert values(view(since="2026-10-26", until="2026-10-27"))[2:4] == [1171, 354987.39]
+
+
+def test_a_filtered_historical_report_never_returns_the_national_archive():
+    v = view(until="2026-10-26", provinces=("09",))
+    assert values(v) == [6, 6850, 344, 104246.01, 17]
+    ctx = v.report_context("Riesgos de Guayas")
+    assert "archived_risk_pdf" not in ctx
+    doc = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
+    cover = doc[0].get_text()
+    assert "6.850" in cover and "104.246,01" in cover and "13.390" not in cover
+
+
+def test_original_pdf_integrity_is_verified_before_returning_it():
+    metadata = dict(view(until="2026-10-26").response.data["pdf_publicado"])
+    metadata["sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="no coincide"):
+        enos.archived_pdf(metadata)

@@ -9,8 +9,8 @@ publication (``scripts/nuevo_corte_riesgos.py``), and the days already closed ke
 
 Inside a publication every source is cut by its own dates (``filtro_temporal_estricto``): alerts by their date of
 registration or report, kits by their date of delivery and the suspended units by the date of their territorial report.
-The bonus has no date per record: a stage enters a period only when the person in charge confirmed a period for it and
-that period lies within the one consulted (``bonos_periodos_confirmados``); otherwise it is not available, never a zero.
+The confirmed contingency bonus is an accumulated reference, not a daily flow: its people and amounts remain unchanged
+when the report date changes. Earlier dates without a saved publication are unavailable, never reconstructed from a later file.
 """
 from pathlib import Path
 import hashlib
@@ -22,6 +22,7 @@ FOLDER = ROOT / "data/processed"
 SNAPSHOT = "seguimiento_enos_*.json"
 CONTINUITY = "continuidad_servicios_*.json"
 LEDGER = FOLDER / "cortes_riesgos.json"
+REPORTS = ROOT / "data/reports"
 
 QUALITY_NOTE = ""
 
@@ -52,9 +53,7 @@ def publication_day(path) -> pd.Timestamp:
 
 
 def in_force(pattern: str, until=None) -> tuple[Path | None, bool]:
-    """The publication in force on ``until``: the latest one reported that day or before, and True.  When ``until`` comes
-    before the first publication, that first one and False: a reconstruction, whose records are then cut at ``until`` by
-    their own dates.  Without ``until``, the latest publication."""
+    """Latest publication reported on or before ``until``. Never use a later file to invent an earlier publication."""
     found = publications(pattern)
     if not found:
         return None, False
@@ -62,7 +61,7 @@ def in_force(pattern: str, until=None) -> tuple[Path | None, bool]:
         return found[-1][1], True
     until = pd.Timestamp(until).normalize()
     earlier = [path for day, path in found if day <= until]
-    return (earlier[-1], True) if earlier else (found[0][1], False)
+    return (earlier[-1], True) if earlier else (None, False)
 
 
 def fingerprint(path) -> str:
@@ -72,6 +71,17 @@ def fingerprint(path) -> str:
 def ledger() -> dict:
     """The days already closed: each publication file with the SHA-256 it had when the next day was opened."""
     return json.loads(LEDGER.read_text(encoding="utf-8")) if LEDGER.exists() else {"cerrados": {}}
+
+
+def archived_pdf(metadata: dict) -> bytes:
+    """The approved document exactly as issued, with its integrity verified before download."""
+    name = metadata["archivo"]
+    if Path(name).name != name or not name.endswith(".pdf"):
+        raise ValueError("Nombre de documento histórico inválido.")
+    content = (REPORTS / name).read_bytes()
+    if hashlib.sha256(content).hexdigest() != metadata["sha256"]:
+        raise ValueError("El PDF histórico no coincide con el documento aprobado.")
+    return content
 
 
 def window(data: dict) -> tuple[pd.Timestamp, pd.Timestamp]:
@@ -165,6 +175,14 @@ def period_confirmed(data, stage, since=None, until=None):
                 and since <= period['desde'] <= period['hasta'] <= until)
 
 
+def fixed_bonus(data, stage):
+    """The approved articulation balance remains independent of the selected report dates."""
+    if stage != "articulacion":
+        return False
+    return any(data.get(key, {}).get(stage, {}).get("confirmacion")
+               for key in ("bonos_periodos_confirmados", "bonos_referencia_confirmada"))
+
+
 def frames(data, provinces=()):
     result = {}
     for name, rows in [('alertas', data['alertas']), ('kits', data['kits']),
@@ -176,7 +194,7 @@ def frames(data, provinces=()):
         if name in ('alertas', 'kits'):
             dates = pd.to_datetime(frame.fecha, errors='coerce')
             frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
-        elif data.get('filtro_temporal_estricto') and not period_confirmed(data, name):
+        elif data.get('filtro_temporal_estricto') and not (fixed_bonus(data, name) or period_confirmed(data, name)):
             dates = pd.to_datetime(pd.Series([r.get('fecha') for r in rows], index=frame.index), errors='coerce')
             frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
         if provinces:

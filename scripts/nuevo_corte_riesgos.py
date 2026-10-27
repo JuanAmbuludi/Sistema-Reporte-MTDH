@@ -47,6 +47,8 @@ def open_day(day: str) -> dict[str, Path]:
             # The report of the new day ends on that day; each source keeps its own cut until its data are updated.
             data["corte"] = day
             data["generado_utc"] = datetime.now(timezone.utc).isoformat()
+            # An approved PDF belongs to the issued day; it cannot represent a new publication.
+            data.pop("pdf_publicado", None)
         closed.setdefault(f"{last_day:%Y-%m-%d}", {})[last_path.name] = enos.fingerprint(last_path)
         target = enos.FOLDER / f"{prefix}_{day}.json"
         _write(target, data)

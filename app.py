@@ -124,7 +124,7 @@ with st.container(key="band"):
             view = views[area]
             if hasattr(view, "pre_controls"):
                 view.pre_controls()
-            # Riesgos reads a period of days (Desde · Hasta) instead of a year and a month.
+            # Riesgos selects an issued daily report instead of a year and a month.
             period = view.period_controls() if hasattr(view, "period_controls") else period_controls(view.catalog())
             view.controls(period)
     ready = view.prepare()

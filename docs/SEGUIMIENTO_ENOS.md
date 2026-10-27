@@ -1,8 +1,17 @@
 # Seguimiento y respuesta en Riesgos
 
-Acceso: **Riesgos**. La exposición territorial se conserva como análisis interno y no se muestra en el dashboard ni en sus reportes. Los exportables completos incluyen indicadores, evolución, gráficas por provincia y servicio, las diez alertas con código y nombre UA, acciones provinciales, kits, planificación y nota metodológica. El seguimiento inicia el **14/09/2026**. En el corte actual: PDF de tres páginas, PowerPoint de diez diapositivas y Excel de nueve hojas.
+Acceso: **Riesgos**. **Fecha del reporte** selecciona una publicación guardada. La exposición territorial se conserva como análisis interno. El reporte del 26/10 y el del 27/10 tienen bases y alcances propios; el PDF nacional del 26/10 reproduce el documento aprobado aportado por el responsable. El PDF del 27/10 conserva sus cuatro páginas y su diseño.
 
-## Corte del 26 de octubre de 2026
+| Publicación | Alertas | Kits | Personas del bono | Monto del bono (USD) | Unidades suspendidas |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 26/10/2026 | 10 | 13.390 | 1.171 | 354.987,39 | 99 |
+| 27/10/2026 | 39 | 10.607 | 1.171 | 354.987,39 | 99 |
+
+El 26/10 se recuperó del commit `558f357`, cotejando las 89 entregas y cada una de las 20 provincias con el PDF aprobado. El bono se concilió con ese PDF y con la confirmación del responsable: Los Ríos incluye 111 personas y USD 33.641,04. Se preservó el documento original y su rótulo histórico (29/08–25/10), aunque sus fuentes contienen cortes posteriores (Kobo y continuidad del 26/10). La fecha de publicación, el rótulo del PDF y las fechas de cada fuente se conservan por separado en la trazabilidad.
+
+El 27/10 usa entregas desde el 28/09. Por tanto, **13.390 y 10.607 no son acumulados de un mismo intervalo**: no deben interpretarse como una disminución diaria de kits. Sus bases originales y cifras se mantienen. Al cambiar la fecha del reporte, el bono confirmado conserva sus personas y montos; los filtros territoriales siguen aplicándose al desglose provincial.
+
+## Antecedentes de la elaboración del 26 de octubre (versiones preliminares)
 
 - Se revisaron las **31 alertas** desde el 14/09. El criterio vigente solicitado por el responsable incluye **solo registros con código UA**: **10 alertas y 10 códigos UA distintos**, en 3 provincias y 4 cantones. Ocho registros corresponden a Desarrollo Infantil y dos a CNH. El primer registro con código es del 16/10. Los 21 registros sin código quedan fuera de este alcance.
 - **Ocho alertas tienen afectación documentada y dos están por confirmar**. En ALT-2026-000315 / UA 58336 y ALT-2026-000316 / UA 58337 (Tenguel), la fuente vincula una UA pero solo describe inundación territorial. Se muestran con esa salvedad, sin atribuir un daño o interrupción no confirmados.
@@ -31,9 +40,9 @@ El CSV de kits es una transcripción revisada de `Reporte_ministerial_kits_provi
 
 ## Periodo y trazabilidad de lo reportado
 
-**Riesgos** se consulta por periodo: **Desde** y **Hasta** reemplazan al año y al mes en el panel de consulta y se aplican al tablero y a los tres exportables (resumen ejecutivo, presentación y libro de datos). Por omisión el periodo va del inicio del seguimiento (`desde`, hoy 28/09/2026) al último día reportado. Cada fuente se recorta por su propia fecha: alertas por su fecha de registro o reporte, kits por su fecha de entrega y unidades suspendidas por la fecha del corte territorial. El bono de contingencia no tiene fecha por registro: solo se presenta cuando el periodo confirmado por el responsable (`bonos_periodos_confirmados`) está dentro del consultado; si no, figura como no disponible, nunca como cero.
+**Fecha del reporte** selecciona la publicación guardada de cada día, por omisión la más reciente. Cada publicación conserva sus entregas, alertas, continuidad y cortes; el bono en articulación permanece como acumulado confirmado. No se cambia el inicio de un reporte histórico por el de una publicación posterior. La API admite selecciones de registros dentro de una publicación para análisis, pero ese recorte no sustituye al documento que se emitió.
 
-**Cada día reportado es una publicación propia**, nombrada por ese día: `seguimiento_enos_AAAA-MM-DD.json` (alertas, kits, bono y sus alcances en `notas`) y `continuidad_servicios_AAAA-MM-DD.json` (unidades suspendidas). El **Hasta** elige la publicación vigente ese día, de modo que un periodo que termina el 27/10 reproduce exactamente lo reportado el 27/10 aunque mañana lleguen datos nuevos. Un periodo que termina antes de la primera publicación guardada se reconstruye con ella según la fecha de cada registro, y el tablero lo advierte.
+**Cada día reportado es una publicación propia**, nombrada por ese día: `seguimiento_enos_AAAA-MM-DD.json` (alertas, kits, bono y sus alcances en `notas`) y `continuidad_servicios_AAAA-MM-DD.json` (unidades suspendidas). Antes de la primera publicación guardada (26/10/2026) no se muestra un reporte reconstruido con datos posteriores. El documento aprobado está en `data/reports/riesgos_2026-10-26.pdf`: la descarga histórica nacional valida su SHA-256 y entrega los bytes originales. Los exportables con filtros territoriales o de servicio se calculan desde los registros de esa publicación y nunca devuelven el PDF nacional por error.
 
 Para reportar un día nuevo no se edita el anterior:
 

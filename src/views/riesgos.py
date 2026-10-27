@@ -303,22 +303,18 @@ class RiskView:
                 "stamp": f"{since:%Y-%m-%d}_al_{until:%Y-%m-%d}"}
 
     def period_controls(self) -> dict:
-        """«Desde» and «Hasta» take the place of the year and month: the end of the period chooses the publication in force
-        that day, so a period ending on a day reproduces what was reported then."""
-        first, last = self.first.date(), self.last.date()
-        for key, default in (("risk_since", first), ("risk_until", last)):
-            value = st.session_state.get(key)
-            if not isinstance(value, date) or not first <= value <= last:
-                st.session_state[key] = default
-        left, right = st.columns(2, gap="small")
-        with left:
-            since = st.date_input("Desde", key="risk_since", min_value=first, max_value=last, format="DD/MM/YYYY",
-                                  help="Primer día del periodo: alertas y kits desde esta fecha.")
-        if st.session_state["risk_until"] < since:
-            st.session_state["risk_until"] = since
-        with right:
-            until = st.date_input("Hasta", key="risk_until", min_value=since, max_value=last, format="DD/MM/YYYY",
-                                  help="Último día del periodo: las cifras se presentan como se reportaron ese día.")
+        """Choose an issued report, not an event-date slice of today's mutable base."""
+        available = enos.publications(enos.SNAPSHOT)
+        first, last = available[0][0].date(), available[-1][0].date()
+        value = st.session_state.get("risk_until")
+        if not isinstance(value, date) or not first <= value <= last:
+            st.session_state["risk_until"] = last
+        until = st.date_input("Fecha del reporte", key="risk_until", min_value=first, max_value=last, format="DD/MM/YYYY",
+                              help="Recupera las cifras y los cortes de la publicación guardada de ese día. El bono conserva su acumulado confirmado.")
+        path, _exact = enos.in_force(enos.SNAPSHOT, until)
+        since, _cut = _window(str(path), path.stat().st_mtime_ns)
+        st.session_state["risk_since"] = since.date()
+        st.caption(f"Reportes disponibles desde el {first:%d/%m/%Y}.")
         return self.period_for(since, until)
 
     def catalog(self) -> list[dict]:
@@ -335,8 +331,10 @@ class RiskView:
         ``until`` (nor in ``period``), the whole follow-up up to the last day reported."""
         self.provinces, self.programs = list(provinces), list(programs)
         self.threat, self.levels = threat, tuple(levels)
-        since = since if since is not None else period.get("since", self.first)
         until = until if until is not None else period.get("until", self.last)
+        path, _exact = enos.in_force(enos.SNAPSHOT, until)
+        first = _window(str(path), path.stat().st_mtime_ns)[0] if path else self.first
+        since = since if since is not None else period.get("since", first)
         self.period = {**self.period_for(since, until), **{k: period[k] for k in ("id", "year", "month") if k in period}}
         self.since, self.until = self.period["since"], self.period["until"]
 
@@ -424,6 +422,9 @@ class RiskView:
         # The publication in force on the last day of the period: what was reported that day.
         self.response_path, exact = enos.in_force(enos.SNAPSHOT, self.until)
         self.continuity_path, _exact = enos.in_force(enos.CONTINUITY, self.until)
+        if not self.response_path:
+            self.empty_message = "No hay una publicación de Riesgos guardada para esa fecha."
+            return False
         if self.response_path:
             unit_programs = {}
             if self.programs:
@@ -881,7 +882,7 @@ class RiskView:
     def digest(self) -> str:
         # The period and the content of the publications in force: a new publication or another period is another document.
         published = [enos.fingerprint(path) for path in (self.response_path, self.continuity_path) if path]
-        return fingerprint("response-period-v6", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        return fingerprint("response-publications-v7", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, str(self.since), str(self.until), str(self.response_path),
                            str(self.continuity_path), published, self.update_stamp())
 

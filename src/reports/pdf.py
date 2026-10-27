@@ -766,6 +766,9 @@ def page_count(context: dict) -> int:
 
 def generate_pdf(context: dict) -> bytes:
     """Render the executive summary of any area (one or two pages)."""
+    if context.get("archived_risk_pdf"):
+        from src.enos import archived_pdf
+        return archived_pdf(context["archived_risk_pdf"])
     out = BytesIO()
     c = pdf_canvas.Canvas(out, pagesize=A4, pageCompression=1)
     c.setTitle(f"{context['title']} · Resumen ejecutivo")
