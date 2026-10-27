@@ -15,6 +15,10 @@ import plotly.graph_objects as go
 
 from src import charts, depuracion, enos, names, theme, ui
 
+# Services of the continuity report: CNH and CDI keep the acronyms of the approved bulletin; the rest read by their names.
+SERVICE_NAMES = {"PAM": "Personas Adultas Mayores", "PCD": "Personas con Discapacidad", "PE": "Protección Especial",
+                 "AF": "Acompañamiento Familiar"}
+
 # Markers some sources write where a canton or a unit name is missing; they read as missing values (a dash).
 _MISSING = {"sin cantón en la base", "sin nombre", "sin nombre en la base", "sin nombre en la fuente", "nan", "none"}
 
@@ -95,6 +99,7 @@ class Response:
         self.cut, self.since = pd.Timestamp(data["corte"]), pd.Timestamp(data["desde"])
         self.cuts = data["cortes"]
         continuity = pd.DataFrame(enos.continuity()["registros"])
+        continuity["servicio"] = continuity.servicio.replace(SERVICE_NAMES)
         continuity["provincia_codigo"] = continuity.provincia.map(_code)
         if programs:
             continuity = continuity.loc[continuity.programa_id.isin(programs)]
@@ -104,6 +109,7 @@ class Response:
         self.continuity = continuity
         detail = pd.DataFrame(enos.continuity().get("detalle", []))
         if not detail.empty:
+            detail["servicio"] = detail.servicio.replace(SERVICE_NAMES)
             detail["canton"] = [_clean(c, names.place) for c in detail.canton]
             detail["unidad"] = [_clean(u, names.unit) for u in detail.unidad]
             detail["provincia_codigo"] = detail.provincia.map(_code)
@@ -144,6 +150,15 @@ class Response:
 
     def suspension_caption(self) -> str:
         return " · ".join(f"{a['value']} {a['name']}" for a in self.continuity_summary()["by_service"]) or "Sin suspensiones reportadas en la selección"
+
+    def suspension_short(self) -> str:
+        """The caption of a key figure: CNH and CDI with their units, the other services together (their names are in the
+        chart by service)."""
+        rows = self.continuity_summary()["by_service"]
+        main = [f"{a['value']} {a['name']}" for a in rows if a["name"] in ("CNH", "CDI")]
+        rest = sum(a["value"] for a in rows if a["name"] not in ("CNH", "CDI"))
+        parts = main + ([f"{rest} en otros servicios"] if rest else [])
+        return " · ".join(parts) or "Sin suspensiones reportadas en la selección"
 
     @property
     def kit_records(self) -> int:
@@ -338,7 +353,10 @@ def continuity_treemap(r: Response) -> go.Figure:
             # Without a canton in the source, the tile is named by its service.
             labels.append(row["canton"] or row["servicio"]); values.append(int(row["unidades"]))
             colors.append(color); inks.append(_ink(color))
-            notes.append(f"{row['servicio']} · {int(row['unidades'])} UA" if row["canton"] else f"{int(row['unidades'])} UA")
+            # A long service name (Personas Adultas Mayores) takes two lines so the tile keeps its label.
+            service = row["servicio"] if len(row["servicio"]) <= 14 else _two_lines(row["servicio"], 14)
+            joint = "<br>" if "<br>" in service else " · "
+            notes.append(f"{service}{joint}{int(row['unidades'])} UA" if row["canton"] else f"{int(row['unidades'])} UA")
     fig.add_trace(go.Treemap(
         ids=ids, labels=labels, parents=parents, values=values, branchvalues="total", sort=True, customdata=notes,
         marker=dict(colors=colors, line=dict(color="#FFFFFF", width=3), pad=dict(t=26, l=5, r=5, b=5), cornerradius=6),

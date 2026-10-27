@@ -545,7 +545,7 @@ def render_pptx(prs, ctx):
             s = slide(f"Unidades suspendidas · {start // 18 + 1}")
             part = continuity["detail"][start:start+18]
             _table(s, .55, 1.45, 12.25, [("Provincia", "provincia", 1.5, "text"), ("Cantón", "canton", 1.6, "text"),
-                   ("Servicio", "servicio", .75, "text"), ("Unidad de atención", "unidad", None, "text")],
+                   ("Servicio", "servicio", 2.1, "text"), ("Unidad de atención", "unidad", None, "text")],
                    part, row_h=.26, header_h=.4, size=9)
 
     # 4. When and where alerts were registered: evolution and unit chart.
@@ -853,7 +853,7 @@ def render_workbook(book):
         weight[d["provincia"]] = weight.get(d["provincia"], 0) + int(d["unidades"])
     detail = sorted(continuity["detail"], key=lambda d: (-weight[d["provincia"]], d["provincia"], not d["canton"], d["canton"], d["servicio"], d["unidad"]))
     if detail:
-        _block(book, ws, row + 1, f"{_count(closed, 'unidad suspendida', 'unidades suspendidas')} · {continuity['caption']}",
+        _block(book, ws, row + 1, _count(closed, 'unidad suspendida', 'unidades suspendidas'),
                [("Provincia", "provincia", "text"), ("Cantón", "canton", "text"), ("Servicio", "servicio", "text"),
                 ("Unidad de atención", "unidad", "text"), ("Estado de atención", "estado", "text"), ("Unidades", "unidades", "int")],
                [{**d, "canton": d["canton"] or "—", "unidad": d["unidad"] or "—"} for d in detail], note=continuity["note"], last=6,

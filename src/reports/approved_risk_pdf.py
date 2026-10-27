@@ -8,11 +8,9 @@ from .pdf import M,W,H,C,LOGO,_plate,_next_page,_fit,_kpis
 from .risk_response import _pdf_table,_risk_bars,Markup
 from .risks import _paragraph
 
-SERVICES={'CNH':'Servicio Creciendo con Nuestros Hijos (CNH)','CDI':'Centros de Desarrollo Infantil (CDI)','PAM':'Personas adultas mayores (PAM)',
-          'PCD':'Personas con discapacidad (PCD)','PE':'Protección especial (PE)','AF':'Acompañamiento familiar (AF)'}
-# The caption of the closed units, in the words of the approved bulletin.
-CAPTION={'CNH':'unidades del servicio Creciendo con Nuestros Hijos (CNH)','CDI':'Centros de Desarrollo Infantil (CDI)',
-         'PAM':'unidades PAM','PCD':'unidades PCD','PE':'unidades PE','AF':'unidades AF'}
+# CNH and CDI in the words of the approved bulletin; the other services arrive with their names (Personas Adultas Mayores…).
+SERVICES={'CNH':'Servicio Creciendo con Nuestros Hijos (CNH)','CDI':'Centros de Desarrollo Infantil (CDI)'}
+CAPTION={'CNH':'unidades del servicio Creciendo con Nuestros Hijos (CNH)','CDI':'Centros de Desarrollo Infantil (CDI)'}
 
 def heading(c,text,x,y,width):
     c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',_fit(text,'Text-Bold',11,width,8.8));c.drawString(x,y,text)
@@ -56,7 +54,7 @@ def render(c,ctx,pages):
     cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago')
     cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}")
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
-    caption='  ·  '.join(f"{number(a['value'])} {CAPTION.get(a['name'],a['name'])}" for a in r['continuity']['by_service'])
+    caption=' · '.join(f"{number(a['value'])} {CAPTION.get(a['name'],'de '+a['name'])}" for a in r['continuity']['by_service'])
     from .risks import _paragraph_height
     band=max(34,22+_paragraph_height(caption,full-82,7.2))
     c.setFillColor(C(theme.LILA_50));c.roundRect(M,top-band,full,band,6,fill=1,stroke=0)
@@ -81,7 +79,7 @@ def render(c,ctx,pages):
         shown=first+(f"; y {len(name_list)-1} " + ("unidad adicional" if len(name_list)==2 else "unidades adicionales") if len(name_list)>1 else '')
         rows.append([Markup(f"<b>{escape(g['province'])}</b>"+(f"<br/>{escape(g['canton'])}" if g['canton'] else '')),g['service'],number(g['units']),shown or '—'])
     rows.append(['Total','',number(r['continuity']['closed']),''])
-    top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','UA','Unidades identificadas'],rows,[114,45,30,full-189],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
+    top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','UA','Unidades identificadas'],rows,[100,104,28,full-232],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
     top=_paragraph(c,r['continuity']['note']+' Listado nominal completo en el dashboard y en Excel.',M,top,full,size=7)-6
     assert top>=62,top
     _next_page(c,ctx,1,3)

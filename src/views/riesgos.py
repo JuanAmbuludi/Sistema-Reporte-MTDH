@@ -478,7 +478,7 @@ class RiskView:
             {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()), "prefix": "USD", "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
             {"label": "Unidades cerradas / suspendidas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
-             "note": r.suspension_caption() + " · corte El Oro 27/10; otros 26/10"},
+             "note": r.suspension_short() + " · corte El Oro 27/10; otros 26/10"},
         ]
 
     def kpi_cards(self) -> list[dict]:
