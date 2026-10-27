@@ -363,7 +363,6 @@ def render_pdf(c, ctx, pages):
     from .pdf import BOTTOM, H, M, W, C, _band, _heading, _kpis, _next_page, _picture
     from .pdf_areas import _two_findings
     from .risk_charts import donut_png, evolution_png, treemap_png
-    from .risks import _paragraph
     full = W - 2 * M
     r = ctx["response"]
     selected = set(ctx["selected_codes"])
