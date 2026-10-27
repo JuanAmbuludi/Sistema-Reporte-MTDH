@@ -293,6 +293,15 @@ SLOGAN = ("El corazón de Ecuador.", "Velamos por la calidad de vida de los ecua
 
 def _footer(c, ctx: dict, page: int | None = None, pages: int | None = None) -> None:
     """Source, generation date and page; under them, the institutional slogan."""
+    if ctx.get("approved_risk_template"):
+        c.setStrokeColor(LINE); c.setLineWidth(.8); c.line(M, 57, W-M, 57)
+        c.setFillColor(C(theme.ORO_700)); c.setFont("Text-Bold", 9)
+        c.drawString(M, 42, "El corazón de Ecuador.")
+        c.setFillColor(C(theme.MORADO)); c.setFont("Text", 9)
+        c.drawString(M+119, 42, "Velamos por la calidad de vida de los ecuatorianos")
+        c.setFillColor(MUTED); c.setFont("Text", 6.5)
+        c.drawRightString(W-M, 18, f"Página {page} de {pages}")
+        return
     c.setStrokeColor(LINE)
     c.setLineWidth(0.8)
     c.line(M, 44, W - M, 44)

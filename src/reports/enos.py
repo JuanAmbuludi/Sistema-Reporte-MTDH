@@ -16,7 +16,7 @@ def build_context(view,title):
                bonos=[{**r,'stage':label} for key,label in [('gestionados','Gestionado'),('articulacion','En articulación')]
                        for r in view.frames[key].to_dict('records')],
                insights=[{'icon':'storm','text':f"{len(view.alerts)} alertas con código UA desde el 14/09 en {view.alerts.provincia.nunique()} provincias."},
-                         {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits entregados en provincias priorizadas según el corte Kobo del 26/10, 22:26."}])
+                         {'icon':'life-buoy','text':f"{number(view.kits.kits.sum())} kits entregados en provincias priorizadas según el corte Kobo del 27/10, 13:35."}])
     return ctx
 
 
@@ -72,7 +72,7 @@ def render_pdf(c,ctx,pages):
     cols=[('Estado','stage',95,'text'),('Provincia','provincia',None,'text'),('Personas','personas',60,'int'),('Monto (USD)','money_text',95,'text')]
     y=_table(c,M,y-28,width,cols,rows,row_h=15)
     y=paragraph(ctx['bono_note'],y-12,8)
-    paragraph('Fuentes: análisis territorial de alertas 26/10; Kobo de kits 26/10, 22:26; ayuda memoria del bono 23/10. '+ctx['reference'],y,7.5)
+    paragraph('Fuentes: análisis territorial de alertas 26/10; Kobo de kits 27/10, 13:35; ayuda memoria del bono 23/10. '+ctx['reference'],y,7.5)
 
 
 def render_pptx(prs,ctx):
@@ -90,7 +90,7 @@ def render_pptx(prs,ctx):
     _table(s,8.1,1.7,4.6,[('Estado','name',None,'text'),('Alertas','value',1.1,'int')],ctx['states'],row_h=.5)
     _text(s,8.1,4,4.6,1.6,'Alertas con código UA. El seguimiento utiliza la fecha de registro de cada alerta.',size=15)
     _text(s,.6,6.25,12,.5,'Se utiliza la fecha de registro desde el 14/09. La atribución causal a ENOS no está certificada en la base.',size=12,color=theme.PIZARRA)
-    s=slide('Kits en provincias priorizadas','Kobo: corte 26/10/2026, 22:26 · '+ctx['territory_label'])
+    s=slide('Kits en provincias priorizadas','Kobo: corte 27/10/2026, 13:35 · '+ctx['territory_label'])
     _text(s,.65,1.4,12,.6,f"{number(sum(r['kits'] for r in ctx['kits']))} kits documentados",size=28,bold=True,color=theme.MORADO)
     for i in range(0,len(_kit_provinces(ctx)),10):
         _table(s,.65+(i//10)*6.1,2.2,5.8,[('Provincia','provincia',None,'text'),('Kits','kits',1.2,'int')],_kit_provinces(ctx)[i:i+10],row_h=.32,size=10)
@@ -135,7 +135,7 @@ def render_workbook(book):
         _f,_e,row=_block(book,ws,row+1,stage+' por inundaciones',[('Provincia','provincia','text'),('Evento','evento','text'),('Personas','personas','int'),('Monto (USD)','monto','usd')],
                          records,last=4,total={'personas':sum(r['personas'] for r in records),'monto':sum(r['monto'] for r in records)},height=24)
     book.note(ws,row+1,ctx['bono_note'],last=4,height=100)
-    book.facts_sheet([('Periodo de alertas',ctx['period_label']),('Territorio',ctx['territory_label']),('Kits','31/08–26/10/2026; corte Kobo 26/10, 22:26'),
+    book.facts_sheet([('Periodo de alertas',ctx['period_label']),('Territorio',ctx['territory_label']),('Kits','31/08–26/10/2026; corte Kobo 27/10, 13:35'),
                       ('Bonos','Corte 23/10/2026; pagos gestionados desde el 29/08')],
                      [('Alertas',ctx['alert_note']),('Kits',ctx['kit_note']),('Bonos',ctx['bono_note']),('Control de calidad',ctx['quality_note'])],
                      [('Resumen','Cifras clave'),('Alertas','Detalle sin domicilios ni nombres personales'),('Kits','Entregas documentadas'),('Bonos','Planificación y referencia de inundaciones')],

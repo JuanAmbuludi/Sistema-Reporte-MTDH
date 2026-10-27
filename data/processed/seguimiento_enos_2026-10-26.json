@@ -1,9 +1,9 @@
 {
   "schema": 4,
   "criterio_alertas": "codigo_ua_y_reportes_sectoriales",
-  "corte": "2026-10-26",
+  "corte": "2026-10-27",
   "desde": "2026-09-14",
-  "generado_utc": "2026-10-27T13:41:52.892167+00:00",
+  "generado_utc": "2026-10-27T14:01:01.329912+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -446,6 +446,38 @@
       "familias": 1
     },
     {
+      "id_kobo": "901593832",
+      "fecha": "2026-09-07",
+      "provincia": "Morona Santiago",
+      "canton": "Morona",
+      "kits": 8,
+      "familias": 2
+    },
+    {
+      "id_kobo": "901594096",
+      "fecha": "2026-09-08",
+      "provincia": "Morona Santiago",
+      "canton": "Sucúa",
+      "kits": 25,
+      "familias": 20
+    },
+    {
+      "id_kobo": "901593658",
+      "fecha": "2026-09-09",
+      "provincia": "Morona Santiago",
+      "canton": "Morona",
+      "kits": 4,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901594928",
+      "fecha": "2026-09-09",
+      "provincia": "Morona Santiago",
+      "canton": "Huamboya",
+      "kits": 8,
+      "familias": 2
+    },
+    {
       "id_kobo": "901555281",
       "fecha": "2026-09-09",
       "provincia": "Pichincha",
@@ -475,6 +507,14 @@
       "provincia": "Tungurahua",
       "canton": "Ambato",
       "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "901596122",
+      "fecha": "2026-09-10",
+      "provincia": "Morona Santiago",
+      "canton": "Taisha",
+      "kits": 4,
       "familias": 1
     },
     {
@@ -518,6 +558,14 @@
       "familias": 1
     },
     {
+      "id_kobo": "901595906",
+      "fecha": "2026-09-17",
+      "provincia": "Morona Santiago",
+      "canton": "Taisha",
+      "kits": 10,
+      "familias": 5
+    },
+    {
       "id_kobo": "901552833",
       "fecha": "2026-09-18",
       "provincia": "Carchi",
@@ -532,6 +580,22 @@
       "canton": "Ambato",
       "kits": 1,
       "familias": 1
+    },
+    {
+      "id_kobo": "901595484",
+      "fecha": "2026-09-20",
+      "provincia": "Morona Santiago",
+      "canton": "Morona",
+      "kits": 10,
+      "familias": 10
+    },
+    {
+      "id_kobo": "901595178",
+      "fecha": "2026-09-22",
+      "provincia": "Morona Santiago",
+      "canton": "Morona",
+      "kits": 12,
+      "familias": 3
     },
     {
       "id_kobo": "901553593",
@@ -566,6 +630,14 @@
       "familias": 700
     },
     {
+      "id_kobo": "901595646",
+      "fecha": "2026-09-25",
+      "provincia": "Morona Santiago",
+      "canton": "Morona",
+      "kits": 4,
+      "familias": 1
+    },
+    {
       "id_kobo": "901550793",
       "fecha": "2026-09-28",
       "provincia": "Esmeraldas",
@@ -593,7 +665,7 @@
       "id_kobo": "901536493",
       "fecha": "2026-09-29",
       "provincia": "Chimborazo",
-      "canton": "Riobamba",
+      "canton": "RIOBAMBA",
       "kits": 7,
       "familias": 1
     },
@@ -702,6 +774,14 @@
       "familias": 18
     },
     {
+      "id_kobo": "901593028",
+      "fecha": "2026-10-04",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 30,
+      "familias": 30
+    },
+    {
       "id_kobo": "901571302",
       "fecha": "2026-10-05",
       "provincia": "Guayas",
@@ -713,7 +793,7 @@
       "id_kobo": "901540327",
       "fecha": "2026-10-05",
       "provincia": "Manabí",
-      "canton": "Pichincha",
+      "canton": "MANTA",
       "kits": 10,
       "familias": 10
     },
@@ -732,6 +812,22 @@
       "canton": "Muisne",
       "kits": 50,
       "familias": 50
+    },
+    {
+      "id_kobo": "901596632",
+      "fecha": "2026-10-06",
+      "provincia": "Morona Santiago",
+      "canton": "Taisha",
+      "kits": 10,
+      "familias": 5
+    },
+    {
+      "id_kobo": "901596348",
+      "fecha": "2026-10-07",
+      "provincia": "Morona Santiago",
+      "canton": "Sucúa",
+      "kits": 10,
+      "familias": 10
     },
     {
       "id_kobo": "901507614",
@@ -830,6 +926,22 @@
       "familias": 6
     },
     {
+      "id_kobo": "901593227",
+      "fecha": "2026-10-13",
+      "provincia": "Napo",
+      "canton": "Tena",
+      "kits": 24,
+      "familias": 6
+    },
+    {
+      "id_kobo": "901980441",
+      "fecha": "2026-10-13",
+      "provincia": "Napo",
+      "canton": "Tena",
+      "kits": 24,
+      "familias": 6
+    },
+    {
       "id_kobo": "901584975",
       "fecha": "2026-10-14",
       "provincia": "Imbabura",
@@ -902,6 +1014,14 @@
       "familias": 9
     },
     {
+      "id_kobo": "901977201",
+      "fecha": "2026-10-19",
+      "provincia": "Napo",
+      "canton": "Archidona",
+      "kits": 36,
+      "familias": 9
+    },
+    {
       "id_kobo": "901568044",
       "fecha": "2026-10-20",
       "provincia": "Guayas",
@@ -958,6 +1078,14 @@
       "familias": 1
     },
     {
+      "id_kobo": "901596933",
+      "fecha": "2026-10-22",
+      "provincia": "Morona Santiago",
+      "canton": "Huamboya",
+      "kits": 100,
+      "familias": 98
+    },
+    {
       "id_kobo": "901556545",
       "fecha": "2026-10-22",
       "provincia": "Pichincha",
@@ -1001,7 +1129,7 @@
       "id_kobo": "901505118",
       "fecha": "2026-10-24",
       "provincia": "El Oro",
-      "canton": "Pasaje",
+      "canton": "PASAJE",
       "kits": 66,
       "familias": 66
     },
@@ -1009,7 +1137,7 @@
       "id_kobo": "901522010",
       "fecha": "2026-10-24",
       "provincia": "Esmeraldas",
-      "canton": "Esmeraldas",
+      "canton": "ESMERALDAS",
       "kits": 150,
       "familias": 150
     },
@@ -1033,7 +1161,7 @@
       "id_kobo": "901542091",
       "fecha": "2026-10-24",
       "provincia": "Manabí",
-      "canton": "Portoviejo",
+      "canton": "PORTOVIEJO",
       "kits": 30,
       "familias": 20
     },
@@ -1041,7 +1169,7 @@
       "id_kobo": "901542544",
       "fecha": "2026-10-24",
       "provincia": "Manabí",
-      "canton": "Portoviejo",
+      "canton": "PORTOVIEJO",
       "kits": 25,
       "familias": 20
     },
@@ -1049,7 +1177,7 @@
       "id_kobo": "901528037",
       "fecha": "2026-10-25",
       "provincia": "Loja",
-      "canton": "Loja",
+      "canton": "LOJA",
       "kits": 15,
       "familias": 15
     },
@@ -1094,12 +1222,60 @@
       "familias": 1
     },
     {
+      "id_kobo": "901621820",
+      "fecha": "2026-10-26",
+      "provincia": "Cañar",
+      "canton": "Azogues",
+      "kits": 1,
+      "familias": 1
+    },
+    {
       "id_kobo": "901553284",
       "fecha": "2026-10-26",
       "provincia": "Esmeraldas",
       "canton": "Eloy Alfaro",
       "kits": 225,
       "familias": 225
+    },
+    {
+      "id_kobo": "901982247",
+      "fecha": "2026-10-26",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 5,
+      "familias": 2
+    },
+    {
+      "id_kobo": "901983348",
+      "fecha": "2026-10-26",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 5,
+      "familias": 2
+    },
+    {
+      "id_kobo": "901984828",
+      "fecha": "2026-10-26",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "kits": 25,
+      "familias": 13
+    },
+    {
+      "id_kobo": "901595722",
+      "fecha": "2026-10-26",
+      "provincia": "Napo",
+      "canton": "Archidona",
+      "kits": 36,
+      "familias": 9
+    },
+    {
+      "id_kobo": "902022780",
+      "fecha": "2026-10-27",
+      "provincia": "Azuay",
+      "canton": "Cuenca",
+      "kits": 200,
+      "familias": 70
     }
   ],
   "bonos": {
@@ -1163,7 +1339,7 @@
   },
   "cortes": {
     "alertas": "2026-10-26",
-    "kits": "2026-10-26T22:26:42",
+    "kits": "2026-10-27T13:35:45",
     "bonos": "2026-10-23",
     "bonos_desde": "2026-08-29"
   },
@@ -1178,7 +1354,8 @@
     "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas.",
     "alertas_total": 21,
     "alertas_sectoriales_incorporadas": 11,
-    "alertas_sectoriales_sin_fecha_diaria": 6
+    "alertas_sectoriales_sin_fecha_diaria": 6,
+    "bonos_revision": "Sin nueva base de bonos entre los adjuntos del 27/10; se conserva el corte documental del 23/10. El PDF Plan ENOS solo define el diseño."
   },
   "fuentes": [
     {
@@ -1204,20 +1381,30 @@
     {
       "nombre": "03-Gerontologico-Feno-meno-del-Nin-o-1-.xlsx",
       "sha256": "561e5c045d93168822bdfca5695101a280e2171d2378057870c74e69c45ea645"
+    },
+    {
+      "nombre": "01-Reporte_entregas_kits_MTDH_corte_27_octubre_2026_procesado.xlsx",
+      "sha256": "82882d726f775313258c84430fdaa8240cb37feedf81ecf11cede838132ef59c"
     }
   ],
   "kits_metadatos": {
-    "fuente": "01-Corte_procesado_Kobo_26oct2026_2226.xlsx",
-    "corte": "26/10/2026 22:26:42 (hora del nombre del archivo exportado)",
+    "fuente": "01-Reporte_entregas_kits_MTDH_corte_27_octubre_2026_procesado.xlsx",
+    "corte": "27/10/2026 13:35:45",
     "desde": "2026-08-31",
-    "hasta": "2026-10-26",
-    "registros": 89,
-    "kits": 13390,
-    "familias_reportadas": 12681,
+    "hasta": "2026-10-27",
+    "registros": 111,
+    "kits": 13981,
+    "familias_reportadas": 12987,
     "reemplaza_corte_anterior": true,
-    "total_oficial_confirmado": 13390,
-    "confirmacion_oficial_utc": "2026-10-26T22:54:12.774781+00:00",
     "unidad_publicada": "Núcleos familiares",
-    "nota_unidad": "Campo familias de la base fuente, presentado como núcleos familiares por indicación del usuario; suma por entrega, no núcleos únicos."
+    "variacion_kits": 591,
+    "registros_nuevos": 22,
+    "validacion": "Total reportado en Kobo, conciliado con el resumen provincial; no es verificación independiente de entrega.",
+    "observaciones_control": [
+      {
+        "id_kobo": "901621820",
+        "observacion": "Cañar: la columna de kits reporta 1; la observación menciona una solicitud aún no recibida. Se conserva el total reportado, pendiente de validación territorial."
+      }
+    ]
   }
 }

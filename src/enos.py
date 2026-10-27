@@ -11,9 +11,9 @@ ALERT_NOTE = ("Seguimiento desde el 14/09/2026, complementado con reportes secto
 BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
              "Articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
-KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 26/10/2026, 22:26:42. Entregas del 31/08 al 26/10; "
-            "incluye fechas anteriores al inicio de las alertas. Reemplaza el corte anterior. "
-            "Núcleos familiares reportados: suma por entrega, no núcleos únicos. El total de kits de este corte fue confirmado oficialmente.")
+KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 27/10/2026, 13:35:45. Entregas del 31/08 al 27/10; reemplaza el corte anterior. "
+            "13.981 kits reportados en 111 registros. Núcleos familiares: suma por entrega, no núcleos únicos. "
+            "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.")
 QUALITY_NOTE = ""
 
 START = "2026-09-14"   # start of the follow-up: alerts registered from this date
@@ -65,7 +65,7 @@ def summary(frame, group, value=None):
 
 
 CONTINUITY_PATH = ROOT / "data/processed/continuidad_servicios_2026-10-26.json"
-CONTINUITY_NOTE = "Fuente: reporte territorial de unidades con suspensión total o presencial. Corte: 26/10/2026, 16:00."
+CONTINUITY_NOTE = "Fuente: unidades no operativas de El Oro al 27/10/2026; último reporte disponible de Guayas y Santa Elena al 26/10/2026."
 
 def continuity():
     return json.loads(CONTINUITY_PATH.read_text(encoding="utf-8"))

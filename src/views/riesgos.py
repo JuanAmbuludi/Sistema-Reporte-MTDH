@@ -472,13 +472,13 @@ class RiskView:
             {"label": "Alertas reportadas", "value": len(r.alerts), "icon": "shield", "tone": "oro",
              "note": "Registro y reportes sectoriales"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
-             "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte 26/10, 22:26"},
-            {"label": "Núcleos familiares con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
-             "note": "Por inundaciones · gestión del bono"},
-            {"label": "Monto de bonos gestionados", "value": float(r.managed.monto.sum()), "prefix": "USD", "decimals": 2,
+             "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte 27/10, 13:35"},
+            {"label": "Personas · Bono de Contingencia", "value": int(r.articulation.personas.sum()), "icon": "hand-coins", "tone": "lila",
+             "note": "En articulación para el pago"},
+            {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()), "prefix": "USD", "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
             {"label": "Unidades cerradas / suspendidas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
-             "note": r.suspension_caption() + " · corte 26/10, 16:00"},
+             "note": r.suspension_caption() + " · corte El Oro 27/10; otros 26/10"},
         ]
 
     def kpi_cards(self) -> list[dict]:
@@ -512,7 +512,7 @@ class RiskView:
                          "Alcance del filtro de servicio")
         # 1. Continuity of the services.
         ui.section_heading("Continuidad de los servicios", f"{respuesta._n(r.closed_units, 'unidad suspendida', 'unidades suspendidas')} · "
-                                                           "reporte territorial al 26/10/2026, 16:00", "shield")
+                                                           "cortes: El Oro 27/10; Guayas y Santa Elena 26/10", "shield")
         if r.closed_units:
             left, right = self._pair((1.6, 1))
             with left, st.container(border=True, key="card_continuity_map"):
@@ -548,7 +548,7 @@ class RiskView:
         # 3. Kits delivered.
         kit_provinces, _ = r.places(r.kits)
         ui.section_heading("Kits entregados", f"{ui.number(r.kits_total)} kits en {respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · "
-                                              f"{r.kit_records} registros Kobo · corte 26/10, 22:26", "life-buoy")
+                                              f"{r.kit_records} registros Kobo · corte 27/10, 13:35", "life-buoy")
         if r.kits.empty:
             ui.info_note("No hay entregas de kits en la selección.", "Sin entregas")
         else:

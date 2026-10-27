@@ -96,8 +96,8 @@ class Response:
         self.cuts = data["cortes"]
         continuity = pd.DataFrame(enos.continuity()["registros"])
         continuity["provincia_codigo"] = continuity.provincia.map(_code)
-        if programs and "DII" not in programs:
-            continuity = continuity.iloc[:0]
+        if programs:
+            continuity = continuity.loc[continuity.programa_id.isin(programs)]
         self.national_continuity = continuity
         if chosen:
             continuity = continuity.loc[continuity.provincia_codigo.isin(chosen)]
@@ -108,7 +108,7 @@ class Response:
             detail["unidad"] = [_clean(u, names.unit) for u in detail.unidad]
             detail["provincia_codigo"] = detail.provincia.map(_code)
             if chosen: detail = detail.loc[detail.provincia_codigo.isin(chosen)]
-            if programs and "DII" not in programs: detail = detail.iloc[:0]
+            if programs: detail = detail.loc[detail.programa_id.isin(programs)]
         self.continuity_detail = detail
 
     @property
@@ -127,7 +127,7 @@ class Response:
         return {"closed": self.closed_units, "by_province": enos.summary(closed, "provincia", "unidades"),
                 "by_service": enos.summary(closed, "servicio", "unidades"),
                 "by_status": enos.summary(statuses, "lectura", "unidades"),
-                "note": enos.CONTINUITY_NOTE, "cut": "26/10/2026 · 16:00"}
+                "note": enos.CONTINUITY_NOTE, "cut": "El Oro: 27/10/2026 · Guayas y Santa Elena: 26/10/2026"}
 
     def suspended_groups(self) -> list[dict]:
         """Suspended units by province, canton and service, with the names the source gives; provinces and groups from the
