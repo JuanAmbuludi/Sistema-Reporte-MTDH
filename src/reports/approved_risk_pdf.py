@@ -67,7 +67,7 @@ def render(c,ctx,pages):
         name_list=g['names'].split('; ') if g['names'] else []
         # The approved summary retains its dimensions. The full nominal directory is in the data export.
         first=name_list[0] if name_list else '—'
-        first=first if len(first)<=56 else first[:53]+'…'
+        first=first if len(first)<=46 else first[:43]+'…'
         shown=first+(f"; y {len(name_list)-1} " + ("unidad adicional" if len(name_list)==2 else "unidades adicionales") if len(name_list)>1 else '')
         rows.append([f"{g['province']}\n{g['canton']}",g['service'],number(g['units']),shown or '—'])
     rows.append(['Total','',number(r['continuity']['closed']),''])
@@ -96,8 +96,8 @@ def render(c,ctx,pages):
     assert top>=62,top
     _next_page(c,ctx,2,3)
 
-    top=header(c,ctx,'Acciones del Ministerio')-42
-    heading(c,'Respuesta por provincia',M,top,full);top-=40
+    top=header(c,ctx,'Acciones del Ministerio')-24
+    heading(c,'Respuesta por provincia',M,top,full);top-=28
     rows=[[a['name'],number(a['kits']) if a['kits'] else '—',number(a['articulation']) if a['articulation'] else '—',number(a['articulation_amount'],2) if a['articulation_amount'] else '—'] for a in r['actions']]
     rows.append(['Total',number(r['kits_total']),number(r['articulation_people']),number(r['articulation_amount'],2)])
     top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8,padding=3,align=['L','R','R','R'],total=True)-16

@@ -51,3 +51,13 @@ def test_approved_template_preserves_all_chart_types_and_updated_totals():
     cells=[str(c.value) for s in book for row in s for c in row if c.value is not None]
     for a in ctx['response']['alerts']:assert a['code'] in cells
     for u in ctx['response']['continuity']['detail']:assert u['unidad'] in cells
+
+
+def test_pdf_tables_recover_padding_space_without_dropping_rows():
+    from reportlab.pdfgen.canvas import Canvas
+    from src.reports.risk_response import _pdf_table
+    out=BytesIO();c=Canvas(out)
+    bottom=_pdf_table(c,96,['Código'],[['REG-A'],['REG-B']],[180],size=8,padding=5)
+    assert bottom>=52
+    c.save();doc=fitz.open(stream=out.getvalue(),filetype='pdf')
+    assert 'REG-A' in doc[0].get_text() and 'REG-B' in doc[0].get_text()

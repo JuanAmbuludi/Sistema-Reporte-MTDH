@@ -182,7 +182,25 @@ def _pdf_table(c, top, headers, rows, widths, size=8, *, x=None, padding=5, alig
     table.setStyle(TableStyle(style))
     _, height = table.wrap(sum(widths), 2000)
     if top - height < BOTTOM:
-        raise ValueError("La tabla del boletín excede el área imprimible.")
+        # Paragraph wrapping can differ slightly between renderers. Recover space
+        # from row padding before reducing type, keeping every row and column.
+        for compact_padding, compact_leading in ((.8, 1.24), (.4, 1.16)):
+            for cells in data:
+                for paragraph in cells:
+                    paragraph.style = paragraph.style.clone("compact")
+                    paragraph.style.leading = paragraph.style.fontSize * compact_leading
+            compact = Table(data, colWidths=widths, repeatRows=1)
+            compact.setStyle(TableStyle(style + [
+                ("TOPPADDING", (0, 0), (-1, -1), compact_padding),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), compact_padding),
+                ("TOPPADDING", (0, 0), (-1, 0), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 4)]))
+            _, height = compact.wrap(sum(widths), 2000)
+            table = compact
+            if top - height >= BOTTOM:
+                break
+        if top - height < BOTTOM:
+            raise ValueError("La tabla del boletín excede el área imprimible.")
     table.drawOn(c, x, top - height)
     return top - height
 
