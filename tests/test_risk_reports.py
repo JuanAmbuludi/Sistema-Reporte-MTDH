@@ -1,5 +1,7 @@
 """The public risk products contain the response only, at the dashboard's grain."""
 from io import BytesIO
+import re
+from zipfile import ZipFile
 import openpyxl
 import pymupdf
 from pptx import Presentation
@@ -38,9 +40,14 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
     slides = Presentation(BytesIO(generate_pptx(ctx))).slides
     ppt_text = " ".join(shape.text if shape.has_text_frame else " ".join(cell.text for row in shape.table.rows for cell in row.cells)
                         if shape.has_table else "" for slide in slides for shape in slide.shapes)
-    wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
+    book = generate_xlsx(ctx)
+    wb = openpyxl.load_workbook(BytesIO(book), data_only=True)
     assert wb.sheetnames == v.sheets()
-    xlsx_text = " ".join(str(c.value) for sheet in wb for row in sheet for c in row if c.value is not None)
+    # Dates are real dates (they sort and filter as dates) shown dd/mm/aaaa.
+    xlsx_text = " ".join(c.value.strftime("%d/%m/%Y") if hasattr(c.value, "strftime") else str(c.value)
+                         for sheet in wb for row in sheet for c in row if c.value is not None)
+    kobo_dates = [c for row in wb["Entregas Kobo"].iter_rows() for c in row if hasattr(c.value, "strftime")]
+    assert len(kobo_dates) == 89 and {c.number_format for c in kobo_dates} == {"dd/mm/yyyy"}
     for text in [pdf_text, ppt_text, xlsx_text]:
         for hidden in ["UA expuestas", "Multiamenaza", "Susceptibilidad muy alta", "Exposición de las unidades", "6 pendientes · 7 en seguimiento", "Gestionado no acredita cobro", "El código por sí solo no confirma una afectación"]:
             assert hidden not in text
@@ -64,6 +71,16 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
         assert value in normalized_pdf
     assert 33200.8 in [c.value for row in wb["Resumen"] for c in row]
     assert len(slides) == 10
+    # One kind of native chart for each question: a doughnut (services), daily columns over the running total (alerts,
+    # in the summary and in its sheet), a running total of the kits per delivery and a 100 % bar per stage of the bonus.
+    with ZipFile(BytesIO(book)) as archive:
+        kinds = sorted(" + ".join(re.findall(r"<c:(doughnutChart|barChart|lineChart|scatterChart)>", archive.read(name).decode()))
+                       + (" 100 %" if b'<c:grouping val="percentStacked"/>' in archive.read(name) else "")
+                       for name in archive.namelist() if name.startswith("xl/charts/chart"))
+    assert kinds == ["barChart + lineChart", "barChart + lineChart", "barChart 100 %", "doughnutChart", "scatterChart"]
+    # The suspended units carry no column the source leaves empty.
+    headers = [c.value for row in wb["Unidades suspendidas"].iter_rows() for c in row if c.value in ("Código UA", "Unidad de atención")]
+    assert headers == ["Unidad de atención"]
 
 
 def test_filters_apply_consistently_to_response_and_do_not_depend_on_exposure():
@@ -124,3 +141,35 @@ def test_guayas_confirmation_preserves_original_source_status():
     assert r.closed_units == 17
     assert r.continuity_detail.estado.eq("Suspendida").all()
     assert r.continuity_detail.estado_fuente.eq("Afectada; modalidad por confirmar").all()
+
+
+def test_names_read_as_the_gazetteer_writes_them_and_missing_values_are_a_dash():
+    r = view().response
+    # Kobo writes some cantons in capitals without accents; the alerts name their units in capitals.
+    assert {"Espíndola", "Las Naves", "Pindal", "Quilanga", "Santa Ana"} <= set(r.kits.canton)
+    assert not any(c.isupper() for c in r.kits.canton)
+    assert set(r.alerts.unidad) >= {"Gotita del Amor", "CDI Los Niños del Cisne", "CNH Estrellitas del Amanecer",
+                                    "Centro de Desarrollo Infantil Súper Niño"}
+    # The CNH units of El Oro have no canton nor name in the source: empty, never a note about the base.
+    groups = r.suspended_groups()
+    assert groups[0] == {"province": "El Oro", "canton": "", "service": "CNH", "units": 63, "names": ""}
+    ctx = view().report_context("Riesgos")
+    pdf = " ".join(page.get_text() for page in pymupdf.open(stream=generate_pdf(ctx), filetype="pdf"))
+    for note in ["Sin cantón en la base", "Sin nombre", "No consta en la fuente", "no disponibles en la base"]:
+        assert note not in pdf
+
+
+def test_documents_follow_the_content_of_the_selection():
+    ctx = view(("17",)).report_context("Riesgos")  # Pichincha: kits only
+    assert ctx["pdf_pages"] == 2
+    pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
+    text = " ".join(page.get_text() for page in pdf)
+    assert len(pdf) == 2
+    assert "No hay alertas con código UA en la selección." in text
+    assert "El reporte territorial no registra unidades suspendidas en la selección." in text
+    assert "64 kits en 1 provincia priorizada" in " ".join(text.split())
+    assert "0 alertas" not in text and "1 provincias" not in text
+    slides = Presentation(BytesIO(generate_pptx(ctx))).slides
+    assert len(slides) == 6
+    wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
+    assert wb.sheetnames == view(("17",)).sheets()

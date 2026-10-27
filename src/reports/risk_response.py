@@ -29,6 +29,12 @@ def build_context(view, *, title: str) -> dict:
     response["continuity"]["caption"] = r.suspension_caption()
     response["continuity"]["groups"] = r.suspended_groups()
     response["continuity"]["detail"] = r.continuity_detail.to_dict("records")
+    tiles: dict[tuple, int] = {}
+    for d in response["continuity"]["detail"]:
+        if d["estado"] in ("Suspendida", "Suspendida presencial"):
+            key = (d["provincia"], d["canton"], d["servicio"])
+            tiles[key] = tiles.get(key, 0) + int(d["unidades"])
+    response["continuity"]["tiles"] = [{"province": a, "canton": b, "service": c, "units": n} for (a, b, c), n in tiles.items()]
     response["kits_provinces"] = r.kits_summary()
     response["families_total"] = int(r.kits.familias.sum())
     response["kits_cut_full"] = "26/10/2026 · 22:26:42"
@@ -43,15 +49,54 @@ def build_context(view, *, title: str) -> dict:
             k["display_value"] = f"USD {number(k['value'], 2)}"
             k["exact_money"] = True
     ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True,
-               pdf_pages=3, selected_codes=list(view.provinces),
+               pdf_pages=3 if (response["alerts"] or response["continuity"]["groups"]) else 2, selected_codes=list(view.provinces),
                map_values=view.map_values("alertas")[0], kits_map_values=view.map_values("kits")[0],
+               suspended_map_values=view.map_values("suspendidas")[0],
                scope=view.scope_items(), selection=view.programs_label, geoportal=ui.GEOPORTAL_URL,
                source="Fuente: MTDH · Subsecretaría Territorial · Kobo de kits y bono de contingencia",
                sources="Subsecretaría Territorial (análisis de alertas); corte Kobo de kits; ayuda memoria del bono de contingencia; base territorial de afectaciones por lluvias.",
-               insights=[{"icon": "shield", "text": r.count_note()},
-                         {"icon": "life-buoy", "text": f"{r.kits_total} kits en {response['kit_provinces']} provincias priorizadas; corte {response['kits_cut']}."},
-                         {"icon": "hand-coins", "text": f"{response['managed_people']} núcleos familiares con bono gestionado: USD {number(response['managed_amount'], 2)}."}])
+               insights=_findings(r, response))
     return ctx
+
+
+def _findings(r, response: dict) -> list[dict]:
+    """The findings of the selection: only the actions it has (a zero is never a finding); the national plan of the
+    bonus completes them when fewer than two remain."""
+    plan = response["plan"]
+    out = []
+    if response["continuity"]["closed"]:
+        out.append({"icon": "storm", "text": _continuity_finding(response["continuity"])})
+    if len(r.alerts):
+        out.append({"icon": "shield", "text": r.count_note()})
+    if r.kits_total:
+        out.append({"icon": "life-buoy", "text": f"{number(r.kits_total)} kits en "
+                                                 f"{_count(response['kit_provinces'], 'provincia priorizada', 'provincias priorizadas')}; "
+                                                 f"corte {response['kits_cut']}."})
+    if response["managed_people"]:
+        out.append({"icon": "hand-coins", "text": f"{number(response['managed_people'])} núcleos familiares con bono gestionado: "
+                                                  f"USD {number(response['managed_amount'], 2)}."})
+    if response["articulation_people"] and len(out) < 4:
+        out.append({"icon": "users", "text": f"{number(response['articulation_people'])} personas en articulación del bono de contingencia: "
+                                             f"USD {number(response['articulation_amount'], 2)}."})
+    if len(out) < 2:
+        out.append({"icon": "layers", "text": f"Planificación El Niño 2026–2027: {number(plan['personas'])} personas potenciales, "
+                                              f"{number(plan['nucleos'])} núcleos familiares y USD {number(plan['monto'], 2)} "
+                                              "(proyección nacional)."})
+    return out[:4]
+
+
+def _count(value: int, singular: str, plural: str | None = None) -> str:
+    """A count with its noun in the right number: 1 provincia, 20 provincias."""
+    return f"{number(value)} {singular if value == 1 else (plural or singular + 's')}"
+
+
+def _continuity_finding(continuity: dict) -> str:
+    closed = continuity["closed"]
+    lead = continuity["by_province"][0] if continuity["by_province"] else None
+    text = f"{number(closed)} unidades de atención con atención suspendida ({continuity['caption']})"
+    if lead and closed:
+        text += f"; {lead['name']} concentra {number(lead['value'])} ({number(lead['value'] / closed * 100, 1)} %)"
+    return text + "."
 
 
 def _notes(ctx):
@@ -84,7 +129,7 @@ def _dash(value: str) -> str:
 def _alert_cells(rows, *, markup=True):
     if not markup:
         return [{**a, "identity": f"{a['code']}\n{a['date']}",
-                 "unit_full": f"{a['unit']}\nUA {a['ua'] or 'sin código en la fuente'} · {a['service']}",
+                 "unit_full": f"{a['unit']}\n" + (f"UA {a['ua']} · " if a["ua"] else "") + a["service"],
                  "place_full": f"{a['province']}\n{a['canton']}"} for a in rows]
     muted = "#6E6880"
     out = []
@@ -92,8 +137,8 @@ def _alert_cells(rows, *, markup=True):
         ink = STATUS_INK.get(a["status"], theme.MORADO_900)
         out.append({**a,
                     "identity": Markup(f"<b>{escape(a['code'])}</b><br/><font color='{muted}'>{escape(a['date'])}</font>"),
-                    "unit_full": Markup(f"<b>{escape(a['unit'])}</b><br/><font color='{muted}'>UA {escape(a['ua'] or 'sin código en la fuente')}"
-                                        f" · {escape(a['service'])}</font>"),
+                    "unit_full": Markup(f"<b>{escape(a['unit'])}</b><br/><font color='{muted}'>"
+                                        + (f"UA {escape(a['ua'])} · " if a["ua"] else "") + f"{escape(a['service'])}</font>"),
                     "place_full": Markup(f"{escape(a['province'])}<br/><font color='{muted}'>{escape(a['canton'])}</font>"),
                     "state": Markup(f"<font color='{ink}'><b>{escape(a['status'])}</b></font><br/>"
                                     f"<font color='{muted}'>Prioridad {escape(str(a['priority']).lower())}</font>")})
@@ -142,315 +187,830 @@ def _pdf_table(c, top, headers, rows, widths, size=8, *, x=None, padding=5, alig
     return top - height
 
 
-def _pdf_evolution(c, rows, top, width):
-    """Compact categorical columns for dates with records; all omitted days are explicitly zero."""
-    from .pdf import M, C, _heading
-    _heading(c, "Evolución de las alertas", M, top, width, "Registradas por fecha · acumulado al pie")
-    active = [row for row in rows if row["daily"] > 0]
-    c.setFont("Text", 7.5)
-    c.setFillColor(C(theme.PIZARRA))
-    if not active:
-        c.drawString(M, top - 26, "Sin alertas con código UA en el periodo de la consulta.")
-        return top - 42
-    # Equal categorical spacing avoids an empty month occupying most of the chart.
-    # Daily counts keep a shared zero baseline and the same scale within the selection.
-    peak = max(row["daily"] for row in active)
-    columns = min(6, len(active))
-    slot = width / columns
-    last_bottom = top
-    for start in range(0, len(active), columns):
-        group = active[start:start + columns]
-        base = top - 46 - (start // columns) * 70
-        for index, row in enumerate(group):
-            center = M + slot * (index + .5)
-            bar_w = min(44, slot * .32)
-            bar_h = 24 * row["daily"] / peak
-            c.setStrokeColor(C(theme.LILA_200)); c.setLineWidth(.7)
-            c.line(M + slot * index + 12, base, M + slot * (index + 1) - 12, base)
-            c.setFillColor(C(theme.ORO)); c.roundRect(center - bar_w / 2, base, bar_w, bar_h, 2, stroke=0, fill=1)
-            c.setFillColor(C(theme.MORADO_900)); c.setFont("Text-Bold", 10)
-            c.drawCentredString(center, base + bar_h + 5, number(row["daily"]))
-            day = pd.to_datetime(row["date"], dayfirst=True)
-            label = f"{day.day} {ui._MONTHS_SHORT[day.month - 1]}"
-            c.setFont("Text-Semi", 8); c.drawCentredString(center, base - 11, label)
-            c.setFillColor(C(theme.MORADO)); c.setFont("Text", 7.7)
-            c.drawCentredString(center, base - 22, f"Acumulado: {number(row['total'])}")
-        last_bottom = base - 22
-    c.setFillColor(C(theme.PIZARRA)); c.setFont("Text", 7.2)
-    c.drawString(M, last_bottom - 15,
-                 f"Solo fechas con registros. Los demás días del {rows[0]['date']} al {rows[-1]['date']}: 0 alertas con código UA.")
-    return last_bottom - 25
+def _units_pdf(c, alerts: list[dict], x: float, top: float, width: float) -> float:
+    """Each alert as one square in the row of its province, in the colour of its service (the unit chart of the dashboard)."""
+    from .pdf import C, MUTED, NIGHT
+    from .risk_charts import short_service, tone
+    counts: dict[str, int] = {}
+    for a in alerts:
+        counts[a["province"]] = counts.get(a["province"], 0) + 1
+    provinces = sorted(counts, key=lambda p: -counts[p])
+    services = sorted({a["service"] for a in alerts}, key=lambda s: -sum(1 for a in alerts if a["service"] == s))
+    rank = {s: i for i, s in enumerate(services)}
+    label_w = 64
+    widest = max(counts.values() or [1])
+    size = max(9.0, min(15.0, (width - label_w) / max(widest, 6) - 4))
+    y = top
+    for province in provinces:
+        c.setFillColor(NIGHT); c.setFont("Text-Bold", 8.2)
+        c.drawString(x, y - size / 2 - 2.8, province)
+        c.setFillColor(MUTED); c.setFont("Text-Semi", 8.2)
+        c.drawRightString(x + label_w - 8, y - size / 2 - 2.8, str(counts[province]))
+        part = sorted((a for a in alerts if a["province"] == province), key=lambda a: (rank[a["service"]], a["date"], a["code"]))
+        for index, a in enumerate(part):
+            c.setFillColor(C(tone(a["service"])))
+            c.roundRect(x + label_w + index * (size + 4), y - size, size, size, 2.2, stroke=0, fill=1)
+        y -= size + 9
+    y -= 4
+    cx = x
+    for service in services:
+        c.setFillColor(C(tone(service))); c.roundRect(cx, y - 7, 7, 7, 1.5, stroke=0, fill=1)
+        c.setFillColor(C(theme.PIZARRA)); c.setFont("Text-Medium", 7.2)
+        text = f"{short_service(service)} · {sum(1 for a in alerts if a['service'] == service)}"
+        c.drawString(cx + 10, y - 6.2, text)
+        cx += 10 + c.stringWidth(text, "Text-Medium", 7.2) + 14
+    return y - 12
 
 
-def _risk_bars(c, rows, x, top, width, row_h=27):
-    from .pdf import C, _fit
-    total = sum(a["value"] for a in rows)
-    for i, a in enumerate(rows):
-        y = top - i * row_h
-        pct = 100 * a["value"] / total if total else 0
-        value = f"{number(a['value'])}  ·  {number(pct,1)} %"
-        c.setFillColor(C(theme.MORADO_900)); c.setFont("Text-Semi", _fit(a["name"], "Text-Semi", 8.4, width-87, 6.7))
-        c.drawString(x, y, a["name"])
-        c.setFont("Text-Bold", 8.5); c.drawRightString(x + width, y, value)
-        c.setFillColor(C(theme.LILA_50)); c.roundRect(x, y-12, width, 6.5, 3.25, fill=1, stroke=0)
-        if pct > 0:
-            c.setFillColor(C(theme.MORADO if i == 0 else theme.VIOLETA_500))
-            c.roundRect(x, y-12, width * pct/100, 6.5, min(3.25, width*pct/200), fill=1, stroke=0)
+def _strips_pdf(c, bonus: list[dict], x: float, top: float, width: float) -> float:
+    """Each stage of the bonus as a 100 % strip split by province (families with a managed payment; people in articulation)."""
+    from reportlab.pdfbase import pdfmetrics
+    from .pdf import C, NIGHT
+    from .risk_charts import PROVINCE_TONES, ink
+    stages = [("Pago gestionado", "managed", "managed_amount", "núcleos familiares"),
+              ("En articulación", "articulation", "articulation_amount", "personas")]
+    stages = [s for s in stages if sum(b[s[1]] for b in bonus)]
+    weight = {b["name"]: sum(b[key] / (sum(x[key] for x in bonus) or 1) for _n, key, _a, _u in stages) for b in bonus}
+    order = sorted(weight, key=lambda name: -weight[name])
+    y = top
+    for title, key, amount, unit in stages:
+        total = sum(b[key] for b in bonus)
+        money = sum(b[amount] for b in bonus)
+        c.setFillColor(NIGHT); c.setFont("Text-Bold", 8.4); c.drawString(x, y, title)
+        c.setFillColor(C(theme.PIZARRA)); c.setFont("Text", 7.6)
+        c.drawRightString(x + width, y, f"{number(total)} {unit} · USD {number(money, 2)}")
+        bar_y, bar_h = y - 21, 15
+        cx = x
+        for name in order:
+            value = next((b[key] for b in bonus if b["name"] == name), 0)
+            if not value:
+                continue
+            length = width * value / total
+            color = PROVINCE_TONES.get(name, theme.LILA_200)
+            c.setFillColor(C(color)); c.rect(cx, bar_y, max(0.8, length - 1.6), bar_h, stroke=0, fill=1)
+            label = f"{name} {number(value)}"
+            for text in (label, number(value)):
+                if pdfmetrics.stringWidth(text, "Text-Bold", 7) + 6 <= length - 1.6:
+                    c.setFillColor(C(ink(color))); c.setFont("Text-Bold", 7)
+                    c.drawCentredString(cx + (length - 1.6) / 2, bar_y + 4.6, text)
+                    break
+            cx += length
+        y = bar_y - 17
+    cx = x
+    for name in order:
+        color = PROVINCE_TONES.get(name, theme.LILA_200)
+        width_text = c.stringWidth(name, "Text-Medium", 7)
+        if cx + 10 + width_text > x + width:
+            cx, y = x, y - 11
+        c.setFillColor(C(color)); c.roundRect(cx, y - 1, 7, 7, 1.5, stroke=0, fill=1)
+        c.setFillColor(C(theme.PIZARRA)); c.setFont("Text-Medium", 7); c.drawString(cx + 10, y, name)
+        cx += 10 + width_text + 12
+    return y - 10
+
+
+def _kits_pdf(c, provinces: list[dict], deliveries: list[dict], since: str | None, x: float, top: float, width: float,
+              row: float = 12.2) -> float:
+    """Kits of each province (a lollipop with its total and share) beside every delivery in time (a circle whose area
+    follows its kits), drawn as vectors so the names of the provinces stay text in the bulletin."""
+    from datetime import datetime, timedelta
+    from .pdf import C, INK, MUTED, NIGHT
+    total = sum(p["kits"] for p in provinces) or 1
+    peak = max([p["kits"] for p in provinces] or [1]) or 1
+    names = [p["provincia"] for p in provinces]
+    label_w = min(118.0, max(c.stringWidth(n, "Text-Medium", 7) for n in names) + 10)
+    left_w = (width - label_w) * 0.4
+    right_x = x + label_w + left_w + 16
+    right_w = x + width - right_x
+    c.setFillColor(NIGHT); c.setFont("Text-Bold", 7.4)
+    c.drawString(x + label_w, top - 7, "Total por provincia")
+    c.drawString(right_x, top - 7, "Entregas en el tiempo · tamaño: kits")
+    first = top - 16
+    bottom = first - row * len(provinces)
+    dated = []
+    for d in deliveries:
+        try:
+            dated.append((datetime.strptime(d["date"], "%d/%m/%Y"), d))
+        except (KeyError, ValueError):
+            continue
+    if dated:
+        start = min(day for day, _d in dated) - timedelta(days=3)
+        end = max(day for day, _d in dated) + timedelta(days=3)
+        span = max(1, (end - start).days)
+
+        def at(day):
+            return right_x + right_w * (day - start).days / span
+        tick = min(day for day, _d in dated)
+        while tick <= end - timedelta(days=3):
+            c.setStrokeColor(C("#EEEAF4")); c.setLineWidth(0.6); c.line(at(tick), bottom, at(tick), first)
+            c.setFillColor(MUTED); c.setFont("Text-Semi", 6.4)
+            c.drawCentredString(at(tick), bottom - 9, f"{tick.day} {ui._MONTHS_SHORT[tick.month - 1]}")
+            tick += timedelta(days=14)
+        if since:
+            mark = datetime.strptime(since, "%d/%m/%Y")
+            if start <= mark <= end:
+                c.setStrokeColor(C(theme.ORO)); c.setLineWidth(0.9); c.setDash(2, 2)
+                c.line(at(mark), bottom, at(mark), first)
+                c.setDash()
+                c.setFillColor(C(theme.ORO_700)); c.setFont("Text-Semi", 6.2)
+                c.drawString(at(mark) + 3, bottom + 3, "Inicio del seguimiento de alertas")
+        biggest = max(d["kits"] for _day, d in dated) or 1
+        c.setFillColor(C(theme.VIOLETA_500)); c.setStrokeColor(C("#FFFFFF")); c.setLineWidth(0.5)
+        c.setFillAlpha(0.72)
+        for day, d in sorted(dated, key=lambda item: -item[1]["kits"]):
+            if d["province"] in names:
+                y = first - row * names.index(d["province"]) - row / 2
+                c.circle(at(day), y, math.sqrt((8 + 230 * d["kits"] / biggest) / math.pi), stroke=1, fill=1)
+        c.setFillAlpha(1)
+    for index, p in enumerate(provinces):
+        y = first - row * index - row / 2
+        c.setFillColor(INK); c.setFont("Text-Medium", 7)
+        c.drawRightString(x + label_w - 6, y - 2.4, p["provincia"])
+        length = (left_w - 66) * p["kits"] / peak
+        c.setStrokeColor(C(theme.LILA_200)); c.setLineWidth(1.4); c.setLineCap(1)
+        c.line(x + label_w, y, x + label_w + length, y)
+        c.setFillColor(C(theme.MORADO)); c.setStrokeColor(C("#FFFFFF")); c.setLineWidth(0.6)
+        c.circle(x + label_w + length, y, 2.7, stroke=1, fill=1)
+        c.setFillColor(INK); c.setFont("Text-Semi", 6.6)
+        c.drawString(x + label_w + length + 6, y - 2.3, f"{number(p['kits'])} · {number(p['kits'] / total * 100, 1)} %")
+    c.setLineCap(0)
+    return bottom - 16
+
+
+def _plan_pdf(c, plan: dict, x: float, top: float, width: float, height: float) -> None:
+    """The national plan of the bonus: three figures in one gold panel."""
+    from .pdf import C, NIGHT, _badge, _fit
+    c.setFillColor(C(theme.ORO_100)); c.roundRect(x, top - height, width, height, 8, stroke=0, fill=1)
+    c.setFillColor(C(theme.ORO)); c.rect(x, top - height + 10, 3, height - 20, stroke=0, fill=1)
+    rows = [("users", number(plan["personas"]), "personas potenciales"), ("layers", number(plan["nucleos"]), "núcleos familiares potenciales"),
+            ("banknote", f"USD {number(plan['monto'], 2)}", "inversión estimada")]
+    step = (height - 24) / 3
+    for index, (symbol, value, label) in enumerate(rows):
+        y = top - 12 - index * step
+        _badge(c, symbol, x + 22, y - step / 2 + 2, 9.5, fill=C(theme.ORO), variant="blanco")
+        c.setFillColor(NIGHT); c.setFont("Display", _fit(value, "Display", 14, width - 50, 9))
+        c.drawString(x + 38, y - step / 2 + 2, value)
+        c.setFillColor(C(theme.PIZARRA)); c.setFont("Text", 7.2); c.drawString(x + 38, y - step / 2 - 8.5, label)
+    c.setFillColor(C("#8A5D00")); c.setFont("Text-Semi", 6.8)
+    c.drawString(x + 12, top - height + 7, "Proyección nacional · planificación, no ejecución")
 
 
 def render_pdf(c, ctx, pages):
-    """Three-page bulletin: overview; complete alert register; actions, kits and methodological scope."""
-    from .charts import map_png
-    from .pdf import M, W, BOTTOM, C, _kpis, _heading, _bars, _next_page, _slim_band, _picture, _fit
+    """Three pages in the language of the dashboard: (1) the key figures, where services were suspended and when and
+    where alerts were registered; (2) every alert and every suspended unit, a page the bulletin keeps only when the
+    selection has them; (3) kits and the contingency bonus, with their scopes.  A section without records in the
+    selection says so in one line."""
+    from .charts import emblem_png
+    from .pdf import BOTTOM, H, M, W, C, _band, _heading, _kpis, _next_page, _picture
+    from .pdf_areas import _two_findings
+    from .risk_charts import donut_png, evolution_png, treemap_png
     from .risks import _paragraph
     full = W - 2 * M
-    half = (full - 22) / 2
     r = ctx["response"]
+    selected = set(ctx["selected_codes"])
 
-    def note(title, text, x, top, width, size=8):
-        c.setFillColor(C(theme.MORADO)); c.setFont("Text-Bold", 8.8)
+    def note(title, text, x, top, width, size=7.6):
+        c.setFillColor(C(theme.MORADO)); c.setFont("Text-Bold", 8.4)
         c.drawString(x, top, title)
-        return _paragraph(c, text, x, top - 12, width, size=size) - 13
+        return _paragraph(c, text, x, top - 11, width, size=size) - 11
 
     def check(top):
         if top < BOTTOM:
             raise ValueError("El contenido del resumen excede las tres páginas; revisar la composición del nuevo corte.")
 
-    # Page 1: the institutional band, four figures, alerts by province and service, their evolution and two maps.
-    from .charts import emblem_png
-    from .pdf import H, _band
-    selected = set(ctx["selected_codes"])
+    def empty(text, x, top, width):
+        """A section without records in the selection: one line in a lilac box."""
+        c.setFillColor(C(theme.LILA_50)); c.roundRect(x, top - 26, width, 26, 6, stroke=0, fill=1)
+        c.setFillColor(C(theme.MORADO)); c.rect(x, top - 21, 2.6, 16, stroke=0, fill=1)
+        c.setFillColor(C(theme.PIZARRA)); c.setFont("Text-Medium", 8.2); c.drawString(x + 12, top - 16, text)
+        return top - 26
+
+    register = bool(r["alerts"] or r["continuity"]["groups"])
+    assert pages == (3 if register else 2)
+
+    # Page 1: four figures; where services were suspended; when and where alerts were registered; findings.
     top = _band(c, {**ctx, "programs_label": "Respuesta del Ministerio"}, H, emblem_png(selected))
-    cards = [dict(k) for k in ctx["kpis"]]
-    for card, caption in zip(cards, [f"Desde el {r['since']}", f"Dato oficial · {r['kit_provinces']} provincias", "Por inundaciones",
+    cards = [dict(k) for k in ctx["kpis"]][:4]
+    for card, caption in zip(cards, [f"Desde el {r['since']}", f"Dato oficial · {_count(r['kit_provinces'], 'provincia')}", "Por inundaciones",
                                      f"Corte al {r['bonus_cut']}"]):
         card["note"] = caption
         if "Núcleos familiares con bono" in card["label"]:
             card["short"] = "Núcleos familiares"
             card["note"] = "Con bono gestionado"
-    top = _kpis(c, {**ctx, "kpis": cards, "share_word": ""}, top - 16) - 8
-    c.setFillColor(C(theme.LILA_50)); c.roundRect(M, top - 34, full, 34, 6, fill=1, stroke=0)
-    c.setFillColor(C(theme.MORADO_900)); c.setFont("Display", 21)
-    c.drawString(M + 12, top - 24, number(r["continuity"]["closed"]))
-    c.setFont("Text-Bold", 9); c.drawString(M + 60, top - 13, "Unidades cerradas / suspendidas")
-    c.setFont("Text", 7.5); c.drawString(M + 60, top - 25, r["continuity"]["caption"] + " · incluye suspensión presencial · 26/10/2026, 16:00")
-    top -= 55
-    for i, (key, title) in enumerate([("by_province", "UA suspendidas por provincia"), ("by_service", "UA suspendidas por servicio")]):
-        x = M + i * (half + 22)
-        rows = r["continuity"][key]; peak = max([a["value"] for a in rows] or [1])
-        _heading(c, title, x, top, half)
-        _risk_bars(c, rows, x, top - 24, half, 27)
-    top -= 24 + max(len(r["continuity"]["by_province"]), len(r["continuity"]["by_service"])) * 27 + 13
-    _heading(c, "Detalle de las unidades suspendidas", M, top, full, "Suspensión total o presencial")
-    groups = r["continuity"]["groups"]
-    rows = [[Markup(f"<b>{escape(a['province'])}</b><br/>{escape(a['canton'])}"), a["service"], number(a["units"]), a["names"]] for a in groups]
-    rows.append(["Total", "CDI / CNH", number(r["continuity"]["closed"]), ""])
-    top = _pdf_table(c, top - 20, ["Provincia / cantón", "Servicio", "UA", "Unidades identificadas"], rows,
-                     [114, 43, 34, full - 191], size=8, padding=4, align=["L", "L", "R", "L"], total=True) - 17
-    top = _paragraph(c, r["continuity"]["note"], M, top, full, size=7.7) - 18
-    check(top)
-    _next_page(c, ctx, 1, 3)
+    top = _kpis(c, {**ctx, "kpis": cards, "share_word": ""}, top - 16) - 24
+    continuity = r["continuity"]
+    _heading(c, "Continuidad de los servicios", M, top, full,
+             f"{number(continuity['closed'])} UA suspendidas · reporte territorial al 26/10/2026, 16:00" if continuity["closed"]
+             else "Reporte territorial al 26/10/2026, 16:00")
+    if not continuity["closed"]:
+        top = empty("El reporte territorial no registra unidades suspendidas en la selección.", M, top - 16, full) - 24
+    else:
+        tree_w, gap, height = full * 0.63, 14, 180
+        _picture(c, treemap_png(continuity["tiles"], tree_w / 72, height / 72, dpi=230, scale=1.0), M, top - 18, tree_w, height / tree_w)
+        donut_w = full - tree_w - gap
+        _picture(c, donut_png(continuity["by_service"], donut_w / 72, height / 72, dpi=230), M + tree_w + gap, top - 18, donut_w,
+                 height / donut_w)
+        top -= 18 + height + 22
+    _heading(c, "Alertas en servicios MTDH", M, top, full, f"{_count(r['alert_count'], 'alerta')} con código UA · {r['scope'].lower()}"
+             if r["alerts"] else r["scope"])
+    if r["alerts"]:
+        evo_w, height = full * 0.6, 138
+        _picture(c, evolution_png(r["daily"], evo_w / 72, height / 72, dpi=230), M - 3, top - 18, evo_w + 3, height / (evo_w + 3))
+        _units_pdf(c, r["alerts"], M + evo_w + 18, top - 24, full - evo_w - 18)
+        top -= 18 + height + 22
+    else:
+        top = empty("No hay alertas con código UA en la selección.", M, top - 16, full) - 24
+    _heading(c, "Aspectos destacados", M, top, full)
+    _two_findings(c, ctx["insights"][:4], top - 12, rows=2, bottom=BOTTOM)
+    _next_page(c, ctx, 1, pages)
 
-    # Page 2: every record, with wrapped names and impacts rather than abbreviated or clipped fields.
-    top = _slim_band(c, ctx, "Alertas con código UA", f"Registro completo · {r['alert_count']} alertas · {ctx['territory_label']}") - 16
-    c.setFillColor(C(theme.ORO_100)); c.roundRect(M, top - 36, full, 36, 6, fill=1, stroke=0)
-    c.setFillColor(C(theme.ORO)); c.roundRect(M, top - 36, 3, 36, 1.5, fill=1, stroke=0)
-    _paragraph(c, r["count_note"], M + 12, top - 10, full - 24, size=8.4)
-    top -= 50
-    rows = _alert_cells(r["alerts"])
-    top = _pdf_table(c, top, ["Alerta / registro", "Unidad de atención y servicio", "Territorio", "Afectación al servicio", "Estado"],
-                     [[a["identity"], a["unit_full"], a["place_full"], a["impact"], a["state"]] for a in rows],
-                     [86, 150, 66, full - 380, 78], size=7.5, padding=2.5) - 12
-    top = note("Criterio de inclusión y lectura", r["notes"]["alerts"], M, top, full, size=8)
-    for i, (key, title) in enumerate([("by_province", "Alertas por provincia"), ("by_service", "Alertas por servicio")]):
-        x = M + i * (half + 22); rows = r[key]; peak = max([a["value"] for a in rows] or [1])
-        _heading(c, title, x, top, half)
-        _risk_bars(c, rows, x, top - 22, half, 27)
-    top -= 24 + max(len(r["by_province"]), len(r["by_service"])) * 27 + 8
-    top = _pdf_evolution(c, r["daily"], top, full)
-    check(top)
-    _next_page(c, ctx, 2, 3)
+    # Page 2 (when the selection has them): every alert and every suspended unit.
+    if register:
+        _register_page(c, ctx, pages, empty, check)
 
-    # Page 3: every provincial total; delivery-level rows remain in the data export.
-    top = _slim_band(c, ctx, "Acciones del Ministerio", "Kits: Kobo al 26/10/2026, 22:26 · bono: corte 23/10/2026") - 20
-    _heading(c, "Respuesta por provincia", M, top, full,
-             f"{r['deliveries']} registros · {number(r['kits_total'])} kits")
-    families = {a["provincia"]: a["familias"] for a in r["kits_provinces"]}
-    actions = _money_rows(r["actions"])
-    rows = [[a["name"], number(a["kits"]), number(families.get(a["name"], 0)), _dash(number(a["managed"])),
-             _dash(a["managed_text"]), _dash(number(a["articulation"])), _dash(a["articulation_text"])] for a in actions]
-    totals = _money_rows([_action_totals(r["actions"])])[0]
-    rows.append(["Total", number(r["kits_total"]), number(r["families_total"]), number(totals["managed"]), totals["managed_text"],
-                 number(totals["articulation"]), totals["articulation_text"]])
-    top = _pdf_table(c, top - 18, ["Provincia", "Kits", "Núcleos familiares*", "Bono: núcleos familiares", "Monto USD", "Articulación: personas", "Monto USD"],
-                     rows, [full - 384, 43, 60, 62, 75, 69, 75], size=7.2, padding=2.7,
-                     align=["L", "R", "R", "R", "R", "R", "R"], total=True) - 17
-    kitrows = [{"name": a["provincia"], "value": a["kits"]} for a in r["kits_provinces"][:4]]
-    rest = sum(a["kits"] for a in r["kits_provinces"][4:])
-    if rest: kitrows.append({"name": "Otras provincias", "value": rest})
-    peak = max([a["value"] for a in kitrows] or [1])
-    _heading(c, "Kits en provincias priorizadas", M, top, half)
-    _risk_bars(c, kitrows, M, top - 22, half, 23)
-    x = M + half + 22
-    _heading(c, "Planificación del bono", x, top, half, "Nacional · 2026–2027")
-    plan = r["plan"]
-    text = f"{number(plan['personas'])} personas potenciales · {number(plan['nucleos'])} núcleos familiares potenciales. " \
-           f"Inversión estimada: USD {number(plan['monto'], 2)}. Planificación, no ejecución."
-    _paragraph(c, text, x, top - 23, half, size=9)
-    top -= max(110, 22 + len(kitrows) * 23)
-    _paragraph(c, f"* {number(r['families_total'])} núcleos familiares reportados por entrega; no son núcleos familiares únicos. "
-                  "Detalle de fechas y cantones en el dashboard y en Excel (Kits y bono).", M, top, full, size=7.2)
-    top -= 30
-    left = note("Kits · alcance del corte", r["notes"]["kits"], M, top, half, size=7.4)
-    left = note("Filtros", r["notes"]["filters"], M, left, half, size=7.4)
-    right = note("Bono de contingencia", r["notes"]["bonus"], x, top, half, size=7.4)
-    right = note("Fuentes y geoportal", ctx["sources"] + " " + ctx["geoportal"], x, right, half, size=7.1)
-    c.linkURL(ctx["geoportal"], (x, right, M + full, right + 20), relative=0)
+    # Last page: kits (each province and every delivery in time) and the contingency bonus (stages and plan), with the scopes.
+    _actions_page(c, ctx, pages, empty, check, note)
+
+
+def _register_page(c, ctx, pages, empty, check):
+    """Every alert and every suspended unit of the selection."""
+    from .pdf import M, W, _heading, _next_page, _slim_band
+    from .risks import _paragraph
+    full = W - 2 * M
+    r = ctx["response"]
+    continuity = r["continuity"]
+    top = _slim_band(c, ctx, "Registro de alertas y unidades suspendidas", f"{r['scope']} · {ctx['territory_label']}") - 20
+    if not r["alerts"]:
+        _heading(c, "Alertas con código UA", M, top, full, r["scope"])
+        top = empty("No hay alertas con código UA en la selección.", M, top - 16, full) - 24
+    else:
+        _heading(c, "Alertas con código UA", M, top, full, f"{_count(r['alert_count'], 'alerta')} · de la más reciente a la más antigua")
+        rows = _alert_cells(r["alerts"])
+        top = _pdf_table(c, top - 18, ["Alerta / registro", "Unidad de atención y servicio", "Territorio", "Afectación al servicio", "Estado"],
+                         [[a["identity"], a["unit_full"], a["place_full"], a["impact"], a["state"]] for a in rows],
+                         [84, 142, 62, full - 360, 72], size=7.4, padding=3) - 22
+    if not continuity["groups"]:
+        _heading(c, "Unidades suspendidas", M, top, full, "Reporte territorial al 26/10/2026, 16:00")
+        top = empty("El reporte territorial no registra unidades suspendidas en la selección.", M, top - 16, full) - 10
+    else:
+        _heading(c, "Unidades suspendidas", M, top, full, "Suspensión total o presencial · de la provincia con más unidades")
+        rows = [[Markup(f"<b>{escape(a['province'])}</b>" + (f"<br/><font color='#6E6880'>{escape(a['canton'])}</font>" if a["canton"] else "")),
+                 a["service"], number(a["units"]), a["names"] or "—"] for a in continuity["groups"]]
+        rows.append(["Total", continuity["caption"], number(continuity["closed"]), ""])
+        top = _pdf_table(c, top - 18, ["Provincia / cantón", "Servicio", "UA", "Unidades identificadas"], rows,
+                         [104, 84, 30, full - 218], size=7.5, padding=3, align=["L", "L", "R", "L"], total=True) - 10
+        top = _paragraph(c, continuity["note"], M, top, full, size=7.2) - 4
+    check(top)
+    _next_page(c, ctx, 2, pages)
+
+
+def _actions_page(c, ctx, pages, empty, check, note):
+    """Kits (each province and every delivery in time) and the contingency bonus (stages and plan), with the scopes."""
+    from .pdf import M, W, _heading, _slim_band
+    from .risks import _paragraph
+    full = W - 2 * M
+    half = (full - 22) / 2
+    r = ctx["response"]
+    top = _slim_band(c, ctx, "Kits y bono de contingencia", f"Kits: Kobo al 26/10/2026, 22:26 · bono: corte {r['bonus_cut']}") - 20
+    if not r["kits_provinces"]:
+        _heading(c, "Kits entregados en provincias priorizadas", M, top, full, f"Kobo al {r['kits_cut']}")
+        top = empty("No hay entregas de kits en la selección.", M, top - 16, full) - 24
+    else:
+        _heading(c, "Kits entregados en provincias priorizadas", M, top, full,
+                 f"{number(r['kits_total'])} kits · {_count(r['kit_provinces'], 'provincia')} · {_count(r['deliveries'], 'registro')} Kobo")
+        top = _kits_pdf(c, r["kits_provinces"], r["kits"], r["since"], M, top - 14, full)
+        top = _paragraph(c, f"Núcleos familiares reportados por entrega: {number(r['families_total'])}; no son núcleos familiares únicos.",
+                         M, top, full, size=7) - 22
+    strips_w = full * 0.6
+    plan_x, plan_w = M + strips_w + 18, full - strips_w - 18
+    _heading(c, "Bono de contingencia por provincia", M, top, strips_w, "Inundaciones · cada barra suma el 100 %")
+    _heading(c, "Planificación El Niño 2026–2027", plan_x, top, plan_w)
+    bottom = _strips_pdf(c, r["bonus"], M, top - 24, strips_w) if r["bonus"] else \
+        empty("No hay registros del bono en la selección.", M, top - 16, strips_w)
+    _plan_pdf(c, r["plan"], plan_x, top - 18, plan_w, 112)
+    top = min(bottom, top - 18 - 112) - 18
+    _heading(c, "Alcances y fuentes", M, top, full)
+    top -= 20
+    left = note("Alertas", r["notes"]["alerts"], M, top, half, size=7.2)
+    left = note("Kits", r["notes"]["kits"], M, left, half, size=7.2)
+    right = note("Bono de contingencia", r["notes"]["bonus"], M + half + 22, top, half, size=7.2)
+    right = note("Filtros", r["notes"]["filters"], M + half + 22, right, half, size=7.2)
+    right = note("Fuentes y geoportal", ctx["sources"] + " " + ctx["geoportal"], M + half + 22, right, half, size=7)
+    c.linkURL(ctx["geoportal"], (M + half + 22, right, M + full, right + 20), relative=0)
     check(min(left, right))
-    assert pages == 3
 
 
 def render_pptx(prs, ctx):
+    """Up to ten slides in the language of the dashboard: cover; continuity (treemap and doughnut) and its units; alerts
+    (evolution and unit chart) and their register; kits (each province beside every delivery); the bonus (native 100 %
+    strips and the plan); the summary by province; three maps; scopes and sources.  A section without records in the
+    selection has no slide (the bonus keeps its slide for the national plan)."""
+    from lxml import etree
+    from pptx.chart.data import CategoryChartData
+    from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION
+    from pptx.enum.shapes import MSO_SHAPE
+    from pptx.enum.text import PP_ALIGN
+    from pptx.oxml.ns import qn
+    from pptx.util import Inches, Pt
     from .charts import emblem_png, map_png
-    from .pptx import _cover, _header, _footer, _text, _bar_chart as _native_bar_chart, _line_chart, _picture
+    from .pptx import DISPLAY, TEXT, _box, _cover, _footer, _header, _picture, _rgb, _text
     from .pptx_areas import _table, _title
-    def _bar_chart(slide, categories, values, name, **kwargs):
-        from pptx.util import Pt
-        chart = _native_bar_chart(slide, categories, values, name, maximum=max(sum(values),1), **kwargs)
-        chart.plots[0].gap_width = 190
-        chart.plots[0].series[0].format.line.fill.background()
-        chart.category_axis.tick_labels.font.size = Pt(11)
-        return chart
+    from .risk_charts import PROVINCE_TONES, evolution_png, ink, kits_png, short_service, tone, treemap_png
     r = ctx["response"]
-    chunks = [r["alerts"][i:i + 5] for i in range(0, len(r["alerts"]), 5)] or [[]]
-    total = 8 + len(chunks)
+    continuity = r["continuity"]
+    alerts = r["alerts"]
+    # Only the slides the selection has content for: the bonus (its national plan), the maps and the scopes always stay.
+    total = (1 + 2 * bool(continuity["closed"] and continuity["groups"]) + 2 * bool(alerts) + bool(r["kits_provinces"]) + 1
+             + bool(r["actions"]) + 2)
     _cover(prs, ctx, emblem_png(set(ctx["selected_codes"])), total, share_word="")
+
     def slide(title):
         s = prs.slides.add_slide(prs.slide_layouts[6])
         _header(s, title, f"{r['scope']} · {ctx['territory_label']} · {ctx['programs_label']}")
         _footer(s, ctx, len(prs.slides), total)
         s.notes_slide.notes_text_frame.text = ctx["sources"]
         return s
-    s = slide("Alertas por provincia y servicio")
-    for i, (key, title) in enumerate([("by_province", "Alertas por provincia"), ("by_service", "Alertas por servicio")]):
-        x = .55 + i * 6.25; rows = r[key]
-        _title(s, title, x, 1.45, 5.8)
-        if rows:
-            _bar_chart(s, [a["name"] for a in rows], [a["value"] for a in rows], "Alertas", x=x, y=2, w=5.8, h=3.8)
-    _text(s, .55, 6.05, 12.2, .65, r["count_note"], size=11)
-    s = slide("Evolución de las alertas")
-    active = [d for d in r["daily"] if d["daily"]]
-    if active:
-        _bar_chart(s, [d["short"] for d in active], [d["daily"] for d in active], "Alertas por fecha", x=.55, y=1.45, w=6, h=2.1)
-    _text(s, 7, 1.65, 5.5, .6, f"{r['continuity']['closed']} Unidades cerradas / suspendidas", size=22, bold=True, color=theme.MORADO)
-    _text(s, 7, 2.35, 5.5, .55, "Atención suspendida · corte 26/10/2026, 16:00", size=12)
-    for i, (key, title) in enumerate([("by_province", "UA suspendidas por provincia"), ("by_service", "UA suspendidas por servicio")]):
-        rows = r["continuity"][key]
-        _title(s, title, .55 + i * 6.25, 3.6, 5.8)
-        if rows:
-            _bar_chart(s, [a["name"] for a in rows], [a["value"] for a in rows], "Unidades", x=.55 + i * 6.25, y=4, w=5.8, h=2.1)
-    _text(s, .55, 6.25, 12.2, .65, r["continuity"]["note"], size=9)
-    s = slide("Detalle de las unidades suspendidas")
-    _table(s, .55, 1.5, 12.2, [("Provincia", "province", 1.5, "text"), ("Cantón", "canton", 1.8, "text"),
-           ("Servicio", "service", .8, "text"), ("UA", "units", .55, "int"), ("Unidades identificadas", "names", None, "text")],
-           r["continuity"]["groups"], row_h=.61, header_h=.5, size=9)
-    for i, chunk in enumerate(chunks, 1):
-        s = slide(f"Alertas con código UA · {i}/{len(chunks)}")
-        _table(s, .55, 1.5, 12.2, [("Alerta / registro", "identity", 1.4, "text"), ("Unidad y servicio", "unit_full", 3, "text"),
-               ("Territorio", "place_full", 1.35, "text"), ("Afectación", "impact", None, "text"), ("Estado", "status", 1.2, "text"),
-               ("Prioridad", "priority", .8, "text")], _alert_cells(chunk, markup=False), row_h=.87, header_h=.5, size=9)
-        _text(s, .55, 6.43, 12.2, .4, r["notes"]["quality"], size=9)
-    s = slide("Acciones del Ministerio en cada provincia")
-    actions = _money_rows(r["actions"])
-    for i in range(0, len(actions), 11):
-        part = actions[i:i + 11]
-        _table(s, .55 + (i // 11) * 6.25, 1.5, 5.9,
-               [("Provincia", "name", None, "text"), ("Kits", "kits", .6, "int"), ("Bono: núcleos familiares", "managed", .65, "int"),
-                ("USD gestionado", "managed_text", 1.05, "text"), ("Artic. personas", "articulation", .7, "int"),
-                ("USD articulación", "articulation_text", 1.05, "text")], part, row_h=.36, header_h=.65, size=8)
-    _text(s, .55, 6.25, 12.2, .5, r["notes"]["bonus"], size=9)
-    s = slide("Kits y planificación del bono")
-    _title(s, "Kits en provincias priorizadas", .55, 1.4, 7)
-    for i in range(0, len(r["kits_provinces"]), 10):
-        _table(s, .55 + (i // 10) * 3.65, 1.95, 3.5,
-               [("Provincia", "provincia", None, "text"), ("Kits", "kits", .65, "int"), ("Núcleos familiares*", "familias", .7, "int")],
-               r["kits_provinces"][i:i + 10], row_h=.34, header_h=.5, size=8)
-    _text(s, .55, 6.05, 7.1, .65, f"{number(r['kits_total'])} kits · {number(r['families_total'])} núcleos familiares reportados* · {r['deliveries']} registros. "
-          "*No son núcleos familiares únicos. Corte Kobo: 26/10/2026, 22:26.", size=11)
+
+    def empty(s, text, x=0.55, y=1.6, w=12.2):
+        _text(s, x, y, w, 0.5, text, size=14, color=theme.PIZARRA)
+
+    # 2. Where services were suspended: a treemap of provinces and cantons, and a doughnut by service.
+    if continuity["closed"] and continuity["groups"]:
+        s = slide("Continuidad de los servicios")
+        _title(s, "Dónde se suspendió la atención", 0.55, 1.36, 7.6, "Provincia y cantón · el color indica el servicio")
+        _picture(s, treemap_png(continuity["tiles"], 7.7, 4.5, dpi=200, scale=1.4), 0.5, 2.15, w=7.7)
+        _title(s, "Por servicio", 8.65, 1.36, 4.2, "Participación en las unidades suspendidas")
+        rows = continuity["by_service"]
+        data = CategoryChartData(number_format="#,##0")
+        closed = continuity["closed"] or 1
+        data.categories = [f"{short_service(row['name'])} · {number(row['value'])} UA ({number(row['value'] / closed * 100, 1)} %)" for row in rows]
+        data.add_series("UA suspendidas", [row["value"] for row in rows])
+        chart = s.shapes.add_chart(XL_CHART_TYPE.DOUGHNUT, Inches(8.55), Inches(2.1), Inches(4.3), Inches(4.55), data).chart
+        chart.font.name = TEXT
+        chart.has_title = False
+        chart.has_legend = True
+        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
+        chart.legend.font.size = Pt(13)
+        plot = chart.plots[0]
+        for point, row in zip(plot.series[0].points, rows):
+            point.format.fill.solid()
+            point.format.fill.fore_color.rgb = _rgb(tone(row["name"]))
+            point.format.line.color.rgb = _rgb("#FFFFFF")
+            point.format.line.width = Pt(3)
+        doughnut = chart._chartSpace.xpath(".//c:doughnutChart")[0]
+        hole = doughnut.find(qn("c:holeSize"))
+        if hole is None:
+            hole = etree.SubElement(doughnut, qn("c:holeSize"))
+        hole.set("val", "58")
+        _text(s, 8.55, 3.55, 4.3, 0.6, number(continuity["closed"]), size=32, color=theme.MORADO_900, font=DISPLAY, bold=True,
+              align=PP_ALIGN.CENTER)
+        _text(s, 8.55, 4.15, 4.3, 0.35, "UA suspendidas", size=12, color=theme.PIZARRA, align=PP_ALIGN.CENTER)
+        _text(s, 0.55, 6.72, 12.2, 0.3, continuity["note"], size=9.5, color=theme.PIZARRA)
+
+        # 3. Every suspended unit.
+        s = slide("Unidades suspendidas")
+        rows = [{**g, "canton": g["canton"] or "—", "names": g["names"] or "—", "units_v": g["units"]} for g in continuity["groups"]] + [
+            {"province": "Total", "canton": "", "service": continuity["caption"], "units_v": continuity["closed"], "names": ""}]
+        _table(s, 0.55, 1.45, 12.25, [("Provincia", "province", 1.55, "text"), ("Cantón", "canton", 2.05, "text"),
+               ("Servicio", "service", 1.55, "text"), ("UA", "units_v", 0.65, "int"), ("Unidades identificadas", "names", None, "text")],
+               rows, row_h=min(0.52, 4.9 / (len(rows) + 1)), header_h=0.45, size=10)
+
+    # 4. When and where alerts were registered: evolution and unit chart.
+    if alerts:
+        s = slide("Alertas en servicios MTDH")
+        _title(s, "Evolución de las alertas", 0.55, 1.36, 7.4, f"Registradas cada día y acumuladas desde el {r['since']}")
+        _picture(s, evolution_png(r["daily"], 7.6, 4.3, dpi=200, scale=1.45), 0.45, 2.15, w=7.6)
+        _title(s, "Cada alerta, una unidad", 8.45, 1.36, 4.4, "Por provincia · el color indica el servicio")
+        counts: dict[str, int] = {}
+        for a in alerts:
+            counts[a["province"]] = counts.get(a["province"], 0) + 1
+        provinces = sorted(counts, key=lambda p: -counts[p])
+        services = sorted({a["service"] for a in alerts}, key=lambda name: -sum(1 for a in alerts if a["service"] == name))
+        rank = {name: i for i, name in enumerate(services)}
+        size, gap = 0.4, 0.1
+        for i, province in enumerate(provinces[:6]):
+            y = 2.35 + i * 0.68
+            _text(s, 8.45, y + 0.02, 1.2, 0.4, province, size=13, color=theme.MORADO_900, bold=True)
+            _text(s, 9.6, y + 0.02, 0.35, 0.4, str(counts[province]), size=13, color=theme.PIZARRA)
+            part = sorted((a for a in alerts if a["province"] == province), key=lambda a: (rank[a["service"]], a["date"], a["code"]))
+            for j, a in enumerate(part[:6]):
+                _box(s, 10.0 + j * (size + gap), y, size, size, tone(a["service"]), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.12)
+        y = 2.35 + min(len(provinces), 6) * 0.68 + 0.1
+        x = 8.45
+        for name in services:
+            _box(s, x, y + 0.06, 0.2, 0.2, tone(name), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
+            label = f"{short_service(name)} · {sum(1 for a in alerts if a['service'] == name)}"
+            _text(s, x + 0.27, y, 2.4, 0.35, label, size=11, color=theme.PIZARRA)
+            x += 0.27 + 0.105 * len(label) + 0.3
+        _text(s, 0.55, 6.62, 12.2, 0.4, r["count_note"], size=11, color=theme.PIZARRA)
+
+        # 5. The register of alerts.
+        s = slide("Registro de alertas")
+        _table(s, 0.5, 1.4, 12.33, [("Alerta / registro", "identity", 1.55, "text"), ("Unidad y servicio", "unit_full", 3.15, "text"),
+               ("Territorio", "place_full", 1.45, "text"), ("Afectación al servicio", "impact", None, "text"), ("Estado", "status", 1.3, "text"),
+               ("Prioridad", "priority", 0.9, "text")], _alert_cells(alerts, markup=False), row_h=min(0.52, 5.0 / len(alerts)),
+               header_h=0.42, size=9)
+
+    # 6. Kits: each province beside every delivery in time.
+    if r["kits_provinces"]:
+        s = slide("Kits entregados en provincias priorizadas")
+        _title(s, f"{number(r['kits_total'])} kits en {_count(r['kit_provinces'], 'provincia')}", 0.55, 1.36, 12.2,
+               f"{_count(r['deliveries'], 'registro')} Kobo · corte 26/10/2026, 22:26 · cada círculo es una entrega y su tamaño indica los kits")
+        # As tall as its provinces need (a few provinces do not stretch over the whole slide).
+        height = min(4.55, max(1.7, 0.21 * len(r["kits_provinces"]) + 1.0))
+        _picture(s, kits_png(r["kits_provinces"], r["kits"], r["since"], 12.2, height, dpi=200, scale=1.3), 0.55, 2.1, w=12.2)
+        _text(s, 0.55, min(6.68, 2.1 + height + 0.2), 12.2, 0.3,
+              f"Núcleos familiares reportados por entrega: {number(r['families_total'])}; no son núcleos familiares únicos.",
+              size=10, color=theme.PIZARRA)
+
+    # 7. The contingency bonus: native 100 % strips by province and the national plan.
+    s = slide("Bono de contingencia")
+    bonus = r["bonus"]
+    stages = [("Pago gestionado", "managed", "managed_amount", "núcleos familiares"),
+              ("En articulación", "articulation", "articulation_amount", "personas")]
+    stages = [st_ for st_ in stages if sum(b[st_[1]] for b in bonus)]
+    if stages:
+        _title(s, "Cada etapa, por provincia", 0.55, 1.36, 7.7, "Inundaciones · cada barra suma el 100 % de su etapa; las etapas no se suman")
+        weight = {b["name"]: sum(b[key] / (sum(x[key] for x in bonus) or 1) for _n, key, _a, _u in stages) for b in bonus}
+        order = sorted(weight, key=lambda name: -weight[name])
+        data = CategoryChartData(number_format="#,##0")
+        data.categories = [f"{title}\n{number(sum(b[key] for b in bonus))} {unit} · USD {number(sum(b[amount] for b in bonus), 2)}"
+                           for title, key, amount, unit in stages]
+        for name in order:
+            data.add_series(name, [next((b[key] for b in bonus if b["name"] == name), 0) or None for _t, key, _a, _u in stages])
+        chart = s.shapes.add_chart(XL_CHART_TYPE.BAR_STACKED_100, Inches(0.45), Inches(2.05), Inches(7.9), Inches(3.9), data).chart
+        chart.font.name = TEXT
+        chart.font.size = Pt(12)
+        chart.has_title = False  # a single province would otherwise title the chart with its name
+        chart.has_legend = True
+        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
+        chart.value_axis.visible = False
+        chart.value_axis.has_major_gridlines = False
+        chart.category_axis.reverse_order = True
+        chart.category_axis.format.line.fill.background()
+        chart.plots[0].gap_width = 70
+        chart.plots[0].overlap = 100
+        for series, name in zip(chart.series, order):
+            color = PROVINCE_TONES.get(name, theme.LILA_200)
+            series.format.fill.solid()
+            series.format.fill.fore_color.rgb = _rgb(color)
+            series.format.line.color.rgb = _rgb("#FFFFFF")
+            series.format.line.width = Pt(2)
+            series.data_labels.show_value = True
+            series.data_labels.number_format = '#,##0;-#,##0;""'
+            series.data_labels.number_format_is_linked = False
+            series.data_labels.position = XL_LABEL_POSITION.CENTER
+            series.data_labels.font.size = Pt(12)
+            series.data_labels.font.bold = True
+            series.data_labels.font.color.rgb = _rgb(ink(color))
+            # A segment under 5 % of its stage keeps its colour but not its figure, which would spill out of the bar.
+            for index, (_t, key, _a, _u) in enumerate(stages):
+                value = next((b[key] for b in bonus if b["name"] == name), 0)
+                if value and value / (sum(b[key] for b in bonus) or 1) < 0.05:
+                    label = series._element.get_or_add_dLbls().get_or_add_dLbl_for_point(index)
+                    for child in list(label):
+                        if child.tag != qn("c:idx"):
+                            label.remove(child)
+                    etree.SubElement(label, qn("c:delete")).set("val", "1")
+    else:
+        empty(s, "Sin registros del bono en la selección.", w=7.7)
     plan = r["plan"]
-    _title(s, "Planificación El Niño 2026–2027", 8, 1.4, 4.8)
-    _text(s, 8, 2.1, 4.8, 3.8, [f"{number(plan['personas'])} personas potenciales", f"{number(plan['nucleos'])} núcleos familiares potenciales",
-          f"USD {number(plan['monto'], 2)} de inversión estimada", "Proyección nacional; planificación, no ejecución."], size=18)
+    _title(s, "Planificación El Niño 2026–2027", 8.75, 1.36, 4.1, "Proyección nacional · planificación, no ejecución")
+    tiles = [("Personas potenciales", number(plan["personas"])), ("Núcleos familiares potenciales", number(plan["nucleos"])),
+             ("Inversión estimada", f"USD {number(plan['monto'], 2)}")]
+    for index, (label, value) in enumerate(tiles):
+        y = 2.15 + index * 1.25
+        _box(s, 8.75, y, 4.1, 1.08, theme.ORO_100, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
+        _box(s, 8.75, y + 0.16, 0.07, 0.76, theme.ORO)
+        _text(s, 9.05, y + 0.1, 3.7, 0.3, label, size=11.5, color=theme.PIZARRA, bold=True)
+        _text(s, 9.05, y + 0.4, 3.7, 0.5, value, size=22, color=theme.MORADO_900, font=DISPLAY, bold=True)
+    _text(s, 0.55, 6.25, 12.2, 0.7, r["notes"]["bonus"], size=9.5, color=theme.PIZARRA)
+
+    # 8. The summary by province.
+    actions = [{**a, "kits_t": _dash(number(a["kits"])), "managed_t": _dash(number(a["managed"])), "managed_usd": _dash(number(a["managed_amount"], 2)),
+                "articulation_t": _dash(number(a["articulation"])), "articulation_usd": _dash(number(a["articulation_amount"], 2))}
+               for a in r["actions"]]
+    if actions:
+        s = slide("Resumen por provincia")
+        _title(s, "Acciones del Ministerio en cada provincia", 0.55, 1.36, 12.2,
+               f"{_count(len(actions), 'provincia')} · kits, bono gestionado (núcleos familiares) y casos en articulación (personas)")
+        per = (len(actions) + 1) // 2 if len(actions) > 10 else len(actions)
+        columns = [("Provincia", "name", None, "text"), ("Kits", "kits_t", 0.75, "num"), ("Bono", "managed_t", 0.65, "num"),
+                   ("USD gestionado", "managed_usd", 1.15, "num"), ("Artic.", "articulation_t", 0.65, "num"),
+                   ("USD articulación", "articulation_usd", 1.2, "num")]
+        for i in range(0, len(actions), per):
+            _table(s, 0.55 + (i // per) * 6.2, 2.05, 6.0, columns, actions[i:i + per], row_h=min(0.4, 4.45 / per), header_h=0.45, size=9.5)
+
+    # 9. Three maps: alerts, suspended units and kits.
     s = slide("Respuesta en el territorio")
-    for i, (key, title) in enumerate([("map_values", "Alertas con código UA"), ("kits_map_values", "Kits en provincias priorizadas")]):
-        x = .55 + i * 6.3
-        _title(s, title, x, 1.4, 5.9)
-        pic = map_png(ctx[key], layer="provincia", selected=set(ctx["selected_codes"]), mode="light", label=title, width=5.8, height=4.8, dpi=180)
-        _picture(s, pic, x, 2, w=5.8)
+    for i, (key, title) in enumerate([("map_values", "Alertas con código UA"), ("suspended_map_values", "UA suspendidas"),
+                                      ("kits_map_values", "Kits entregados")]):
+        x = 0.5 + i * 4.15
+        _title(s, title, x, 1.36, 4.0)
+        pic = map_png(ctx[key], layer="provincia", selected=set(ctx["selected_codes"]), mode="light", label=title, marks=False,
+                      width=4.0, height=4.6, dpi=180)
+        _picture(s, pic, x, 1.95, w=4.0)
+
+    # 10. Scopes and sources.
     s = slide("Nota metodológica y fuentes")
     y = 1.45
-    for title, text in _notes(ctx):
-        height = .42 + len(text) / 150 * .2
-        _text(s, .55, y, 2, height, title, size=12, bold=True, color=theme.MORADO)
-        _text(s, 2.7, y, 10, height, text, size=11)
-        y += height + .12
-    _text(s, .55, y, 12.2, .65, "Fuentes: " + ctx["sources"] + "\nGeoportal: " + ctx["geoportal"], size=10)
+    for title, text in _notes(ctx) + [("Continuidad", continuity["note"])]:
+        height = 0.36 + len(text) / 160 * 0.2
+        _text(s, 0.55, y, 2.1, height, title, size=12, bold=True, color=theme.MORADO)
+        _text(s, 2.75, y, 10.0, height, text, size=11)
+        y += height + 0.1
+    _text(s, 0.55, min(y, 6.25), 12.2, 0.6, "Fuentes: " + ctx["sources"] + "\nGeoportal: " + ctx["geoportal"], size=10, color=theme.PIZARRA)
     assert len(prs.slides) == total
 
 
 def render_workbook(book):
-    from .excel_areas import _summary, _finish_summary, _sheet, _block
+    """Workbook in the language of the dashboard.  Resumen: the five key figures in one row, the continuity of the services
+    (a doughnut by service beside the tables by service and province), the evolution of the alerts, three maps and the
+    findings.  Then every suspended unit, every alert (real dates, to sort and filter), the daily evolution (columns over
+    the running total on a date axis), kits by province beside the running total of the deliveries, every Kobo delivery,
+    the bonus (a 100 % bar per stage drawn from its own table) with the national plan, the actions in each province and
+    the technical sheet.  Every chart is native and editable, and each kind of chart is used once."""
+    from datetime import datetime
     from .charts import map_png
-    ctx = book.ctx; r = ctx["response"]
-    ws, row = _summary(book, "")
-    row = book.kpi_row(ws, row, [("Unidades cerradas / suspendidas", r["continuity"]["closed"], "#,##0", "Atención suspendida · corte 26/10/2026, 16:00", theme.MORADO)])
-    for key, title in [("by_province", "UA suspendidas por provincia"), ("by_service", "UA suspendidas por servicio")]:
-        rows = r["continuity"][key]
-        first, end, row = _block(book, ws, row + 1, title, [("Categoría", "name", "text"), ("Unidades", "value", "int")], rows, last=12)
-        if rows:
-            ws.insert_chart(row, 1, book.bar_chart(ws.name, first, end, 1, 2, title, [theme.MORADO], width=720, height=230)); row += 14
-    for key, title in [("by_province", "Alertas por provincia"), ("by_service", "Alertas por servicio")]:
-        first, end, row = _block(book, ws, row + 1, title, [("Categoría", "name", "text"), ("Alertas", "value", "int")], r[key], last=12)
-        if r[key]:
-            chart = book.bar_chart(ws.name, first, end, 1, 2, title, [theme.MORADO], width=720, height=230)
-            ws.insert_chart(row, 1, chart); row += 14
-    for key, title in [("map_values", "Alertas por provincia"), ("kits_map_values", "Kits en provincias priorizadas")]:
-        pic = map_png(ctx[key], layer="provincia", selected=set(ctx["selected_codes"]), mode="light", label=title, width=4.8, height=3.3, dpi=150)
-        row = book.heading(ws, row, title)
-        book.image(ws, row, 1, pic, 420, key + ".png", description=title); row += 18
-    _finish_summary(book, ws, row, ctx["insights"])
-    ws, row = _sheet(book, "Evolución", theme.ORO, "Evolución de las alertas", [2.4, 22, 25, 25, 2.4])
-    first, end, row = _block(book, ws, row, "Desde " + r["since"], [("Fecha", "date", "text"), ("Registradas en el día", "daily", "int"),
-                           ("Acumuladas", "total", "int")], r["daily"], last=3, autofilter=True)
-    chart = book.wb.add_chart({"type": "line"})
-    for col, title, color in [(2, "Registradas en el día", theme.ORO), (3, "Acumuladas", theme.MORADO)]:
-        chart.add_series({"name": title, "categories": [ws.name, first, 1, end, 1], "values": [ws.name, first, col, end, col], "line": {"color": color}})
-    chart.set_title({"name": "Evolución de las alertas"}); chart.set_size({"width": 800, "height": 300}); ws.insert_chart(row, 1, chart)
-    ws, row = _sheet(book, "Alertas", theme.ORO, "Alertas con código UA", [2.4, 24, 16, 22, 22, 18, 60, 38, 80, 24, 16, 2.4])
-    _block(book, ws, row, "Detalle completo", [("Alerta", "code", "text"), ("Fecha de registro", "date", "text"),
-           ("Provincia", "province", "text"), ("Cantón", "canton", "text"), ("Código UA", "ua", "text"), ("Unidad", "unit", "text"),
-           ("Servicio", "service", "text"), ("Afectación", "impact", "text"), ("Estado", "status", "text"), ("Prioridad", "priority", "text")],
-           r["alerts"], note=r["count_note"], height=48, last=10, autofilter=True)
-    ws, row = _sheet(book, "Provincias", theme.MORADO, "Acciones del Ministerio en cada provincia", [2.4, 24, 55, 16, 25, 24, 27, 25, 2.4])
-    _block(book, ws, row, "Kits y bono de contingencia", [("Provincia", "name", "text"), ("Cantones", "cantons", "text"),
-           ("Kits", "kits", "int"), ("Bono gestionado (núcleos familiares)", "managed", "int"), ("Monto gestionado (USD)", "managed_amount", "usd"),
-           ("En articulación (personas)", "articulation", "int"), ("Monto en articulación (USD)", "articulation_amount", "usd")], r["actions"], last=7,
-           total={"name": "Total", **{k: sum(a[k] for a in r["actions"]) for k in ("kits", "managed", "managed_amount", "articulation", "articulation_amount")}})
-    ws, row = _sheet(book, "Kits y bono", theme.VIOLETA_500, "Kits y planificación del bono", [2.4, 24, 35, 35, 20, 22, 24, 2.4])
-    _, _, row = _block(book, ws, row, "Kits entregados en provincias priorizadas", [("Período", "date", "text"), ("Provincia", "province", "text"),
-           ("Cantón", "canton", "text"), ("Kits", "kits", "int"), ("Núcleos familiares reportados", "families", "int"), ("ID Kobo", "id", "text")], r["kits"], note=r["notes"]["kits"], last=6, total={"date": "Total", "kits": r["kits_total"], "families": r["families_total"]})
-    _block(book, ws, row + 2, "Planificación El Niño 2026–2027", [("Personas potenciales", "personas", "int"),
-           ("Núcleos familiares potenciales", "nucleos", "int"), ("Inversión estimada (USD)", "monto", "usd")], [r["plan"]],
-           note="Proyección nacional; planificación, no ejecución", last=4)
-    ws, row = _sheet(book, "Unidades suspendidas", theme.MORADO, "Detalle territorial de unidades", [2.4, 24, 30, 20, 52, 25, 42, 16, 2.4])
-    _block(book, ws, row, "99 suspendidas · corte 26/10/2026, 16:00",
-           [("Provincia", "provincia", "text"), ("Cantón", "canton", "text"), ("Servicio", "servicio", "text"),
-            ("Unidad", "unidad", "text"), ("Código UA", "codigo_ua", "text"), ("Estado de atención", "estado", "text"),
-            ("Unidades", "unidades", "int")], r["continuity"]["detail"], note=r["continuity"]["note"], last=7, autofilter=True)
+    from .excel import DISPLAY, INT, MUTED, SOFT_LINE, TEXT, WHITE
+    from .excel_areas import _block, _layout, _sheet
+    from .risk_charts import PROVINCE_TONES, short_service, tone
+    ctx = book.ctx
+    r = ctx["response"]
+    continuity = r["continuity"]
+    closed = continuity["closed"]
+    accents = {"oro": theme.ORO, "violeta": theme.VIOLETA_500, "lila": theme.LILA_300, "morado": theme.MORADO, "fucsia": theme.FUCSIA}
+
+    def day(text):
+        try:
+            return datetime.strptime(text, "%d/%m/%Y")
+        except (TypeError, ValueError):
+            return None
+
+    def framed(chart, title, width, height, legend=None):
+        chart.set_title({"name": title, "overlay": False, "name_font": {"name": DISPLAY, "size": 11, "bold": True, "color": theme.MORADO_900}})
+        chart.set_chartarea({"border": {"color": SOFT_LINE}, "fill": {"color": WHITE}})
+        chart.set_plotarea({"border": {"none": True}, "fill": {"none": True}})
+        chart.set_legend({"position": legend, "font": {"name": TEXT, "size": 9, "color": theme.TINTA}} if legend else {"none": True})
+        chart.set_size({"width": width, "height": height})
+        return chart
+
+    def axis_font(size=8.5, color=MUTED):
+        return {"name": TEXT, "size": size, "color": color}
+
+    def grid():
+        return {"visible": True, "line": {"color": "#EEEAF4", "width": 0.75}}
+
+    def label(ws, row, col, text, last=None):
+        fmt = book.f(font_name=DISPLAY, font_size=10.5, bold=True, font_color=theme.MORADO_900)
+        if last and last > col:
+            ws.merge_range(row, col, row, last, text, fmt)
+        else:
+            ws.write(row, col, text, fmt)
+        ws.set_row(row, 22)
+        return row + 1
+
+    def evolution_chart(first, end, width, height):
+        """Alerts registered each day (gold columns) over their running total (purple line), on a date axis."""
+        columns = book.wb.add_chart({"type": "column"})
+        columns.add_series({"name": "Registradas en el día", "categories": ["Evolución", first, 1, end, 1],
+                            "values": ["Evolución", first, 2, end, 2], "fill": {"color": theme.ORO}, "border": {"none": True}, "gap": 40,
+                            "data_labels": {"value": True, "num_format": '#,##0;-#,##0;""', "position": "outside_end",
+                                            "font": {"name": TEXT, "size": 8.5, "bold": True, "color": theme.ORO_700}}})
+        line = book.wb.add_chart({"type": "line"})
+        line.add_series({"name": "Acumuladas", "categories": ["Evolución", first, 1, end, 1], "values": ["Evolución", first, 3, end, 3],
+                         "line": {"color": theme.MORADO, "width": 2.25}, "marker": {"type": "none"}})
+        columns.combine(line)
+        start, stop = day(r["daily"][0]["date"]), day(r["daily"][-1]["date"])
+        columns.set_x_axis({"date_axis": True, "min": start, "max": stop, "major_unit": 7, "major_unit_type": "days", "num_format": "dd/mm",
+                            "num_font": {**axis_font(), "rotation": 0}, "line": {"color": theme.LILA_100}, "major_tick_mark": "none"})
+        columns.set_y_axis({"num_format": INT, "num_font": axis_font(), "min": 0, "line": {"none": True}, "major_gridlines": grid(),
+                            "major_tick_mark": "none"})
+        return framed(columns, "Alertas registradas cada día y acumuladas", width, height, "top")
+
+    def empty(ws, row, text, last):
+        return book.note(ws, row, text, first=1, last=last, height=30)
+
+    # ------------------------------------------------------------------ Resumen
+    summary = book.wb.add_worksheet("Resumen")
+    book.widths(summary, [2.4] + [10.2] * 15 + [2.4])
+    book.page(summary, tall=1)
+    summary.set_tab_color(theme.MORADO)
+    row = book.band(summary, ctx["title"], book.subtitle(), last=16)
+    row = book.heading(summary, row + 1, "Cifras clave", ctx["period_label"], last=15)
+    cards = [(k["label"], k["value"], book.kpi_format(k), k.get("note", ""), accents.get(k.get("tone"), theme.MORADO)) for k in ctx["kpis"]]
+    row = book.kpi_row(summary, row + 1, cards, first=1, last=15) + 1
+    row = book.heading(summary, row, "Continuidad de los servicios",
+                       f"{number(closed)} UA suspendidas · reporte territorial al 26/10/2026, 16:00" if closed else "Reporte territorial al 26/10/2026, 16:00",
+                       last=15)
+    if closed:
+        top = row + 1
+        services = [{"name": short_service(x["name"]), "value": x["value"], "share": x["value"] / closed} for x in continuity["by_service"]]
+        provinces = [{"name": x["name"], "value": x["value"], "share": x["value"] / closed} for x in continuity["by_province"]]
+        left = label(summary, top, 1, "Por servicio", last=7)
+        layout = [("Servicio", "name", "text", 1, 3), ("UA suspendidas", "value", "int", 4, 2), ("Participación", "share", "pct", 6, 2)]
+        s_first, s_end, left = book.table(summary, left, layout, services, total={"value": closed, "share": 1.0}, header_height=30, height=21)
+        left = label(summary, left + 1, 1, "Por provincia", last=7)
+        p_first, p_end, left = book.table(summary, left, [("Provincia", "name", "text", 1, 3), *layout[1:]], provinces,
+                                          total={"value": closed, "share": 1.0}, header_height=30, height=21)
+        book.data_bar(summary, p_first, p_end, 6, theme.LILA_300, maximum=1)
+        doughnut = book.wb.add_chart({"type": "doughnut"})
+        doughnut.add_series({"name": "UA suspendidas", "categories": ["Resumen", s_first, 1, s_end, 1], "values": ["Resumen", s_first, 4, s_end, 4],
+                             "points": [{"fill": {"color": tone(x["name"])}, "border": {"color": WHITE, "width": 2.5}} for x in services],
+                             "data_labels": {"value": True, "percentage": True, "separator": "\n",
+                                             "font": {"name": TEXT, "size": 10, "bold": True, "color": WHITE},
+                                             "custom": [{"font": {"name": TEXT, "size": 10, "bold": True,
+                                                                  "color": theme.MORADO_900 if tone(x["name"]) == theme.LILA_300 else WHITE}}
+                                                        for x in services]}})
+        doughnut.set_hole_size(55)
+        # Row heights are points: the doughnut spans the two tables at its left (labels, headers, rows, totals and the gap).
+        block = 2 * (22 + 30 + 22) + 15 + 21 * (len(services) + len(provinces))
+        summary.insert_chart(top, 9, framed(doughnut, "UA suspendidas por servicio", 532, round(block * 4 / 3) - 4, "right"),
+                             {"x_offset": 4, "y_offset": 2})
+        row = max(left, top + 13) + 1
+    else:
+        row = empty(summary, row + 1, "El reporte territorial no registra unidades suspendidas en la selección.", 15) + 1
+    evolution_row = book.heading(summary, row, "Evolución de las alertas",
+                                 f"{_count(r['alert_count'], 'alerta')} con código UA · desde el {r['since']}", last=15)
+    if r["alerts"]:
+        row = evolution_row + 16
+    else:
+        row = empty(summary, evolution_row + 1, "No hay alertas con código UA en la selección.", 15) + 1
+    for index, (key, title) in enumerate([("map_values", "Alertas con código UA"), ("suspended_map_values", "UA suspendidas"),
+                                          ("kits_map_values", "Kits entregados")]):
+        picture = map_png(ctx[key], layer="provincia", selected=set(ctx["selected_codes"]), mode="light", label=title, marks=False,
+                          width=3.4, height=3.4, dpi=150)
+        book.heading(summary, row, title, first=1 + index * 5, last=4 + index * 5)
+        book.image(summary, row + 1, 1 + index * 5, picture, 318, f"{key}.png", description=f"Mapa del Ecuador: {title.lower()}")
+    row = book.findings(summary, row + 18, ctx["insights"], last=15)
+    summary.print_area(0, 0, row, 16)
+    summary.activate()
+    summary.set_first_sheet()
+    summary.set_zoom(90)
+
+    # ------------------------------------------------------- every suspended unit
+    ws, row = _sheet(book, "Unidades suspendidas", theme.FUCSIA, "Unidades de atención suspendidas", [2.4, 24, 22, 12, 46, 24, 13, 2.4])
+    weight: dict[str, int] = {}
+    for d in continuity["detail"]:
+        weight[d["provincia"]] = weight.get(d["provincia"], 0) + int(d["unidades"])
+    detail = sorted(continuity["detail"], key=lambda d: (-weight[d["provincia"]], d["provincia"], not d["canton"], d["canton"], d["servicio"], d["unidad"]))
+    if detail:
+        _block(book, ws, row + 1, f"{_count(closed, 'unidad suspendida', 'unidades suspendidas')} · {continuity['caption']}",
+               [("Provincia", "provincia", "text"), ("Cantón", "canton", "text"), ("Servicio", "servicio", "text"),
+                ("Unidad de atención", "unidad", "text"), ("Estado de atención", "estado", "text"), ("Unidades", "unidades", "int")],
+               [{**d, "canton": d["canton"] or "—", "unidad": d["unidad"] or "—"} for d in detail], note=continuity["note"], last=6,
+               autofilter=True, total={"unidades": sum(int(d["unidades"]) for d in detail)})
+    else:
+        empty(ws, row + 1, "El reporte territorial no registra unidades suspendidas en la selección.", 6)
+
+    # ------------------------------------------------------------- every alert
+    ws, row = _sheet(book, "Alertas", theme.ORO, "Alertas con código UA", [2.4, 19, 13, 13, 16, 11, 40, 30, 58, 16, 11, 2.4])
+    if r["alerts"]:
+        alerts = [{**a, "day": day(a["date"]) or a["date"]} for a in r["alerts"]]
+        first, _end, _next = _block(book, ws, row + 1, f"{_count(r['alert_count'], 'alerta')} · de la más reciente a la más antigua",
+                                    [("Alerta", "code", "text"), ("Fecha de registro", "day", "date"), ("Provincia", "province", "text"),
+                                     ("Cantón", "canton", "text"), ("Código UA", "ua", "center"), ("Unidad de atención", "unit", "text"),
+                                     ("Servicio", "service", "text"), ("Afectación al servicio", "impact", "text"), ("Estado", "status", "text"),
+                                     ("Prioridad", "priority", "text")], alerts, note=r["count_note"], last=10, autofilter=True)
+        for index, a in enumerate(alerts):
+            lines = max(1, math.ceil(len(a["impact"]) / 56), math.ceil(len(a["unit"]) / 38), math.ceil(len(a["service"]) / 28),
+                        math.ceil(len(a["province"]) / 12), math.ceil(len(a["canton"]) / 12))
+            ws.set_row(first + index, max(21, 14 * lines + 7))
+    else:
+        empty(ws, row + 1, "No hay alertas con código UA en la selección.", 10)
+
+    # ---------------------------------------------------------- the evolution
+    ws, row = _sheet(book, "Evolución", theme.ORO, "Evolución de las alertas", [2.4, 14, 20, 15, 3] + [11.0] * 9 + [2.4])
+    if r["alerts"]:
+        daily = [{**d, "day": day(d["date"]) or d["date"]} for d in r["daily"]]
+        first, end, _next = _block(book, ws, row + 1, f"Desde el {r['since']}", [("Fecha", "day", "date"),
+                                   ("Registradas en el día", "daily", "int"), ("Acumuladas", "total", "int")], daily, last=3, autofilter=True,
+                                   total={"daily": r["alert_count"]})
+        ws.insert_chart(row + 1, 5, evolution_chart(first, end, 736, 360), {"x_offset": 6, "y_offset": 6})
+        summary.insert_chart(evolution_row, 1, evolution_chart(first, end, 1140, 290), {"y_offset": 6})
+    else:
+        empty(ws, row + 1, "No hay alertas con código UA en la selección.", 13)
+
+    # ------------------------------------------------- kits: provinces and time
+    ws, row = _sheet(book, "Kits", theme.VIOLETA_500, "Kits entregados en provincias priorizadas", [2.4, 28, 11, 14, 18, 12, 3] + [11.0] * 7 + [2.4])
+    kits_sheet = ws
+    total_kits = r["kits_total"] or 1
+    provinces = [{"name": p["provincia"], "kits": p["kits"], "share": p["kits"] / total_kits, "families": p["familias"],
+                  "records": p["registros"]} for p in r["kits_provinces"]]
+    kits_top = row + 1
+    if provinces:
+        _first, _end, row = _block(book, ws, kits_top, "Por provincia", [("Provincia", "name", "text"), ("Kits", "kits", "int"),
+                                   ("Participación", "share", "pct"), ("Núcleos familiares reportados*", "families", "int"),
+                                   ("Registros Kobo", "records", "int")], provinces, last=5, bar="share",
+                                   note=f"Kobo · corte {r['kits_cut_full']}", total={"kits": r["kits_total"], "share": 1.0, "families": r["families_total"], "records": r["deliveries"]})
+        ws.merge_range(row + 1, 1, row + 1, 5, "* Núcleos familiares reportados por entrega; no son núcleos familiares únicos. "
+                       "Cada entrega, en la hoja Entregas Kobo.", book.f(font_size=9.5, font_color=theme.PIZARRA, text_wrap=True, valign="top"))
+        ws.set_row(row + 1, 30)
+    else:
+        empty(ws, kits_top, "No hay entregas de kits en la selección.", 13)
+
+    ws, row = _sheet(book, "Entregas Kobo", theme.VIOLETA_500, "Cada entrega de kits", [2.4, 13, 29, 30, 10, 15, 22, 15, 2.4])
+    if r["kits"]:
+        row = book.heading(ws, row + 1, f"{_count(r['deliveries'], 'entrega registrada', 'entregas registradas')} en Kobo", f"Kobo · corte {r['kits_cut_full']}", last=7)
+        row = book.note(ws, row, r["notes"]["kits"], first=1, last=7, height=46)
+        ws.set_row(row, 8)
+        running, deliveries = 0, []
+        for k in r["kits"]:
+            running += k["kits"]
+            deliveries.append({**k, "day": day(k["date"]) or k["date"], "running": running})
+        layout = _layout([("Fecha", "day", "date"), ("Provincia", "province", "text"), ("Cantón", "canton", "text"), ("Kits", "kits", "int"),
+                          ("Kits acumulados", "running", "int"), ("Núcleos familiares reportados*", "families", "int"), ("ID Kobo", "id", "center")])
+        first, end, _next = book.table(ws, row + 1, layout, deliveries, total={"kits": r["kits_total"], "families": r["families_total"]},
+                                       header_height=36, height=19)
+        ws.autofilter(row + 1, 1, end, 7)
+        dated = [d["day"] for d in deliveries if isinstance(d["day"], datetime)]
+        if provinces and len(dated) == len(deliveries):
+            # The running total of the kits, one point per delivery (a vertical rise when several share a day).
+            chart = book.wb.add_chart({"type": "scatter", "subtype": "straight_with_markers"})
+            chart.add_series({"name": "Kits acumulados", "categories": ["Entregas Kobo", first, 1, end, 1],
+                              "values": ["Entregas Kobo", first, 5, end, 5], "line": {"color": theme.MORADO, "width": 2.25},
+                              "marker": {"type": "circle", "size": 5, "fill": {"color": theme.VIOLETA_500}, "border": {"color": WHITE}},
+                              "data_labels": {"value": True, "num_format": INT, "position": "above",
+                                              "font": {"name": TEXT, "size": 9, "bold": True, "color": theme.MORADO_900},
+                                              "custom": [{"delete": True}] * (len(deliveries) - 1) + [None]}})
+            serial = lambda d: (d - datetime(1899, 12, 30)).days
+            start, stop = min(dated), max(dated)
+            chart.set_x_axis({"min": serial(start) - 2, "max": serial(stop) + 2, "major_unit": 7, "num_format": "dd/mm",
+                              "num_font": {**axis_font(), "rotation": 0}, "line": {"color": theme.LILA_100}, "major_tick_mark": "none",
+                              "major_gridlines": {"visible": False}})
+            chart.set_y_axis({"num_format": INT, "num_font": axis_font(), "min": 0, "line": {"none": True}, "major_gridlines": grid(),
+                              "major_tick_mark": "none"})
+            # As tall as the table beside it (heading, header, rows and total; row heights are points).
+            height = round((27 + 36 + 19 * len(provinces) + 22) * 4 / 3)
+            kits_sheet.insert_chart(kits_top, 7, framed(chart, "Kits acumulados por fecha de entrega", 574, height), {"x_offset": 6})
+    else:
+        empty(ws, row + 1, "No hay entregas de kits en la selección.", 7)
+
+    # ---------------------------------------------------------------- the bonus
+    ws, row = _sheet(book, "Bono", theme.ORO, "Bono de contingencia", [2.4, 24, 22, 22, 22, 24, 2.4], landscape=False)
+    ws.fit_to_pages(1, 1)
+    bonus = r["bonus"]
+    if bonus:
+        first, end, row = _block(book, ws, row + 1, "Por provincia (inundaciones)", [("Provincia", "name", "text"),
+                                 ("Pago gestionado (núcleos familiares)", "managed", "int_dash"), ("En articulación (personas)", "articulation", "int_dash"),
+                                 ("Monto gestionado (USD)", "managed_amount", "usd_dash"), ("Monto en articulación (USD)", "articulation_amount", "usd_dash")],
+                                 bonus, last=5, note=f"Pagos gestionados desde el {r['bonus_since']} · articulación al {r['bonus_cut']}",
+                                 total={"managed": r["managed_people"], "articulation": r["articulation_people"], "managed_amount": r["managed_amount"],
+                                        "articulation_amount": r["articulation_amount"]})
+        header = first - 1
+        stages = [r["managed_people"], r["articulation_people"]]
+        chart = book.wb.add_chart({"type": "bar", "subtype": "percent_stacked"})
+        for index, b in enumerate(bonus):
+            color = PROVINCE_TONES.get(b["name"], theme.LILA_200)
+            shares = [value / whole if whole else 0 for value, whole in zip((b["managed"], b["articulation"]), stages)]
+            chart.add_series({"name": ["Bono", first + index, 1], "categories": ["Bono", header, 2, header, 3],
+                              "values": ["Bono", first + index, 2, first + index, 3], "fill": {"color": color},
+                              "border": {"color": WHITE, "width": 1.5}, "gap": 60,
+                              "data_labels": {"value": True, "num_format": '#,##0;-#,##0;""',
+                                              "custom": [None if share >= 0.05 else {"delete": True} for share in shares],
+                                              "font": {"name": TEXT, "size": 10, "bold": True,
+                                                       "color": theme.MORADO_900 if color in (theme.LILA_300, theme.ORO, theme.FUCSIA_300) else WHITE}}})
+        chart.set_y_axis({"reverse": True, "num_font": axis_font(10, theme.TINTA), "line": {"none": True}, "major_tick_mark": "none"})
+        chart.set_x_axis({"visible": False, "major_gridlines": {"visible": False}})
+        ws.insert_chart(row + 1, 1, framed(chart, "Cada etapa, por provincia (cada barra suma el 100 %)", 823, 250, "bottom"), {"y_offset": 4})
+        row += 15
+    else:
+        row = empty(ws, row + 1, "No hay registros del bono de contingencia en la selección.", 5) + 1
+    plan = r["plan"]
+    row = book.heading(ws, row + 1, "Planificación El Niño 2026–2027", "Proyección nacional · planificación, no ejecución", last=5)
+    edge = dict(left=5, left_color=theme.ORO)
+    for label_text, value, fmt in [("Personas potenciales", plan["personas"], INT), ("Núcleos familiares potenciales", plan["nucleos"], INT),
+                                   ("Inversión estimada", plan["monto"], '"USD "#,##0.00')]:
+        ws.set_row(row, 30)
+        ws.merge_range(row, 1, row, 2, label_text, book.f(bg_color=theme.ORO_100, bold=True, font_color=theme.PIZARRA, indent=1, **edge))
+        ws.merge_range(row, 3, row, 5, None, book.f(bg_color=theme.ORO_100))
+        ws.write_number(row, 3, value, book.f(bg_color=theme.ORO_100, font_name=DISPLAY, font_size=15, bold=True, font_color=theme.MORADO_900,
+                                              num_format=fmt, align="right", indent=1))
+        row += 1
+
+    # ------------------------------------------------------ actions by province
+    ws, row = _sheet(book, "Provincias", theme.MORADO, "Acciones del Ministerio en cada provincia", [2.4, 26, 50, 11, 20, 20, 20, 22, 2.4])
+    actions = r["actions"]
+    if actions:
+        first, _end, _next = _block(book, ws, row + 1, f"{_count(len(actions), 'provincia')} con acciones · kits y bono de contingencia",
+                                    [("Provincia", "name", "text"), ("Cantones", "cantons", "text"), ("Kits", "kits", "int_dash"),
+                                     ("Bono gestionado (núcleos familiares)", "managed", "int_dash"), ("Monto gestionado (USD)", "managed_amount", "usd_dash"),
+                                     ("En articulación (personas)", "articulation", "int_dash"),
+                                     ("Monto en articulación (USD)", "articulation_amount", "usd_dash")],
+                                    actions, last=7, autofilter=True, note="Cada acción conserva su unidad; no se suman entre sí",
+                                    total={k: sum(a[k] for a in actions) for k in ("kits", "managed", "managed_amount", "articulation", "articulation_amount")})
+        for index, a in enumerate(actions):
+            ws.set_row(first + index, max(21, 14 * max(1, math.ceil(len(a["cantons"]) / 50)) + 7))
+    else:
+        empty(ws, row + 1, "Las provincias de la consulta no registran acciones del Ministerio en este seguimiento.", 7)
+
+    # --------------------------------------------------------- technical sheet
     ws, row = _sheet(book, "Ficha técnica", theme.PIZARRA, "Nota metodológica y fuentes", [2.4, 34, 112, 2.4], landscape=False)
-    for label, text in ctx["scope"] + [("Fuentes", ctx["sources"]), ("Conteo", r["count_note"]), ("Geoportal", ctx["geoportal"]), ("Continuidad de atención", r["continuity"]["note"])] + _notes(ctx):
+    for label_text, text in ctx["scope"] + [("Fuentes", ctx["sources"]), ("Conteo", r["count_note"]), ("Geoportal", ctx["geoportal"]),
+                                            ("Continuidad de atención", continuity["note"])] + _notes(ctx):
         ws.set_row(row, max(32, math.ceil(len(text) / 95) * 15 + 12))
-        ws.write(row, 1, label, book.f(bold=True, font_color=theme.MORADO, text_wrap=True, valign="top", bg_color=theme.LILA_50))
+        ws.write(row, 1, label_text, book.f(bold=True, font_color=theme.MORADO, text_wrap=True, valign="top", bg_color=theme.LILA_50))
         ws.write(row, 2, text, book.f(text_wrap=True, valign="top", font_size=10))
         row += 1
     ws.print_area(0, 0, row, 3)

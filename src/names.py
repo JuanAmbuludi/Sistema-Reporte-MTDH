@@ -54,7 +54,7 @@ _ACCENTS = {
     "RODRIGUEZ": "RODRÍGUEZ", "RUMINAHUI": "RUMIÑAHUI", "SALATI": "SALATÍ", "SAMBORONDON": "SAMBORONDÓN",
     "SANGOLQUI": "SANGOLQUÍ", "SANGUILLIN": "SANGUILLÍN", "SAQUISILI": "SAQUISILÍ", "SATELITE": "SATÉLITE",
     "SAYAUSI": "SAYAUSÍ", "SEBASTIAN": "SEBASTIÁN", "SIMON": "SIMÓN", "SINAI": "SINAÍ", "SOFIA": "SOFÍA",
-    "SUA": "SÚA", "SUAREZ": "SUÁREZ", "SUCUA": "SUCÚA", "SUCUMBIOS": "SUCUMBÍOS", "TABLON": "TABLÓN",
+    "SUA": "SÚA", "SUAREZ": "SUÁREZ", "SUCUA": "SUCÚA", "SUCUMBIOS": "SUCUMBÍOS", "SUPER": "SÚPER", "TABLON": "TABLÓN",
     "TELEMBI": "TELEMBÍ", "TERAN": "TERÁN", "TIXAN": "TIXÁN", "TOMAS": "TOMÁS", "TONCHIGUE": "TONCHIGÜE",
     "TSACHILAS": "TSÁCHILAS", "TULCAN": "TULCÁN", "TULULBI": "TULULBÍ", "UNION": "UNIÓN", "URCUQUI": "URCUQUÍ",
     "VALPARAISO": "VALPARAÍSO", "VASQUEZ": "VÁSQUEZ", "VICTOR": "VÍCTOR", "YAMANA": "YAMANÁ", "YARUQUI": "YARUQUÍ",
@@ -131,6 +131,22 @@ def place(text: object, *, short: bool = True) -> str:
     if short:
         raw = re.sub(r"\s*\(.*$", "", raw)
     raw = re.sub(r"\s*-\s*", "-", raw).strip(" -")
+    return _words(raw, sentence=False)
+
+
+def unit(text: object) -> str:
+    """Name of a care unit: ``CDI LOS NIÑOS DEL CISNE`` → ``CDI Los Niños del Cisne``.
+
+    Names the source already writes in mixed case are kept as written; an initial acronym (CDI, CNH) keeps its capitals
+    and the name after it starts with a capital.  A missing name reads as an empty text."""
+    if _missing(text):
+        return ""
+    raw = " ".join(str(text).split())
+    if raw != raw.upper():
+        return raw
+    head, _, rest = raw.partition(" ")
+    if head in _ACRONYMS and rest:
+        return f"{head} {_words(rest, sentence=False)}"
     return _words(raw, sentence=False)
 
 

@@ -43,7 +43,12 @@ USD = "#,##0.00"
 MILL = "#,##0.00,,"
 MILL_KPI = '"USD "#,##0.0,," M"'
 PCT = "0.0%"
-NUMERIC = ("int", "units", "usd", "mill", "pct")
+INT_DASH = '#,##0;-#,##0;"—"'
+USD_DASH = '#,##0.00;-#,##0.00;"—"'
+DATE = "dd/mm/yyyy"
+# ``int_dash`` and ``usd_dash`` keep a zero as a number (charts and sums read it) and show it as a dash.
+NUMERIC = ("int", "units", "usd", "mill", "pct", "int_dash", "usd_dash")
+FORMATS = {"int": INT, "units": INT, "usd": USD, "mill": MILL, "pct": PCT, "int_dash": INT_DASH, "usd_dash": USD_DASH}
 
 
 def _share(part, whole):
@@ -73,7 +78,9 @@ class Workbook:
     def cell_format(self, kind, fill, **extra):
         props = dict(bg_color=fill, bottom=7, bottom_color=SOFT_LINE)
         if kind in NUMERIC:
-            props.update(num_format={"int": INT, "units": INT, "usd": USD, "mill": MILL, "pct": PCT}[kind], align="right")
+            props.update(num_format=FORMATS[kind], align="right")
+        elif kind == "date":
+            props.update(num_format=DATE, align="left", indent=1)
         elif kind == "code":
             props.update(align="left", font_color=MUTED, indent=1)
         elif kind == "center":
@@ -292,6 +299,14 @@ class Workbook:
             ws.write(row, col, value, fmt)
 
     def _value(self, ws, row, col, span, value, kind, fill, strong=False):
+        if kind == "date" and hasattr(value, "year"):
+            # A real date (it sorts and filters as a date) written dd/mm/aaaa.
+            extra = dict(bold=True, font_color=theme.MORADO_900) if strong else {}
+            fmt = self.cell_format(kind, fill, **extra)
+            if span > 1:
+                ws.merge_range(row, col, row, col + span - 1, None, fmt)
+            ws.write_datetime(row, col, value, fmt)
+            return
         if kind in NUMERIC:
             if value is None or value != value:
                 self._put(ws, row, col, span, "—", self.na_format(fill))

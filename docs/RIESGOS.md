@@ -1,14 +1,22 @@
 # Riesgos en unidades de atención
 
-El ámbito **Riesgos** muestra el inventario de UA de septiembre de 2026, sus servicios, territorio y susceptibilidad a inundaciones, movimientos en masa, sequía e incendios forestales. Los filtros de corte, provincia, servicio, amenazas (una o varias) y categorías de susceptibilidad (media, alta, muy alta; una o varias) actualizan todo el tablero:
+El ámbito **Riesgos** muestra la **respuesta del Ministerio** ante El Niño desde el 14 de septiembre de 2026. Por instrucción del responsable, la exposición de las unidades de atención a amenazas (inventario de septiembre de 2026, descrito más abajo) se conserva como análisis interno y no aparece en el tablero ni en sus exportables. Los filtros de territorio y servicio actualizan todo el tablero; el servicio se aplica a las alertas y a la continuidad, y los kits y el bono se leen por territorio.
 
-- **Mapa** por provincia con seis indicadores: UA expuestas, porcentaje del inventario expuesto, UA en susceptibilidad muy alta, registros de multiamenaza, alertas y kits; las provincias elegidas se marcan en dorado.
-- **Cifras clave en dos grupos con el mismo peso:** exposición (UA expuestas con su porcentaje del inventario, multiamenaza y muy alta) y respuesta del Ministerio (alertas en servicios MTDH, kits entregados y personas con bono gestionado).
-- **Exposición de las unidades de atención:** por amenaza (categorías, amenazas simultáneas y combinaciones), por servicio (susceptibilidad más alta y matriz servicio × amenaza), por territorio (alcance, ranking de provincias y matriz provincia × amenaza) y la tabla de UA con búsqueda y descarga.
-- **Respuesta del Ministerio:** cronología, acciones de cada provincia junto a su exposición (tabla con cantones, estados, entregas e importes del bono), alertas una a una, entregas de kits y planificación El Niño 2026–2027. El territorio filtra todas las acciones; el servicio, solo las alertas (por la UA afectada); la amenaza y la susceptibilidad, solo la exposición.
-- Ningún gráfico repite lo que muestra otro: las cifras de la respuesta están en la banda y en la tabla por provincia, no en tarjetas ni gráficos duplicados.
+Cada pregunta tiene el gráfico que pide su dato, y ningún tipo de gráfico se repite:
 
-En Reportes se generan PDF (dos páginas: exposición y respuesta), PowerPoint (siete diapositivas con gráficos nativos) y Excel (siete hojas, con la hoja Respuesta) con la selección vigente. Sin corte de seguimiento, los productos conservan la versión de exposición (seis diapositivas y seis hojas). El detalle de las fuentes de la respuesta está en [SEGUIMIENTO_ENOS.md](SEGUIMIENTO_ENOS.md).
+- **Mapa** por provincia con tres indicadores: alertas con código UA, UA suspendidas y kits; las provincias elegidas se marcan en dorado.
+- **Cifras clave:** alertas con código UA, kits entregados, núcleos familiares con bono gestionado, monto gestionado y unidades suspendidas.
+- **Continuidad de los servicios:** dónde se suspendió la atención (mosaico de provincias y cantones, en el color de cada servicio), la participación de cada servicio (anillo con el total al centro) y el detalle de las unidades suspendidas con sus nombres. Cuando la fuente no registra cantón o nombre, la celda queda con un guion.
+- **Alertas en servicios MTDH:** evolución diaria sobre el acumulado desde el 14/09, una marca por alerta en la fila de su provincia y el registro completo, de la más reciente a la más antigua.
+- **Kits entregados:** total y participación de cada provincia junto a cada entrega en el tiempo (el área de cada círculo sigue sus kits) y el detalle de las entregas Kobo.
+- **Bono de contingencia:** una barra al 100 % por etapa (pago gestionado en núcleos familiares; articulación en personas), que nunca se suman, y la planificación El Niño 2026–2027.
+- **Resumen por provincia** con cantones, kits e importes del bono, y la nota metodológica con los alcances de cada fuente.
+
+Los cantones que Kobo escribe en mayúsculas sin tildes (ESPINDOLA) y los nombres de UA de las alertas se leen como los escribe el nomenclátor («Espíndola», «CDI Los Niños del Cisne»).
+
+En Reportes se generan, con la selección vigente, un **PDF** de tres páginas (cifras y gráficos; registro de alertas y unidades suspendidas; kits, bono y alcances; dos páginas si la selección no tiene alertas ni unidades suspendidas), un **PowerPoint** de hasta diez diapositivas (solo las secciones con registros; gráficos nativos de anillo y de barras al 100 %) y un **Excel** de nueve hojas con fechas reales y un tipo de gráfico nativo por pregunta: anillo de servicios, columnas diarias sobre el acumulado de alertas, acumulado de kits por entrega y barra al 100 % por etapa del bono. El detalle de las fuentes de la respuesta está en [SEGUIMIENTO_ENOS.md](SEGUIMIENTO_ENOS.md).
+
+## Exposición de las unidades de atención (análisis interno)
 
 Fuente: `UA_SEP26_AMENAZAS(1).xlsx`, hoja `UA_SEPTIEMBRE_2026`, elaborado por DGID / SGDE / MTDH a partir del reporte territorial SIIMTDH. Capas espaciales: MAGAP 2015 (inundaciones y sequía), SNGR 2011 (movimientos en masa) y SNGR 2015 (incendios forestales). La fecha del inventario no cambia la antigüedad de estas capas.
 

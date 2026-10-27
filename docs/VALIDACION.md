@@ -14,12 +14,12 @@ Riesgos: 9.869 registros de la matriz y 9.860 UA únicas; 9.460 expuestas (95,9 
 
 ## Comprobaciones ejecutadas
 
-**118 pruebas aprobadas** y 30 subpruebas (una prueba heredada se omite sin el Excel original). Incluyen:
+**125 pruebas aprobadas** y 30 subpruebas (una prueba heredada se omite sin el Excel original). Incluyen:
 
 - Reconstrucción del Excel anterior y del conjunto actualizado, manteniendo importes decimales; conciliación de cobertura y presupuesto, códigos territoriales, distribución distrital, nulos y porcentajes calculados desde los totales.
 - Depuración territorial con totales intactos; ubicación de bases nominales por nombre; meses abiertos excluidos de contingencias.
 - Filtros, periodos, autenticación y separación de los ámbitos: transferencias, servicios, riesgos (exposición y seguimiento), contingencias, Jóvenes en Acción, gestión laboral y presupuesto institucional y social.
-- Riesgos: unidades únicas, categorías, multiamenaza por provincia según la matriz fuente, filtros de amenaza y susceptibilidad, mapa, matrices y tabla; respuesta del Ministerio desde el 14/09 con el filtro de servicio aplicado solo a las alertas; exportables con el mismo recorte (PDF de dos páginas, siete diapositivas, hoja Respuesta) y con código y nombre de cada UA.
+- Riesgos: respuesta del Ministerio desde el 14/09 (99 UA suspendidas, 10 alertas con código UA, 13.390 kits, bono y planificación), sin la exposición interna en el tablero ni en los exportables; filtros de territorio y servicio; nombres de cantones y UA legibles y vacíos de la fuente como guion; exportables con el mismo recorte (PDF de tres páginas, o dos sin alertas ni unidades suspendidas; hasta diez diapositivas; nueve hojas con fechas reales y un tipo de gráfico nativo por pregunta) y con código y nombre de cada UA.
 - Cartografía: cada provincia, cantón, parroquia y zona con su polígono; selectores Provincia · Cantón · Parroquia en el mapa y en cada gráfico territorial.
 - Centro de reportes: nivel territorial (Provincia, Cantón, Parroquia o Todo), resumen ejecutivo de dos páginas como máximo (una en Jóvenes en Acción), presentación y libro de datos de cada ámbito, y el **resumen de todas las secciones en tres páginas como máximo**, con un gráfico propio por sección y Riesgos en un solo bloque.
 - Arranque concurrente de sesiones sin descargar módulos en uso.

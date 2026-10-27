@@ -87,7 +87,8 @@ def kpis_from_cards(cards: list[dict]) -> list[dict]:
         # Documents print the short form of a rate's caption: «87,8 % del aprobado» (the amount travels in the findings).
         note = card.get("note") or (card.get("bar_label") or "").split(" (")[0]
         out.append({"key": f"k{index}", "label": card["label"], "value": value, "kind": kind, "icon": card.get("icon", "chart"),
-                    "share": num(card.get("share")), "note": note, "decimals": card.get("decimals", 1), "bar": num(card.get("bar"))})
+                    "share": num(card.get("share")), "note": note, "decimals": card.get("decimals", 1), "bar": num(card.get("bar")),
+                    "tone": card.get("tone")})
     return out
 
 

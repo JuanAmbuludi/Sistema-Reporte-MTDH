@@ -240,7 +240,7 @@ def _response(r) -> dict:
     return {
         "since": f"{r.since:%d/%m/%Y}", "cut": f"{r.cut:%d/%m/%Y}", "scope": r.scope_text(),
         "alerts": [{"code": a["codigo"], "date": f"{pd.Timestamp(a['fecha']):%d/%m/%Y}", "province": a["provincia"], "canton": a["canton"],
-                    "place": f"{a['provincia']} · {a['canton']}", "unit": a["unidad"] or "Sin nombre en la fuente", "ua": a["codigo_ua"],
+                    "place": f"{a['provincia']} · {a['canton']}", "unit": a["unidad"] or "—", "ua": a["codigo_ua"],
                     "service": a["servicio"], "impact": a["afectacion_servicio"], "status": a["estado"], "priority": a["prioridad"]}
                    for a in alerts.to_dict("records")],
         "alert_count": len(r.alerts), "pending": r.pending, "following": r.following, "resolved": r.resolved, "units": r.units,

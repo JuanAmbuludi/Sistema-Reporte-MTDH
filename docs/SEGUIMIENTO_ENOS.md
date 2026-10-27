@@ -1,6 +1,6 @@
 # Seguimiento y respuesta en Riesgos
 
-Acceso: **Riesgos**, capítulo «Respuesta del Ministerio». La exposición territorial se conserva como análisis interno y no se muestra en el dashboard ni en sus reportes. Los exportables completos incluyen indicadores, evolución, gráficas por provincia y servicio, las diez alertas con código y nombre UA, acciones provinciales, kits, planificación y nota metodológica. El seguimiento inicia el **14/09/2026**. En el corte actual: PDF de tres páginas, PowerPoint de nueve diapositivas y Excel de seis hojas.
+Acceso: **Riesgos**. La exposición territorial se conserva como análisis interno y no se muestra en el dashboard ni en sus reportes. Los exportables completos incluyen indicadores, evolución, gráficas por provincia y servicio, las diez alertas con código y nombre UA, acciones provinciales, kits, planificación y nota metodológica. El seguimiento inicia el **14/09/2026**. En el corte actual: PDF de tres páginas, PowerPoint de diez diapositivas y Excel de nueve hojas.
 
 ## Corte del 26 de octubre de 2026
 

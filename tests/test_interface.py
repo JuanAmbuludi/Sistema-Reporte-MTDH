@@ -252,30 +252,32 @@ def test_executive_summary_of_every_section_fits_three_pages():
     for section in ["Transferencias monetarias", "Servicios de protección integral", "Riesgos", "Contingencias y compensaciones",
                     "Jóvenes en Acción", "Gestión laboral", "Presupuesto institucional", "Presupuesto social"]:
         assert section in text, section
-    assert "1.578.019" in text and "9.460" in text and _labour_figures()[0] in text
-    # One block for Riesgos (exposure and response together) and a chart of its own in every section.
-    assert text.count("Riesgos: exposición y respuesta") == 1 and "Riesgos: seguimiento" not in text
-    for chart in ["Beneficiarios por provincia", "Usuarios por servicio", "UA expuestas por amenaza y susceptibilidad",
+    assert "1.578.019" in text and "13.390" in text and _labour_figures()[0] in text
+    # One block for Riesgos (the response of the Ministry; the exposure stays internal) and a chart of its own in every section.
+    assert text.count("Riesgos: respuesta del Ministerio") == 1 and "UA expuestas" not in text
+    for chart in ["Beneficiarios por provincia", "Usuarios por servicio", "Alertas por provincia",
                   "Monto entregado por mes", "Jóvenes con pago acreditado por mes", "Contratos vigentes por rama de actividad",
                   "Ejecución presupuestaria por zona", "Ejecución acumulada frente al ritmo uniforme"]:
         assert chart in text, chart
 
 
-def test_risks_area_reads_exposure_by_threat_service_and_territory():
+def test_risks_area_reads_the_response_of_the_ministry():
     app = _logged_in_app()
     app.segmented_control(key="module").set_value("riesgos").run()
     assert not app.exception
     html = _markdown(app)
-    for title in ["Exposición por amenaza", "Amenazas simultáneas", "Combinaciones de amenazas más frecuentes",
-                  "Exposición por servicio", "Servicio y amenaza", "Exposición por territorio", "Provincia y amenaza",
-                  "Unidades de atención expuestas", "Nota metodológica"]:
+    # Each question with the visual its data asks for; the exposure of the units stays internal.
+    for title in ["Continuidad de los servicios", "Dónde se suspendió la atención", "Por servicio", "Unidades suspendidas",
+                  "Alertas en servicios MTDH", "Evolución de las alertas", "Cada alerta, una unidad", "Registro de alertas",
+                  "Kits entregados", "Kits por provincia y entregas en el tiempo", "Bono de contingencia", "Cada etapa, por provincia",
+                  "Planificación El Niño 2026–2027", "Resumen por provincia", "Nota metodológica"]:
         assert title in html, title
-    assert "9.460" in html and "6.220" in html and "1.341" in html
-    app.segmented_control(key="risk_levels").set_value(["Alta", "Muy alta"]).run()
+    for hidden in ["Exposición por amenaza", "Unidades de atención expuestas", "Sin cantón en la base", "No consta en la fuente"]:
+        assert hidden not in html, hidden
+    assert "13.390" in html and "33.200,80" in html and "13.405.351,02" in html and "Espíndola" in html
+    for indicator in ["suspendidas", "kits", "alertas"]:
+        app.segmented_control(key="risk_map_indicator").set_value(indicator).run()
+        assert not app.exception
+    app.multiselect(key="risk_provinces").set_value(["09"]).run()
     assert not app.exception
-    app.multiselect(key="risk_threats").set_value(["susc_inundacion"]).run()
-    assert not app.exception
-    app.segmented_control(key="lvl_risk_rank").set_value("porcentaje").run()
-    assert not app.exception
-    app.segmented_control(key="risk_map_indicator").set_value("porcentaje").run()
-    assert not app.exception
+    assert "17 unidades suspendidas" in _markdown(app)

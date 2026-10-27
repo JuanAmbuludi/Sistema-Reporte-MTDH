@@ -478,13 +478,14 @@ def _date_text(value: object) -> str:
 
 
 def rich_table(columns: list[dict], rows: list[dict], *, total: dict | None = None, height: int | None = None,
-               flag: str | None = None) -> None:
+               flag: str | None = None, min_width: int | None = None) -> None:
     """A designed table for short lists: status pills, unit codes, dates, figures with a bar and a second line.
 
     ``columns`` items carry ``key``, ``label`` and ``kind``: text, strong, muted, num, money, pct, date, pill (with
     ``tones``: value -> tone), code or bar (a figure with a bar relative to the largest of its column).  ``sub`` names
-    a field written under the main one.  ``total`` adds a closing row; ``flag`` names a field that marks a row in gold.
-    The table scrolls sideways on narrow screens and, with ``height``, vertically under a sticky header.
+    a field written under the main one; ``nowrap`` keeps a short column (a place name) on one line.  ``total`` adds a closing row; ``flag`` names a field that marks a row in gold.
+    The table scrolls sideways on narrow screens (below ``min_width`` pixels, when given, instead of squeezing its long
+    texts) and, with ``height``, vertically under a sticky header.
     """
     peaks = {c["key"]: max([float(r.get(c["key"]) or 0) for r in rows] or [1]) or 1 for c in columns if c.get("kind") == "bar"}
 
@@ -523,7 +524,7 @@ def rich_table(columns: list[dict], rows: list[dict], *, total: dict | None = No
             body = _esc(value)
         if column.get("sub") and not footer and row.get(column["sub"]) not in (None, ""):
             body += f"<small>{_esc(row[column['sub']])}</small>"
-        css = ["num" if numeric else "", "muted" if kind == "muted" else ""]
+        css = ["num" if numeric else "", "muted" if kind == "muted" else "", "nowrap" if column.get("nowrap") else ""]
         return f'<td class="{" ".join(c for c in css if c)}">{body}</td>'
 
     head = "".join(f'<th class="{"num" if c.get("kind") in ("num", "money", "pct", "bar") else ""}">{_esc(c["label"])}</th>'
@@ -532,7 +533,8 @@ def rich_table(columns: list[dict], rows: list[dict], *, total: dict | None = No
                    for r in rows)
     foot = ("<tfoot><tr>" + "".join(cell(c, total, footer=True) for c in columns) + "</tr></tfoot>") if total else ""
     style = f' style="max-height:{height}px"' if height else ""
-    st.markdown(f'<div class="rt-wrap"{style}><table class="rt"><thead><tr>{head}</tr></thead><tbody>{body}</tbody>{foot}</table></div>',
+    width = f' style="min-width:{int(min_width)}px"' if min_width else ""
+    st.markdown(f'<div class="rt-wrap"{style}><table class="rt"{width}><thead><tr>{head}</tr></thead><tbody>{body}</tbody>{foot}</table></div>',
                 unsafe_allow_html=True)
 
 
