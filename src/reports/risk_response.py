@@ -12,6 +12,7 @@ from .context import number
 
 
 def build_context(view, *, title: str) -> dict:
+    from .approved_risk_pdf import alert_chunks
     from .risks import _response
     if not view.response:
         raise ValueError("No hay un corte de respuesta disponible.")
@@ -49,7 +50,7 @@ def build_context(view, *, title: str) -> dict:
             k["display_value"] = f"USD {number(k['value'], 2)}"
             k["exact_money"] = True
     ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True,
-               pdf_pages=2 + max(1, math.ceil(len(response["alerts"]) / 24)), approved_risk_template=True, selected_codes=list(view.provinces),
+               pdf_pages=2 + len(alert_chunks(response["alerts"])), approved_risk_template=True, selected_codes=list(view.provinces),
                map_values=view.map_values("alertas")[0], kits_map_values=view.map_values("kits")[0],
                suspended_map_values=view.map_values("suspendidas")[0],
                scope=view.scope_items(), selection=view.programs_label, geoportal=ui.GEOPORTAL_URL,

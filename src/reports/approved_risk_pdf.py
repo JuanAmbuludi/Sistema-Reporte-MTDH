@@ -53,21 +53,27 @@ def render(c,ctx,pages):
     cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago')
     cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}")
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
+    # One frame holds the closed units and the two charts that break them down, so the charts read as parts of that figure.
+    frame_top=top;top-=9
     caption=' · '.join(f"{number(a['value'])} {CAPTION.get(a['name'],'de '+a['name'])}" for a in r['continuity']['by_service'])
     from .risks import _paragraph_height
     band=max(34,22+_paragraph_height(caption,full-82,7.2))
-    c.setFillColor(C(theme.LILA_50));c.roundRect(M,top-band,full,band,6,fill=1,stroke=0)
-    c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',23);c.drawString(M+12,top-band/2-8,number(r['continuity']['closed']))
-    c.setFont('Text-Bold',9);c.drawString(M+70,top-13,'Unidades de atención cerradas / suspendidas')
-    _paragraph(c,caption,M+70,top-17,full-82,size=7.2,color=C(theme.MORADO))
+    c.setFillColor(C(theme.LILA_50));c.roundRect(M+9,top-band,full-18,band,6,fill=1,stroke=0)
+    c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',23);c.drawString(M+21,top-band/2-8,number(r['continuity']['closed']))
+    c.setFont('Text-Bold',9);c.drawString(M+79,top-13,'Unidades de atención cerradas / suspendidas')
+    _paragraph(c,caption,M+79,top-17,full-100,size=7.2,color=C(theme.MORADO))
     top-=band+21
     lines=max(len(r['continuity']['by_province']),len(r['continuity']['by_service']))
     step=21  # a name over its bar, as in the approved bulletin
+    inner=(full-18-22)/2
     for i,(key,title) in enumerate([('by_province','Unidades de atención suspendidas por provincia'),('by_service','Unidades de atención suspendidas por servicio')]):
-        x=M+i*(half+22);heading(c,title,x,top,half)
+        x=M+9+i*(inner+22);heading(c,title,x,top,inner)
         rows=[{**a,'name':SERVICES.get(a['name'],a['name'])} for a in r['continuity'][key]]
-        _risk_bars(c,rows,x,top-23,half,step)
-    top-=23+lines*step+10
+        _risk_bars(c,rows,x,top-23,inner,step)
+    frame_bottom=top-23-(lines-1)*step-22
+    c.setStrokeColor(C(theme.LILA_200));c.setLineWidth(1.1)
+    c.roundRect(M,frame_bottom,full,frame_top-frame_bottom,8,stroke=1,fill=0)
+    top=frame_bottom-20
     heading(c,'Detalle de las unidades de atención suspendidas',M,top,full)
     rows=[]
     for g in r['continuity']['groups']:
@@ -89,35 +95,30 @@ def render(c,ctx,pages):
     assert top>=62,top
     _next_page(c,ctx,1,pages)
 
-    chunks=[r['alerts'][i:i+24] for i in range(0,len(r['alerts']),24)] or [[]]
+    chunks=alert_chunks(r['alerts'])
     for index,part in enumerate(chunks):
-        last=index==len(chunks)-1
-        top=header(c,ctx,'Detalle de las unidades de atención con alerta')-16
-        c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-30,full,30,4,fill=1,stroke=0)
-        c.setFillColor(C(theme.ORO));c.rect(M,top-30,3,30,fill=1,stroke=0)
-        _paragraph(c,r['count_note'],M+12,top-10,full-24,size=8.5);top-=40
+        top=header(c,ctx,'Unidades de atención con alerta')-16
+        lines=max(len(r['by_province']),len(r['by_service']))
+        step=21  # a name over its bar, as in the approved bulletin
+        if index==0:
+            c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-30,full,30,4,fill=1,stroke=0)
+            c.setFillColor(C(theme.ORO));c.rect(M,top-30,3,30,fill=1,stroke=0)
+            _paragraph(c,f"{number(r['alert_count'])} alertas reportadas.",M+12,top-10,full-24,size=8.5);top-=46
+            for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
+                x=M+i*(half+22);heading(c,title,x,top,half)
+                _risk_bars(c,[{**a,'name':a['name'].replace('AHC','Atención en el Hogar y Comunidad')} for a in r[key]],x,top-22,half,step)
+            top-=24+lines*step+10
+            heading(c,'Detalle de las unidades de atención con alertas',M,top,full);top-=18
         # Every alert, with or without a UA code; the alerts by province and service and their evolution follow on the same
         # page, as in the approved bulletin: the table takes the largest type that leaves them room.
         from .risk_response import _alert_cells
         # Labels in full: «Unidad de Atención» for UA and «Atención en el Hogar y Comunidad» for AHC.
         rows=[{k:(Markup(v.replace('UA ','Unidad de Atención ').replace('AHC','Atención en el Hogar y Comunidad')) if isinstance(v,Markup) else v)
                for k,v in a.items()} for a in _alert_cells(part)]
-        lines=max(len(r['by_province']),len(r['by_service']))
-        step=21  # a name over its bar, as in the approved bulletin
-        unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
-        below=20+24+lines*step+4+80+(14 if unknown else 0)
         headers=['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado']
         cells=[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows]
         widths=[80,160,70,full-392,82]
-        top=_fitted_table(c,top,headers,cells,widths,room=top-62-(below if last else 0))-20
-        if last:
-            for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
-                x=M+i*(half+22);heading(c,title,x,top,half)
-                _risk_bars(c,[{**a,'name':a['name'].replace('AHC','Atención en el Hogar y Comunidad')} for a in r[key]],x,top-22,half,step)
-            top-=24+lines*step+4
-            top=evolution(c,r['daily'],top,full)
-            if unknown:
-                top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los {r['alert_count']} registros constan en la tabla de alertas.",M,top-8,full,size=6.8)
+        top=_fitted_table(c,top,headers,cells,widths,room=top-62)-12
         assert top>=62,top
         _next_page(c,ctx,2+index,pages)
 
@@ -128,6 +129,17 @@ def render(c,ctx,pages):
     top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
     assert top>=62,top
     assert pages==2+len(chunks)
+
+
+FIRST_ROWS,NEXT_ROWS=16,24  # alerts on the page that opens with the charts, and on each following page
+
+
+def alert_chunks(alerts):
+    """The alerts of each page of the detail: fewer on the first (it opens with the charts by province and service)."""
+    alerts=list(alerts)
+    if not alerts:
+        return [[]]
+    return [alerts[:FIRST_ROWS]]+[alerts[i:i+NEXT_ROWS] for i in range(FIRST_ROWS,len(alerts),NEXT_ROWS)]
 
 
 def _fitted_table(c,top,headers,rows,widths,room):

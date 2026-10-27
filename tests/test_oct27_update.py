@@ -43,9 +43,13 @@ def test_approved_template_preserves_all_chart_types_and_updated_totals():
     v=RiskView();v.select(v.catalog()[-1]);assert v.prepare();ctx=v.report_context('Riesgos')
     pdf=fitz.open(stream=generate_pdf(ctx),filetype='pdf');assert len(pdf)==4
     text=' '.join(p.get_text() for p in pdf)
-    for label in ['Plan ENOS - Ministerio de Trabajo','Detalle de las unidades de atención con alerta','Acciones del Ministerio','Alertas por provincia','Alertas por servicio','Evolución de las alertas','13.981','99','354.987,39']:
+    for label in ['Plan ENOS - Ministerio de Trabajo','Unidades de atención con alerta','Detalle de las unidades de atención con alertas','Acciones del Ministerio','Alertas por provincia','Alertas por servicio','13.981','99','354.987,39']:
         assert label in text
-    assert 'Evolución de las alertas' in text
+    # Vice's review (27/10): the alerts page opens with the charts, without the history or the breakdown by code.
+    page=pdf[1].get_text()
+    assert page.index('Alertas por provincia')<page.index('Detalle de las unidades de atención con alertas')
+    assert 'Evolución de las alertas' not in text and 'con código UA' not in page and 'reportes sectoriales' not in page
+    assert '39 alertas reportadas.' in page
     for a in ctx['response']['alerts']:assert a['code'] in (pdf[1].get_text()+pdf[2].get_text())
     assert 'Reportes sectoriales incorporados' not in text
     for a in ctx['response']['alerts']:assert a['code'] in text
