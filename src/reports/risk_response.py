@@ -49,7 +49,7 @@ def build_context(view, *, title: str) -> dict:
             k["display_value"] = f"USD {number(k['value'], 2)}"
             k["exact_money"] = True
     ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True,
-               pdf_pages=3, approved_risk_template=True, selected_codes=list(view.provinces),
+               pdf_pages=2 + max(1, math.ceil(len(response["alerts"]) / 24)), approved_risk_template=True, selected_codes=list(view.provinces),
                map_values=view.map_values("alertas")[0], kits_map_values=view.map_values("kits")[0],
                suspended_map_values=view.map_values("suspendidas")[0],
                scope=view.scope_items(), selection=view.programs_label, geoportal=ui.GEOPORTAL_URL,
@@ -410,7 +410,7 @@ def _register_page(c, ctx, pages, empty, check):
                          [[a["identity"], a["unit_full"], a["place_full"], a["impact"], a["state"]] for a in rows],
                          [84, 142, 62, full - 360, 72], size=7.4, padding=3) - 22
     if not continuity["groups"]:
-        _heading(c, "Unidades suspendidas", M, top, full, "Cortes: El Oro 27/10; Guayas y Santa Elena 26/10")
+        _heading(c, "Unidades suspendidas", M, top, full, "Corte territorial: 26/10/2026, 16:00")
         top = empty("El reporte territorial no registra unidades suspendidas en la selección.", M, top - 16, full) - 10
     else:
         _heading(c, "Unidades suspendidas", M, top, full, "Suspensión total o presencial · de la provincia con más unidades")
@@ -799,7 +799,7 @@ def render_workbook(book):
     cards = [(k["label"], k["value"], book.kpi_format(k), k.get("note", ""), accents.get(k.get("tone"), theme.MORADO)) for k in ctx["kpis"]]
     row = book.kpi_row(summary, row + 1, cards, first=1, last=15) + 1
     row = book.heading(summary, row, "Continuidad de los servicios",
-                       f"{number(closed)} UA suspendidas · cortes: El Oro 27/10; Guayas y Santa Elena 26/10" if closed else "Cortes: El Oro 27/10; Guayas y Santa Elena 26/10",
+                       f"{number(closed)} UA suspendidas · corte territorial: 26/10/2026, 16:00" if closed else "Corte territorial: 26/10/2026, 16:00",
                        last=15)
     if closed:
         top = row + 1
@@ -949,7 +949,7 @@ def render_workbook(book):
     ws.fit_to_pages(1, 1)
     bonus = r["bonus"]
     if bonus:
-        first, end, row = _block(book, ws, row + 1, "Por provincia (inundaciones)", [("Provincia", "name", "text"),
+        first, end, row = _block(book, ws, row + 1, "Por provincia", [("Provincia", "name", "text"),
                                  ("Pago gestionado (núcleos familiares)", "managed", "int_dash"), ("En articulación (personas)", "articulation", "int_dash"),
                                  ("Monto gestionado (USD)", "managed_amount", "usd_dash"), ("Monto en articulación (USD)", "articulation_amount", "usd_dash")],
                                  bonus, last=5, note=f"Pagos gestionados desde el {r['bonus_since']} · articulación al {r['bonus_cut']}",

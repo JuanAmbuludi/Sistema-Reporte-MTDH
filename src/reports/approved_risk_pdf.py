@@ -82,33 +82,37 @@ def render(c,ctx,pages):
     top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','UA','Unidades identificadas'],rows,[100,104,28,full-232],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
     top=_paragraph(c,r['continuity']['note']+' Listado nominal completo en el dashboard y en Excel.',M,top,full,size=7)-6
     assert top>=62,top
-    _next_page(c,ctx,1,3)
+    _next_page(c,ctx,1,pages)
 
-    top=header(c,ctx,'Detalle de las unidades de atención con alerta')-16
-    c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-30,full,30,4,fill=1,stroke=0)
-    c.setFillColor(C(theme.ORO));c.rect(M,top-30,3,30,fill=1,stroke=0)
-    _paragraph(c,r['count_note'],M+12,top-10,full-24,size=8.5);top-=40
-    # Every alert, with or without a UA code; the alerts by province and service and their evolution follow on the same
-    # page, as in the approved bulletin: the table takes the largest type that leaves them room.
-    from .risk_response import _alert_cells
-    rows=_alert_cells(r['alerts'])
-    lines=max(len(r['by_province']),len(r['by_service']))
-    step=21  # a name over its bar, as in the approved bulletin
-    unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
-    below=20+24+lines*step+4+80+(14 if unknown else 0)
-    headers=['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado']
-    cells=[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows]
-    widths=[80,160,70,full-392,82]
-    top=_fitted_table(c,top,headers,cells,widths,room=top-62-below)-20
-    for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
-        x=M+i*(half+22);heading(c,title,x,top,half)
-        _risk_bars(c,r[key],x,top-22,half,step)
-    top-=24+lines*step+4
-    top=evolution(c,r['daily'],top,full)
-    if unknown:
-        top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los {r['alert_count']} registros constan en la tabla de alertas.",M,top-8,full,size=6.8)
-    assert top>=62,top
-    _next_page(c,ctx,2,3)
+    chunks=[r['alerts'][i:i+24] for i in range(0,len(r['alerts']),24)] or [[]]
+    for index,part in enumerate(chunks):
+        last=index==len(chunks)-1
+        top=header(c,ctx,'Detalle de las unidades de atención con alerta')-16
+        c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-30,full,30,4,fill=1,stroke=0)
+        c.setFillColor(C(theme.ORO));c.rect(M,top-30,3,30,fill=1,stroke=0)
+        _paragraph(c,r['count_note'],M+12,top-10,full-24,size=8.5);top-=40
+        # Every alert, with or without a UA code; the alerts by province and service and their evolution follow on the same
+        # page, as in the approved bulletin: the table takes the largest type that leaves them room.
+        from .risk_response import _alert_cells
+        rows=_alert_cells(part)
+        lines=max(len(r['by_province']),len(r['by_service']))
+        step=21  # a name over its bar, as in the approved bulletin
+        unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
+        below=20+24+lines*step+4+80+(14 if unknown else 0)
+        headers=['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado']
+        cells=[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows]
+        widths=[80,160,70,full-392,82]
+        top=_fitted_table(c,top,headers,cells,widths,room=top-62-(below if last else 0))-20
+        if last:
+            for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
+                x=M+i*(half+22);heading(c,title,x,top,half)
+                _risk_bars(c,r[key],x,top-22,half,step)
+            top-=24+lines*step+4
+            top=evolution(c,r['daily'],top,full)
+            if unknown:
+                top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los {r['alert_count']} registros constan en la tabla de alertas.",M,top-8,full,size=6.8)
+        assert top>=62,top
+        _next_page(c,ctx,2+index,pages)
 
     top=header(c,ctx,'Acciones del Ministerio')-24
     heading(c,'Respuesta por provincia',M,top,full);top-=28
@@ -117,7 +121,7 @@ def render(c,ctx,pages):
     top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
     top=_paragraph(c,f"Kits: corte {r['kits_cut_full']}. Bono de contingencia: en articulación para el pago, corte {r['bonus_cut']}.",M,top,full,size=7)
     assert top>=62,top
-    assert pages==3
+    assert pages==2+len(chunks)
 
 
 def _fitted_table(c,top,headers,rows,widths,room):

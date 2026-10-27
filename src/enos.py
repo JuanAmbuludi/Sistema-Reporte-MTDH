@@ -4,13 +4,12 @@ import json
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-ALERT_NOTE = ("Seguimiento desde el 14/09/2026, complementado con reportes sectoriales de octubre: 10 alertas con código UA y 11 reportes sectoriales. "
-              "Los 6 reportes gerontológicos se incorporan con fecha de reporte 26/10/2026. "
-              "Los identificadores DIS/GER permiten localizar las filas incorporadas, no son códigos oficiales ni códigos UA. "
-              "Las fuentes sectoriales indican que la prestación del servicio se mantiene. Alertas, unidades y personas son medidas distintas.")
-BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
-             "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
-             "Articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
+ALERT_NOTE = ("Seguimiento desde el 14/09/2026, complementado con reportes sectoriales de octubre. "
+              "Los reportes gerontológicos utilizan su fecha de reporte. Los identificadores DIS/GER/DII permiten localizar las filas incorporadas; no son códigos oficiales ni códigos UA. "
+              "Los registros repetidos de la base consolidada se cuentan una sola vez. Alertas, unidades y personas son medidas distintas.")
+BONO_NOTE = ("Bono en articulación actualizado con la tabla provincial remitida el 27/10/2026: inundación, colapso estructural y vendaval. "
+             "Pagos gestionados: ayuda memoria del 23/10, desde el 29/08. Articulación no equivale a pago. "
+             "Las proyecciones corresponden a planificación nacional 2026–2027.")
 KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 27/10/2026, 13:35:45. Entregas del 31/08 al 27/10; reemplaza el corte anterior. "
             "13.981 kits reportados en 111 registros. Núcleos familiares: suma por entrega, no núcleos únicos. "
             "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.")
@@ -65,7 +64,7 @@ def summary(frame, group, value=None):
 
 
 CONTINUITY_PATH = ROOT / "data/processed/continuidad_servicios_2026-10-26.json"
-CONTINUITY_NOTE = "Fuente: unidades no operativas de El Oro al 27/10/2026; último reporte disponible de Guayas y Santa Elena al 26/10/2026."
+CONTINUITY_NOTE = "Unidades con suspensión reportada al 26/10/2026, 16:00. Este indicador corresponde a ese corte territorial."
 
 def continuity():
     return json.loads(CONTINUITY_PATH.read_text(encoding="utf-8"))

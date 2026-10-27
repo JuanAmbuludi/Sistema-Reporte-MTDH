@@ -478,7 +478,7 @@ class RiskView:
             {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()), "prefix": "USD", "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
             {"label": "Unidades cerradas / suspendidas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
-             "note": r.suspension_short() + " · corte El Oro 27/10; otros 26/10"},
+             "note": r.suspension_short() + " · corte 26/10/2026"},
         ]
 
     def kpi_cards(self) -> list[dict]:
@@ -559,7 +559,7 @@ class RiskView:
                 show_chart(respuesta.kits_overview(r, compact()), "response_kits")
                 respuesta.kits_detail(r)
         # 4. Contingency bonus.
-        ui.section_heading("Bono de contingencia", f"Inundaciones · pagos gestionados desde el {pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y} "
+        ui.section_heading("Bono de contingencia", f"Pagos gestionados desde el {pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y} "
                                                    f"y casos en articulación al {pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}", "hand-coins")
         left, right = self._pair((1.6, 1))
         with left, st.container(border=True, key="card_response_bonus"):
@@ -570,7 +570,7 @@ class RiskView:
             respuesta.plan_panel(r)
         # 5. Summary by province.
         if not acting.empty:
-            ui.section_heading("Resumen por provincia", f"{respuesta._n(len(acting), 'provincia')} con acciones · kits, bono gestionado y "
+            ui.section_heading("Respuesta por provincia", f"{respuesta._n(len(acting), 'provincia')} con acciones · kits y "
                                                         "casos en articulación", "table")
             with st.container(border=True, key="card_response_provinces"):
                 ui.chart_title("Acciones del Ministerio en cada provincia", "Cantones con acciones, entregas e importes del bono")
@@ -596,13 +596,11 @@ class RiskView:
         else:
             columns = [{"key": "nombre", "label": "Provincia", "kind": "strong", "sub": "provincia_sub"},
                        {"key": "kits", "label": "Kits", "kind": "num", "zero": "dash", "sub": "kits_sub"},
-                       {"key": "gestionados", "label": "Bono gestionado (núcleos familiares)", "kind": "num", "zero": "dash", "sub": "gestionados_sub"},
-                       {"key": "articulacion", "label": "En articulación (personas)", "kind": "num", "zero": "dash", "sub": "articulacion_sub"}]
+                       {"key": "articulacion", "label": "Personas · Bono de Contingencia", "kind": "num", "zero": "dash"},
+                       {"key": "monto_articulacion", "label": "Monto (USD) · Bono de Contingencia", "kind": "money", "zero": "dash"}]
             total = {"nombre": f"Total de {respuesta._n(len(rows), 'provincia')}", **{c["key"]: rows[c["key"]].sum() for c in columns[1:]}}
             ui.rich_table(columns, rows.to_dict("records"), total=total)
-            st.caption("Bono gestionado: núcleos familiares; en articulación: personas por inundaciones (gestiones desde el "
-                       f"{pd.Timestamp(self.response.cuts['bonos_desde']):%d/%m/%Y} y casos en articulación al "
-                       f"{pd.Timestamp(self.response.cuts['bonos']):%d/%m/%Y}). Las acciones no se suman entre sí.")
+            st.caption(f"Bono de Contingencia en articulación para el pago: actualización {self.response.cut_text('bonos')}.")
         rows = self.action_rows()
         layout = [("Provincia", "nombre", "text", 26.0), ("Kits", "kits", "int", 12.0),
                   ("Bono gestionado (núcleos familiares)", "gestionados", "int", 22.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 22.0),
@@ -769,7 +767,7 @@ class RiskView:
                 ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
 
     def products_notes(self) -> dict[str, str]:
-        return {"resumen": "Boletín PDF de tres páginas: cifras clave, continuidad de los servicios y evolución de las alertas; registro de "
+        return {"resumen": "Boletín PDF con paginación automática: cifras clave, continuidad de los servicios y evolución de las alertas; registro de "
                            "alertas y unidades suspendidas; kits, bono y alcances.",
                 "presentacion": "Hasta diez diapositivas, solo con las secciones que tienen registros, y gráficos nativos editables.",
                 "datos": "Excel de nueve hojas con fechas reales y un tipo de gráfico nativo por pregunta: resumen, unidades suspendidas, "
@@ -793,7 +791,7 @@ class RiskView:
 
     def digest(self) -> str:
         response = self.response.data.get("generado_utc") if self.response else ""
-        return fingerprint("response-continuity-v4-alerts-kpi", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        return fingerprint("response-continuity-v5-39-alerts-99-units", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, enos.CONTINUITY_PATH.read_text(), self.update_stamp(), str(self.response_path), response)
 
     def report_context(self, title: str) -> dict:

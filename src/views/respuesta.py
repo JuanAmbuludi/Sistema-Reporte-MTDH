@@ -133,7 +133,7 @@ class Response:
         return {"closed": self.closed_units, "by_province": enos.summary(closed, "provincia", "unidades"),
                 "by_service": enos.summary(closed, "servicio", "unidades"),
                 "by_status": enos.summary(statuses, "lectura", "unidades"),
-                "note": enos.CONTINUITY_NOTE, "cut": "El Oro: 27/10/2026 · Guayas y Santa Elena: 26/10/2026"}
+                "note": enos.CONTINUITY_NOTE, "cut": "26/10/2026 · 16:00"}
 
     def suspended_groups(self) -> list[dict]:
         """Suspended units by province, canton and service, with the names the source gives; provinces and groups from the
