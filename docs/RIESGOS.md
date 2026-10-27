@@ -10,7 +10,7 @@ Cada pregunta tiene el gráfico que pide su dato, y ningún tipo de gráfico se 
 - **Alertas en servicios MTDH:** evolución diaria sobre el acumulado desde el 14/09, una marca por alerta en la fila de su provincia y el registro completo, de la más reciente a la más antigua.
 - **Kits entregados:** total y participación de cada provincia junto a cada entrega en el tiempo (el área de cada círculo sigue sus kits) y el detalle de las entregas Kobo.
 - **Bono de contingencia:** una barra al 100 % por etapa (pago gestionado en núcleos familiares; articulación en personas), que nunca se suman, y la planificación El Niño 2026–2027.
-- **Resumen por provincia** con cantones, kits e importes del bono, y la nota metodológica con los alcances de cada fuente.
+- **Resumen por provincia** con cantones, kits e importes del bono, y la nota metodológica: los alcances de cada fuente en párrafos, sin subtítulos, y un enlace al geoportal para más información (el mismo cierre de «Alcances y fuentes» en el PDF y de la nota en la presentación; en el libro, la fila Geoportal de la ficha técnica).
 
 Los cantones que Kobo escribe en mayúsculas sin tildes (ESPINDOLA) y los nombres de UA de las alertas se leen como los escribe el nomenclátor («Espíndola», «CDI Los Niños del Cisne»).
 

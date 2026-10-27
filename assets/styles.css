@@ -587,6 +587,11 @@ html{scroll-behavior:smooth}
 .method-defs dt{font-family:var(--font-display);font-weight:700;font-size:13.5px;color:var(--morado-800);margin:0 0 3px}
 .method-defs dd{margin:0;font-size:13.5px;line-height:1.5;color:#4C3A6A}
 .stApp .method-card p.method-source{font-size:12.5px;color:#6E6880;margin:0}
+.method-notes{columns:2;column-gap:30px;margin:0 0 12px;padding:14px 0 0;border-top:1px solid var(--lila-100)}
+.stApp .method-card .method-notes p{break-inside:avoid;font-size:13.5px;line-height:1.55;color:#4C3A6A;margin:0 0 11px}
+.stApp .method-card p.method-more{font-size:13px;color:var(--pizarra);margin:8px 0 0}
+.method-more a{color:var(--morado)!important;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.method-more a:hover{color:var(--morado-900)!important}
 .st-key-risk_downloads{margin-top:4px}
 .st-key-risk_reset_filters button{margin-top:-4px}
 
@@ -660,6 +665,7 @@ html{scroll-behavior:smooth}
   .modebar-container{display:none!important}
   .reach-strip,.reach-strip.n2{grid-template-columns:1fr;gap:10px}
   .method-defs{grid-template-columns:1fr}
+  .method-notes{columns:1}
   .action-grid{grid-template-columns:1fr}
   .kpi-duo .kpi-grid.n3{grid-template-columns:repeat(2,minmax(0,1fr))}
   .kpi-duo .kpi-grid.n3 .kpi:last-child{grid-column:1/-1}

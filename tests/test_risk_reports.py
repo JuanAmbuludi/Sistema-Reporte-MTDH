@@ -173,3 +173,23 @@ def test_documents_follow_the_content_of_the_selection():
     assert len(slides) == 6
     wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
     assert wb.sheetnames == view(("17",)).sheets()
+
+
+def test_scopes_read_without_subtitles_and_anchor_the_geoportal():
+    ctx = view().report_context("Riesgos")
+    url = ctx["geoportal"]
+    pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
+    last = pdf[-1]
+    text = " ".join(last.get_text().split())
+    scopes = text[text.index("Alcances y fuentes"):]
+    for subtitle in ["Alertas Se muestran", "Kits Kits en", "Bono de contingencia La ayuda", "Filtros El territorio", "Fuentes y geoportal"]:
+        assert subtitle not in scopes, subtitle
+    assert "Más información en el geoportal de unidades de atención y amenazas." in scopes and url not in text
+    assert [link["uri"] for link in last.get_links()] == [url]
+    slides = Presentation(BytesIO(generate_pptx(ctx))).slides
+    runs = [run for shape in slides[-1].shapes if shape.has_text_frame for p in shape.text_frame.paragraphs for run in p.runs]
+    assert [run.hyperlink.address for run in runs if run.hyperlink.address] == [url]
+    assert not any(run.text in ("Alertas", "Kits", "Bono de contingencia", "Filtros", "Continuidad") for run in runs)
+    wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)))
+    links = [c.hyperlink.target for row in wb["Ficha técnica"].iter_rows() for c in row if c.hyperlink]
+    assert links == [url]

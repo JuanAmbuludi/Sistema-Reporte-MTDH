@@ -269,7 +269,7 @@ def _strips_pdf(c, bonus: list[dict], x: float, top: float, width: float) -> flo
 
 
 def _kits_pdf(c, provinces: list[dict], deliveries: list[dict], since: str | None, x: float, top: float, width: float,
-              row: float = 12.2) -> float:
+              row: float = 13.2) -> float:
     """Kits of each province (a lollipop with its total and share) beside every delivery in time (a circle whose area
     follows its kits), drawn as vectors so the names of the provinces stay text in the bulletin."""
     from datetime import datetime, timedelta
@@ -368,11 +368,6 @@ def render_pdf(c, ctx, pages):
     r = ctx["response"]
     selected = set(ctx["selected_codes"])
 
-    def note(title, text, x, top, width, size=7.6):
-        c.setFillColor(C(theme.MORADO)); c.setFont("Text-Bold", 8.4)
-        c.drawString(x, top, title)
-        return _paragraph(c, text, x, top - 11, width, size=size) - 11
-
     def check(top):
         if top < BOTTOM:
             raise ValueError("El contenido del resumen excede las tres páginas; revisar la composición del nuevo corte.")
@@ -428,7 +423,7 @@ def render_pdf(c, ctx, pages):
         _register_page(c, ctx, pages, empty, check)
 
     # Last page: kits (each province and every delivery in time) and the contingency bonus (stages and plan), with the scopes.
-    _actions_page(c, ctx, pages, empty, check, note)
+    _actions_page(c, ctx, pages, empty, check)
 
 
 def _register_page(c, ctx, pages, empty, check):
@@ -463,7 +458,7 @@ def _register_page(c, ctx, pages, empty, check):
     _next_page(c, ctx, 2, pages)
 
 
-def _actions_page(c, ctx, pages, empty, check, note):
+def _actions_page(c, ctx, pages, empty, check):
     """Kits (each province and every delivery in time) and the contingency bonus (stages and plan), with the scopes."""
     from .pdf import M, W, _heading, _slim_band
     from .risks import _paragraph
@@ -489,14 +484,26 @@ def _actions_page(c, ctx, pages, empty, check, note):
     _plan_pdf(c, r["plan"], plan_x, top - 18, plan_w, 112)
     top = min(bottom, top - 18 - 112) - 18
     _heading(c, "Alcances y fuentes", M, top, full)
-    top -= 20
-    left = note("Alertas", r["notes"]["alerts"], M, top, half, size=7.2)
-    left = note("Kits", r["notes"]["kits"], M, left, half, size=7.2)
-    right = note("Bono de contingencia", r["notes"]["bonus"], M + half + 22, top, half, size=7.2)
-    right = note("Filtros", r["notes"]["filters"], M + half + 22, right, half, size=7.2)
-    right = note("Fuentes y geoportal", ctx["sources"] + " " + ctx["geoportal"], M + half + 22, right, half, size=7)
-    c.linkURL(ctx["geoportal"], (M + half + 22, right, M + full, right + 20), relative=0)
-    check(min(left, right))
+    # Each scope reads on its own, without subtitles; the geoportal closes the section as an anchored link.
+    left = right = top - 18
+    for text in (r["notes"]["alerts"], r["notes"]["kits"]):
+        left = _paragraph(c, text, M, left, half, size=7.6) - 7
+    for text in (r["notes"]["bonus"], r["notes"]["filters"], "Fuentes: " + ctx["sources"]):
+        right = _paragraph(c, text, M + half + 22, right, half, size=7.6) - 7
+    check(_geoportal_link(c, ctx["geoportal"], M, min(left, right) - 3, full))
+
+
+def _geoportal_link(c, url: str, x: float, top: float, width: float) -> float:
+    """«Más información en el geoportal…», with the name of the geoportal as a link (the address is not printed)."""
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph
+    from .pdf import INK
+    text = (f'Más información en el <link href="{escape(url)}"><font color="{theme.MORADO}"><u><b>geoportal de unidades de atención '
+            'y amenazas</b></u></font></link>.')
+    para = Paragraph(text, ParagraphStyle("geo", fontName="Text", fontSize=7.8, leading=10.6, textColor=INK))
+    _w, height = para.wrap(width, 100)
+    para.drawOn(c, x, top - height)
+    return top - height
 
 
 def render_pptx(prs, ctx):
@@ -712,15 +719,36 @@ def render_pptx(prs, ctx):
                       width=4.0, height=4.6, dpi=180)
         _picture(s, pic, x, 1.95, w=4.0)
 
-    # 10. Scopes and sources.
+    # 10. Scopes and sources: each scope reads on its own, without subtitles, in two columns that flow by themselves; the
+    # geoportal closes the left column as a link.
     s = slide("Nota metodológica y fuentes")
-    y = 1.45
-    for title, text in _notes(ctx) + [("Continuidad", continuity["note"])]:
-        height = 0.36 + len(text) / 160 * 0.2
-        _text(s, 0.55, y, 2.1, height, title, size=12, bold=True, color=theme.MORADO)
-        _text(s, 2.75, y, 10.0, height, text, size=11)
-        y += height + 0.1
-    _text(s, 0.55, min(y, 6.25), 12.2, 0.6, "Fuentes: " + ctx["sources"] + "\nGeoportal: " + ctx["geoportal"], size=10, color=theme.PIZARRA)
+    columns = [([r["notes"]["alerts"], r["notes"]["kits"]] + ([continuity["note"]] if continuity["closed"] else []), ctx["geoportal"]),
+               ([r["notes"]["bonus"], r["notes"]["filters"], "Fuentes: " + ctx["sources"]], None)]
+    for index, (texts, link) in enumerate(columns):
+        frame = s.shapes.add_textbox(Inches(0.55 + index * 6.25), Inches(1.45), Inches(5.95), Inches(5.0)).text_frame
+        frame.word_wrap = True
+        frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
+        for number_, text in enumerate(texts):
+            paragraph = frame.paragraphs[0] if number_ == 0 else frame.add_paragraph()
+            paragraph.space_after = Pt(10)
+            run = paragraph.add_run()
+            run.text = text
+            run.font.size = Pt(12.5)
+            run.font.name = TEXT
+            run.font.color.rgb = _rgb(theme.TINTA)
+        if link:
+            paragraph = frame.add_paragraph()
+            paragraph.space_before = Pt(6)
+            for text, url in [("Más información en el ", None), ("geoportal de unidades de atención y amenazas", link), (".", None)]:
+                run = paragraph.add_run()
+                run.text = text
+                run.font.size = Pt(13.5)
+                run.font.name = TEXT
+                run.font.color.rgb = _rgb(theme.MORADO if url else theme.PIZARRA)
+                if url:
+                    run.font.bold = True
+                    run.font.underline = True
+                    run.hyperlink.address = url
     assert len(prs.slides) == total
 
 
@@ -1011,6 +1039,11 @@ def render_workbook(book):
                                             ("Continuidad de atención", continuity["note"])] + _notes(ctx):
         ws.set_row(row, max(32, math.ceil(len(text) / 95) * 15 + 12))
         ws.write(row, 1, label_text, book.f(bold=True, font_color=theme.MORADO, text_wrap=True, valign="top", bg_color=theme.LILA_50))
-        ws.write(row, 2, text, book.f(text_wrap=True, valign="top", font_size=10))
+        if label_text == "Geoportal":
+            # The name of the geoportal is the link; the address travels in the tip of the cell.
+            ws.write_url(row, 2, text, book.f(valign="top", font_size=10, bold=True, underline=1, font_color=theme.MORADO),
+                         string="Más información en el geoportal de unidades de atención y amenazas", tip=text)
+        else:
+            ws.write(row, 2, text, book.f(text_wrap=True, valign="top", font_size=10))
         row += 1
     ws.print_area(0, 0, row, 3)

@@ -747,12 +747,15 @@ class RiskView:
                                key="risk_xlsx", share_fields=())
 
     def methodology(self) -> None:
+        # Each scope reads on its own, without subtitles; the geoportal closes the note as a link.
         scopes = RESPONSE_SCOPES + [("Revisión de alertas", enos.QUALITY_NOTE), ("Continuidad de atención", enos.CONTINUITY_NOTE)]
-        items = "".join(f'<div><dt>{ui._esc(term)}</dt><dd>{ui._esc(text)}</dd></div>' for term, text in scopes if text)
+        items = "".join(f"<p>{ui._esc(text)}</p>" for _term, text in scopes if text)
         st.markdown(f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span>'
-                    f'<h3>Nota metodológica</h3></header><dl class="method-defs">{items}</dl>'
+                    f'<h3>Nota metodológica</h3></header><div class="method-notes">{items}</div>'
                     '<p class="method-source">Fuentes: Subsecretaría Territorial (análisis de alertas), corte Kobo de kits '
-                    'y ayuda memoria del bono de contingencia.</p></section>', unsafe_allow_html=True)
+                    'y ayuda memoria del bono de contingencia.</p>'
+                    f'<p class="method-more">Más información en el <a href="{ui.GEOPORTAL_URL}" target="_blank" rel="noopener noreferrer">'
+                    'geoportal de unidades de atención y amenazas</a>.</p></section>', unsafe_allow_html=True)
 
     @staticmethod
     def geoportal() -> None:
