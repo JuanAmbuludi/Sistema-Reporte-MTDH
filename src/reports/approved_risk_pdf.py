@@ -27,7 +27,6 @@ def header(c,ctx,title=None):
         c.setFillColor(C('#FFE7A3'));c.setFont('Text-Semi',9);c.drawString(M,H-61,f"Resumen ejecutivo · Del 29/08/2026 al {ctx['response']['cut']}")
         c.setFillColor(C('#FFFFFF'));c.setFont('Text-Semi',19)
         c.drawString(M,H-88,'Plan ENOS - Ministerio de Trabajo');c.drawString(M,H-110,'y Desarrollo Humano')
-        c.setFont('Text',6.7);c.setFillColor(C('#E4DBF3'));c.drawString(M,H-125,f"Actualización: {ctx['update'].get('updated',ctx['generated_label'])}")
     else:
         c.setFillColor(C('#FFFFFF'));c.setFont('Text-Semi',_fit(title,'Text-Semi',20,W-2*M-130,16));c.drawString(M,H-48,title)
     return bottom-4
