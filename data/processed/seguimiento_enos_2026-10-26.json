@@ -2,8 +2,8 @@
   "schema": 4,
   "criterio_alertas": "codigo_ua_y_reportes_sectoriales",
   "corte": "2026-10-27",
-  "desde": "2026-09-14",
-  "generado_utc": "2026-10-27T15:12:19.898421+00:00",
+  "desde": "2026-09-28",
+  "generado_utc": "2026-10-27T16:37:51.930503+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -1845,7 +1845,9 @@
       23,
       24,
       25
-    ]
+    ],
+    "inicio_reporte": "2026-09-28",
+    "criterio_temporal": "Alertas: fecha de registro/reporte validada. Kits: fecha de entrega. Continuidad: fecha del corte territorial. Bonos acumulados sin fecha individual: no disponibles para el período."
   },
   "fuentes": [
     {
@@ -1907,5 +1909,7 @@
         "observacion": "Cañar: la columna de kits reporta 1; la observación menciona una solicitud aún no recibida. Se conserva el total reportado, pendiente de validación territorial."
       }
     ]
-  }
+  },
+  "filtro_temporal_estricto": true,
+  "bonos_con_fecha_individual": false
 }

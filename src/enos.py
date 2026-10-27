@@ -4,18 +4,15 @@ import json
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-ALERT_NOTE = ("Seguimiento desde el 14/09/2026, complementado con reportes sectoriales de octubre. "
+ALERT_NOTE = ("Seguimiento desde el 28/09/2026, complementado con reportes sectoriales de octubre. "
               "Los reportes gerontológicos utilizan su fecha de reporte. Los identificadores DIS/GER/DII permiten localizar las filas incorporadas; no son códigos oficiales ni códigos UA. "
               "Los registros repetidos de la base consolidada se cuentan una sola vez. Alertas, unidades y personas son medidas distintas.")
-BONO_NOTE = ("Bono en articulación actualizado con la tabla provincial remitida el 27/10/2026: inundación, colapso estructural y vendaval. "
-             "Pagos gestionados: ayuda memoria del 23/10, desde el 29/08. Articulación no equivale a pago. "
-             "Las proyecciones corresponden a planificación nacional 2026–2027.")
-KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 27/10/2026, 13:35:45. Entregas del 31/08 al 27/10; reemplaza el corte anterior. "
-            "13.981 kits reportados en 111 registros. Núcleos familiares: suma por entrega, no núcleos únicos. "
+BONO_NOTE = "Sin desglose temporal disponible para bonos desde el 28/09/2026. Los acumulados recibidos no permiten identificar la fecha de cada gestión. Las proyecciones son una referencia de planificación, no ejecución del período."
+KIT_NOTE = ("Kits en provincias priorizadas: entregas desde el 28/09/2026 hasta el corte Kobo del 27/10/2026, 13:35:45. "
             "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.")
 QUALITY_NOTE = ""
 
-START = "2026-09-14"   # start of the follow-up: alerts registered from this date
+START = "2026-09-28"   # start of the follow-up: alerts registered from this date
 REFERENCE = "Ámbito: alertas y reportes sectoriales y acciones institucionales de respuesta."
 
 ALERT_COLUMNS = ['codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad',
@@ -49,9 +46,12 @@ def frames(data, provinces=()):
             rows = [r for r in rows if included(r, data)]
         columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits','familias','id_kobo'] if name == 'kits' else ['provincia','evento','personas','monto']
         frame = pd.DataFrame(rows, columns=columns)
-        if name == 'alertas':
+        if name in ('alertas', 'kits'):
             dates = pd.to_datetime(frame.fecha, errors='coerce')
-            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte'])) | frame.origen.eq("reporte_sectorial")]
+            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
+        elif data.get('filtro_temporal_estricto'):
+            dates = pd.to_datetime(pd.Series([r.get('fecha') for r in rows], index=frame.index), errors='coerce')
+            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
         if provinces:
             frame = frame.loc[frame.provincia.isin(provinces)]
         result[name] = frame.copy()

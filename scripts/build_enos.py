@@ -1,6 +1,6 @@
 """Build a dated, minimal operational snapshot from the supplied territorial sources.
 
-python scripts/build_enos.py --alerts alertas.xlsx --bonos bono.docx --service-review revision.csv --start 2026-09-14 --cut 2026-10-26
+python scripts/build_enos.py --alerts alertas.xlsx --bonos bono.docx --service-review revision.csv --start 2026-09-28 --cut 2026-10-26
 Kit rows are transcribed from Reporte_ministerial_kits_provincias_priorizadas_rev.pdf,
 cut 25/10/2026 19:00. Source narratives, addresses and staff names are not published.
 """
@@ -113,7 +113,7 @@ def main():
     p.add_argument('--service-review', type=Path, required=True,
                    help='CSV de revisión documental: incluir=si y código UA; afectacion_confirmada=si/no distingue evidencia de impacto.')
     p.add_argument('--kits', type=Path, default=ROOT/'data/reference/enos_kits_2026-10-25.csv')
-    p.add_argument('--start', default='2026-09-14')
+    p.add_argument('--start', default='2026-09-28')
     p.add_argument('--cut', required=True)
     p.add_argument('--kits-cut', default='2026-10-25')
     p.add_argument('--bonos-cut', default='2026-10-23')
@@ -127,6 +127,7 @@ def main():
         raise ValueError('Las entregas de kits no corresponden a su corte.')
     result = {'schema': 3, 'criterio_alertas': 'codigo_ua', 'corte': a.cut, 'desde': a.start, 'generado_utc': datetime.now(timezone.utc).isoformat(),
               'alertas': alerts, 'kits': kits.to_dict('records'), 'bonos': bono_rows(a.bonos),
+              'filtro_temporal_estricto': True, 'bonos_con_fecha_individual': False,
               'cortes': {'alertas': a.cut, 'kits': a.kits_cut, 'bonos': a.bonos_cut, 'bonos_desde': a.bonos_start},
               'control': {**control,
                           'resumen_excel_no_utilizado': 'Las hojas resumen incluyen otras categorías y fechas.'},

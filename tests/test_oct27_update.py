@@ -10,9 +10,9 @@ from src.reports import generate_pdf,generate_xlsx
 
 def test_new_cumulative_kit_cut_is_reconciled_not_appended():
     d=enos.load(enos.snapshots()[-1]);r=Response(d)
-    assert len(r.kits)==r.kits.id_kobo.nunique()==111
-    assert r.kits_total==13981 and r.kits.familias.sum()==12987
-    assert r.kits.provincia.nunique()==22
+    assert len(r.kits)==r.kits.id_kobo.nunique()==80
+    assert r.kits_total==10607 and r.kits.familias.sum()==9761
+    assert r.kits.provincia.nunique()==21
     assert d['kits_metadatos']['variacion_kits']==591
     assert d['kits_metadatos']['registros_nuevos']==22
     assert d['cortes']['kits']=='2026-10-27T13:35:45'
@@ -42,8 +42,8 @@ def test_new_provincial_bono_table_reconciles():
 def test_approved_template_preserves_all_chart_types_and_updated_totals():
     v=RiskView();v.select(v.catalog()[-1]);assert v.prepare();ctx=v.report_context('Riesgos')
     pdf=fitz.open(stream=generate_pdf(ctx),filetype='pdf');assert len(pdf)==4
-    text=' '.join(p.get_text() for p in pdf)
-    for label in ['Plan ENOS - Ministerio de Trabajo','Unidades de atención con alerta','Detalle de las unidades de atención con alertas','Acciones del Ministerio','Alertas por provincia','Alertas por servicio','13.981','99','354.987,39']:
+    text=' '.join(' '.join(p.get_text() for p in pdf).split())
+    for label in ['Plan ENOS - Ministerio de Trabajo','Unidades de atención con alerta','Detalle de las unidades de atención con alertas','Acciones del Ministerio','Alertas por provincia','Alertas por servicio','10.607','99','Bono de contingencia: sin desglose temporal disponible']:
         assert label in text
     # Vice's review (27/10): the alerts page opens with the charts, without the history or the breakdown by code.
     page=pdf[1].get_text()
@@ -100,6 +100,25 @@ def test_consolidated_alerts_are_unique_and_preserve_prior_alerts():
     assert len(r.continuity_detail)==99
     assert sum(x['value'] for x in r.continuity_summary()['by_province'])==99
     assert sum(x['value'] for x in r.continuity_summary()['by_service'])==99
-    los_rios=r.articulation.loc[r.articulation.provincia.eq('Los Ríos')]
-    assert los_rios.personas.sum()==111
-    assert round(los_rios.monto.sum(),2)==33641.04
+    assert r.articulation.empty and not r.bonus_period_available
+
+
+def test_reporting_window_filters_all_dated_sources_and_unknown_bonus():
+    from copy import deepcopy
+    import pandas as pd
+    d=enos.load(enos.snapshots()[-1]);r=Response(d)
+    assert d['desde']=='2026-09-28'
+    assert len(d['kits'])==111 and sum(x['kits'] for x in d['kits'])==13981
+    assert len(r.kits)==80 and r.kits_total==10607
+    assert r.kits.fecha.min()>='2026-09-28'
+    assert r.alerts.fecha.min()>='2026-09-28'
+    assert r.managed.empty and r.articulation.empty
+    assert not r.bonus_period_available
+    assert r.closed_units==99
+    copy=deepcopy(d);old=deepcopy(copy['alertas'][-1]);old['fecha']='2026-09-27';old['codigo']='TEST-OUTSIDE';copy['alertas'].append(old)
+    assert len(Response(copy).alerts)==39
+    v=RiskView();v.select(v.catalog()[-1]);assert v.prepare();ctx=v.report_context('Riesgos')
+    assert ctx['kpis'][2]['value'] is None and ctx['kpis'][3]['value'] is None
+    assert ctx['response']['articulation_people'] is None
+    assert all(a['articulation'] is None for a in ctx['response']['actions'])
+    assert sum(a['kits'] for a in ctx['response']['actions'])==10607

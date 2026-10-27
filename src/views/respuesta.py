@@ -1,7 +1,7 @@
 """Respuesta del Ministerio ante El Niño, junto a la exposición de las unidades de atención en Riesgos.
 
 Three actions with their own sources and cuts (see :mod:`src.enos`): reviewed alerts linked to identified MTDH units
-since 14 September 2026, kits delivered (the supplied Kobo cut) and the contingency bonus (payments managed and
+since 28 September 2026, kits delivered (the supplied Kobo cut) and the contingency bonus (payments managed and
 cases in articulation for floods, and the national plan for El Niño 2026–2027).  Each keeps its unit: alerts are alerts,
 kits are kits and bonus figures are nuclei with a managed payment or people in articulation; they are never added together.
 """
@@ -75,6 +75,7 @@ class Response:
 
     def __init__(self, data: dict, provinces=(), programs=(), unit_programs: dict | None = None):
         self.data = data
+        self.bonus_period_available = not data.get("filtro_temporal_estricto") or data.get("bonos_con_fecha_individual", False)
         national = enos.frames(data)
         for frame in national.values():
             frame["provincia_codigo"] = [_code(p) for p in frame.provincia]
@@ -83,7 +84,7 @@ class Response:
                 frame["canton"] = [_clean(c, names.place) for c in frame.canton]
         national["alertas"]["unidad"] = [_clean(u, names.unit) for u in national["alertas"].unidad]
         dates = pd.to_datetime(national["alertas"].fecha, errors="coerce")
-        national["alertas"] = national["alertas"].loc[dates.between(pd.Timestamp(data["desde"]), pd.Timestamp(data["corte"])) | national["alertas"].origen.eq("reporte_sectorial")].copy()
+        national["alertas"] = national["alertas"].loc[dates.between(pd.Timestamp(data["desde"]), pd.Timestamp(data["corte"]))].copy()
         if programs:
             alerts = national["alertas"]
             known = alerts.codigo_ua.astype(str).map(unit_programs or {})
@@ -99,6 +100,7 @@ class Response:
         self.cut, self.since = pd.Timestamp(data["corte"]), pd.Timestamp(data["desde"])
         self.cuts = data["cortes"]
         continuity = pd.DataFrame(enos.continuity()["registros"])
+        continuity = continuity.loc[pd.to_datetime(continuity.corte_fuente, errors="coerce").between(self.since, self.cut)].copy()
         continuity["servicio"] = continuity.servicio.replace(SERVICE_NAMES)
         continuity["provincia_codigo"] = continuity.provincia.map(_code)
         if programs:
@@ -109,6 +111,7 @@ class Response:
         self.continuity = continuity
         detail = pd.DataFrame(enos.continuity().get("detalle", []))
         if not detail.empty:
+            detail = detail.loc[pd.to_datetime(detail.corte_fuente, errors="coerce").between(self.since, self.cut)].copy()
             detail["servicio"] = detail.servicio.replace(SERVICE_NAMES)
             detail["canton"] = [_clean(c, names.place) for c in detail.canton]
             detail["unidad"] = [_clean(u, names.unit) for u in detail.unidad]
@@ -443,7 +446,7 @@ def kits_overview(r: Response, compact: bool = False) -> go.Figure:
                          showgrid=True, gridcolor="#F1EEF6", tickfont=dict(size=11), row=1, col=2)
         if r.since >= start:
             fig.add_vline(x=r.since, line=dict(color=theme.ORO, width=1.4, dash="dot"), row=1, col=2)
-            fig.add_annotation(x=r.since, y=1.0, xref="x2", yref="paper", text="Inicio del seguimiento de alertas", showarrow=False,
+            fig.add_annotation(x=r.since, y=1.0, xref="x2", yref="paper", text="Inicio del período reportado", showarrow=False,
                                xanchor="left", yanchor="bottom", font=dict(size=11, color=theme.ORO_700))
         fig.add_annotation(x=0, y=1.0, xref="paper", yref="paper", text="<b>Total por provincia</b>", showarrow=False, xanchor="left",
                            yanchor="bottom", font=dict(size=12, color=theme.MORADO_900))

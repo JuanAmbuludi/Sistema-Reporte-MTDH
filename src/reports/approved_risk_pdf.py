@@ -24,7 +24,7 @@ def header(c,ctx,title=None):
     c.drawImage(logo,x,H-44,width=height*iw/ih,height=height,mask='auto')
     if cover:
         picture=emblem_png(set(ctx['selected_codes']));c.drawImage(ImageReader(BytesIO(picture)),W-M-150,bottom+6,width=150,height=124,mask='auto')
-        c.setFillColor(C('#FFE7A3'));c.setFont('Text-Semi',9);c.drawString(M,H-61,f"Resumen ejecutivo · Del 29/08/2026 al {ctx['response']['cut']}")
+        c.setFillColor(C('#FFE7A3'));c.setFont('Text-Semi',9);c.drawString(M,H-61,f"Resumen ejecutivo · Del {ctx['response']['since']} al {ctx['response']['cut']}")
         c.setFillColor(C('#FFFFFF'));c.setFont('Text-Semi',19)
         c.drawString(M,H-88,'Plan ENOS - Ministerio de Trabajo');c.drawString(M,H-110,'y Desarrollo Humano')
     else:
@@ -50,8 +50,8 @@ def render(c,ctx,pages):
     # Use the dashboard KPI unchanged: alerts and identified UA are different measures.
     cards[0]['short'] = cards[0]['label']
     cards[1].update(short='Kits entregados',note=f"{r['kit_provinces']} provincias")
-    cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago')
-    cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}")
+    cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago' if r['bonus_period_available'] else 'Sin desglose temporal')
+    cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
     # One frame holds the closed units and the two charts that break them down, so the charts read as parts of that figure.
     frame_top=top;top-=9
@@ -127,6 +127,8 @@ def render(c,ctx,pages):
     rows=[[a['name'],number(a['kits']) if a['kits'] else '—',number(a['articulation']) if a['articulation'] else '—',number(a['articulation_amount'],2) if a['articulation_amount'] else '—'] for a in r['actions']]
     rows.append(['Total',number(r['kits_total']),number(r['articulation_people']),number(r['articulation_amount'],2)])
     top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
+    if not r['bonus_period_available']:
+        top=_paragraph(c,'Bono de contingencia: sin desglose temporal disponible para el período reportado.',M,top,full,size=7)
     assert top>=62,top
     assert pages==2+len(chunks)
 

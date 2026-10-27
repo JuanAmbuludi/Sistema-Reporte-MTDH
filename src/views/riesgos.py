@@ -473,10 +473,10 @@ class RiskView:
              "note": "Registro y reportes sectoriales"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
              "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte 27/10, 13:35"},
-            {"label": "Personas · Bono de Contingencia", "value": int(r.articulation.personas.sum()), "icon": "hand-coins", "tone": "lila",
-             "note": "En articulación para el pago"},
-            {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()), "prefix": "USD", "decimals": 2,
-             "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}"},
+            {"label": "Personas · Bono de Contingencia", "value": int(r.articulation.personas.sum()) if r.bonus_period_available else None, "icon": "hand-coins", "tone": "lila",
+             "note": "En articulación para el pago" if r.bonus_period_available else "Sin desglose temporal disponible"},
+            {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()) if r.bonus_period_available else None, "prefix": "USD", "decimals": 2,
+             "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}" if r.bonus_period_available else "Sin desglose temporal disponible"},
             {"label": "Unidades cerradas / suspendidas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
              "note": r.suspension_short() + " · corte 26/10/2026"},
         ]
@@ -512,7 +512,7 @@ class RiskView:
                          "Alcance del filtro de servicio")
         # 1. Continuity of the services.
         ui.section_heading("Continuidad de los servicios", f"{respuesta._n(r.closed_units, 'unidad suspendida', 'unidades suspendidas')} · "
-                                                           "cortes: El Oro 27/10; Guayas y Santa Elena 26/10", "shield")
+                                                           "corte territorial: 26/10/2026, 16:00", "shield")
         if r.closed_units:
             left, right = self._pair((1.6, 1))
             with left, st.container(border=True, key="card_continuity_map"):
@@ -565,15 +565,19 @@ class RiskView:
                 show_chart(respuesta.kits_overview(r, compact()), "response_kits")
                 respuesta.kits_detail(r)
         # 4. Contingency bonus.
-        ui.section_heading("Bono de contingencia", f"Pagos gestionados desde el {pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y} "
-                                                   f"y casos en articulación al {pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}", "hand-coins")
-        left, right = self._pair((1.6, 1))
-        with left, st.container(border=True, key="card_response_bonus"):
-            ui.chart_title("Cada etapa, por provincia", "Cada barra suma el 100 % de su etapa · las etapas tienen su propia unidad y no se suman")
-            show_chart(respuesta.bonus_strips(r, compact()), "response_bonus")
-        with right, st.container(border=True, key="card_response_plan"):
-            ui.chart_title("Planificación El Niño 2026–2027", "Bono de contingencia")
-            respuesta.plan_panel(r)
+        if not r.bonus_period_available:
+            ui.section_heading("Bono de contingencia", r.scope_text(), "hand-coins")
+            ui.info_note("Sin desglose temporal disponible para este período.", "Bono de contingencia")
+        else:
+            ui.section_heading("Bono de contingencia", f"Pagos gestionados desde el {pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y} "
+                                                       f"y casos en articulación al {pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}", "hand-coins")
+            left, right = self._pair((1.6, 1))
+            with left, st.container(border=True, key="card_response_bonus"):
+                ui.chart_title("Cada etapa, por provincia", "Cada barra suma el 100 % de su etapa · las etapas tienen su propia unidad y no se suman")
+                show_chart(respuesta.bonus_strips(r, compact()), "response_bonus")
+            with right, st.container(border=True, key="card_response_plan"):
+                ui.chart_title("Planificación El Niño 2026–2027", "Bono de contingencia")
+                respuesta.plan_panel(r)
         # 5. Summary by province.
         if not acting.empty:
             ui.section_heading("Respuesta por provincia", f"{respuesta._n(len(acting), 'provincia')} con acciones · kits y "
@@ -605,9 +609,16 @@ class RiskView:
                        {"key": "articulacion", "label": "Personas · Bono de Contingencia", "kind": "num", "zero": "dash"},
                        {"key": "monto_articulacion", "label": "Monto (USD) · Bono de Contingencia", "kind": "money", "zero": "dash"}]
             total = {"nombre": f"Total de {respuesta._n(len(rows), 'provincia')}", **{c["key"]: rows[c["key"]].sum() for c in columns[1:]}}
+            if not self.response.bonus_period_available:
+                rows=rows.copy()
+                for key in ("articulacion", "monto_articulacion"):
+                    rows[key]=None
+                    total[key]=None
             ui.rich_table(columns, rows.to_dict("records"), total=total)
-            st.caption(f"Bono de Contingencia en articulación para el pago: actualización {self.response.cut_text('bonos')}.")
+            st.caption("Bono: sin desglose temporal disponible." if not self.response.bonus_period_available else f"Bono de Contingencia en articulación para el pago: actualización {self.response.cut_text('bonos')}.")
         rows = self.action_rows()
+        if not self.response.bonus_period_available:
+            rows[["gestionados","monto_gestionado","articulacion","monto_articulacion"]]=None
         layout = [("Provincia", "nombre", "text", 26.0), ("Kits", "kits", "int", 12.0),
                   ("Bono gestionado (núcleos familiares)", "gestionados", "int", 22.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 22.0),
                   ("En articulación (personas)", "articulacion", "int", 22.0), ("Monto en articulación (USD)", "monto_articulacion", "usd", 24.0)]
@@ -797,7 +808,7 @@ class RiskView:
 
     def digest(self) -> str:
         response = self.response.data.get("generado_utc") if self.response else ""
-        return fingerprint("response-continuity-v5-39-alerts-99-units", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        return fingerprint("response-v6-period-20260928", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, enos.CONTINUITY_PATH.read_text(), self.update_stamp(), str(self.response_path), response)
 
     def report_context(self, title: str) -> dict:

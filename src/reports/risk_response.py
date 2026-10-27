@@ -44,6 +44,13 @@ def build_context(view, *, title: str) -> dict:
                             "managed_amount": float(row["monto_gestionado"]), "articulation": int(row["articulacion"]),
                             "articulation_amount": float(row["monto_articulacion"])}
                            for row in view.action_rows().sort_values("nombre").to_dict("records")]
+    response["bonus_period_available"] = r.bonus_period_available
+    if not r.bonus_period_available:
+        for key in ("managed_people", "managed_amount", "articulation_people", "articulation_amount"):
+            response[key] = None
+        for action in response["actions"]:
+            for key in ("managed", "managed_amount", "articulation", "articulation_amount"):
+                action[key] = None
     kpis = kpis_from_cards(view.kpi_cards())
     for k in kpis:
         if k["kind"] == "money":
@@ -651,7 +658,7 @@ def render_pptx(prs, ctx):
                             label.remove(child)
                     etree.SubElement(label, qn("c:delete")).set("val", "1")
     else:
-        empty(s, "Sin registros del bono en la selección.", w=7.7)
+        empty(s, "Sin desglose temporal del bono para este período.", w=7.7)
     plan = r["plan"]
     _title(s, "Planificación El Niño 2026–2027", 8.75, 1.36, 4.1, "Proyección nacional · planificación, no ejecución")
     tiles = [("Personas potenciales", number(plan["personas"])), ("Núcleos familiares potenciales", number(plan["nucleos"])),
@@ -974,7 +981,7 @@ def render_workbook(book):
         ws.insert_chart(row + 1, 1, framed(chart, "Cada etapa, por provincia (cada barra suma el 100 %)", 823, 250, "bottom"), {"y_offset": 4})
         row += 15
     else:
-        row = empty(ws, row + 1, "No hay registros del bono de contingencia en la selección.", 5) + 1
+        row = empty(ws, row + 1, "Sin desglose temporal del bono de contingencia para este período.", 5) + 1
     plan = r["plan"]
     row = book.heading(ws, row + 1, "Planificación El Niño 2026–2027", "Proyección nacional · planificación, no ejecución", last=5)
     edge = dict(left=5, left_color=theme.ORO)
@@ -997,7 +1004,7 @@ def render_workbook(book):
                                      ("En articulación (personas)", "articulation", "int_dash"),
                                      ("Monto en articulación (USD)", "articulation_amount", "usd_dash")],
                                     actions, last=7, autofilter=True, note="Cada acción conserva su unidad; no se suman entre sí",
-                                    total={k: sum(a[k] for a in actions) for k in ("kits", "managed", "managed_amount", "articulation", "articulation_amount")})
+                                    total={k: (sum(a[k] for a in actions) if all(a[k] is not None for a in actions) else None) for k in ("kits", "managed", "managed_amount", "articulation", "articulation_amount")})
         for index, a in enumerate(actions):
             ws.set_row(first + index, max(21, 14 * max(1, math.ceil(len(a["cantons"]) / 50)) + 7))
     else:
