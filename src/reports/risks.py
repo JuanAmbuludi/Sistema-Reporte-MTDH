@@ -239,7 +239,7 @@ def _response(r) -> dict:
     bonus = sorted(set(managed.index) | set(articulation.index), key=lambda p: -(managed.personas.get(p, 0) + articulation.personas.get(p, 0)))
     return {
         "since": f"{r.since:%d/%m/%Y}", "cut": f"{r.cut:%d/%m/%Y}", "scope": r.scope_text(),
-        "alerts": [{"code": a["codigo"], "date": f"{pd.Timestamp(a['fecha']):%d/%m/%Y}", "province": a["provincia"], "canton": a["canton"],
+        "alerts": [{"code": a["codigo"], "date": pd.Timestamp(a['fecha']).strftime('%d/%m/%Y') if pd.notna(a['fecha']) else a.get('fecha_texto', 'Sin fecha diaria'), "province": a["provincia"], "canton": a["canton"],
                     "place": f"{a['provincia']} · {a['canton']}", "unit": a["unidad"] or "—", "ua": a["codigo_ua"],
                     "service": a["servicio"], "impact": a["afectacion_servicio"], "status": a["estado"], "priority": a["prioridad"]}
                    for a in alerts.to_dict("records")],

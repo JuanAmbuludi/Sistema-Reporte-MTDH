@@ -4,10 +4,10 @@ import json
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-ALERT_NOTE = ("Se muestran únicamente alertas revisadas con código UA registrado, desde el 14 de septiembre de 2026. "
-              "El conteo corresponde a códigos de alerta distintos vinculados a unidades identificadas. "
-              "Los registros sin código quedan fuera de este alcance. La fecha corresponde al registro y una alerta no equivale necesariamente a un evento único. "
-              "El campo Afectados mezcla personas, familias y usuarios; no se suma como personas únicas. La base no certifica atribución causal a ENOS.")
+ALERT_NOTE = ("Seguimiento desde el 14/09/2026, complementado con reportes sectoriales de octubre: 10 alertas con código UA y 11 reportes sectoriales. "
+              "Los 6 reportes gerontológicos describen sucesos de agosto sin día exacto; no se asignan a la evolución diaria. "
+              "Los identificadores DIS/GER permiten localizar las filas incorporadas, no son códigos oficiales ni códigos UA. "
+              "Las fuentes sectoriales indican que la prestación del servicio se mantiene. Alertas, unidades y personas son medidas distintas.")
 BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "
              "Se muestran únicamente las filas de inundación como referencia: pagos gestionados desde el 29/08 y casos en articulación al 23/10. "
              "Articulación no equivale a pago. Las proyecciones corresponden a planificación nacional 2026–2027.")
@@ -17,10 +17,10 @@ KIT_NOTE = ("Kits en provincias priorizadas: Kobo, corte 26/10/2026, 22:26:42. E
 QUALITY_NOTE = ""
 
 START = "2026-09-14"   # start of the follow-up: alerts registered from this date
-REFERENCE = "Ámbito: alertas con código UA y acciones institucionales de respuesta."
+REFERENCE = "Ámbito: alertas y reportes sectoriales y acciones institucionales de respuesta."
 
 ALERT_COLUMNS = ['codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad',
-                 'afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio']
+                 'afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio','origen','fecha_texto','mes_reporte']
 
 
 def snapshots():
@@ -28,7 +28,9 @@ def snapshots():
 
 
 def included(row, data):
-    if data.get("criterio_alertas") == "codigo_ua":
+    if row.get("origen") == "reporte_sectorial" and data.get("criterio_alertas") == "codigo_ua_y_reportes_sectoriales":
+        return bool(row.get("fuente")) and bool(row.get("servicio"))
+    if data.get("criterio_alertas") in ("codigo_ua", "codigo_ua_y_reportes_sectoriales"):
         return (str(row.get("codigo_ua", "")).strip() not in ("", "—", "-", "nan", "None")
                 and isinstance(row.get("afectacion_servicio_confirmada"), bool) and bool(row.get("servicio")))
     return row.get("afectacion_servicio_confirmada") is True
@@ -50,7 +52,7 @@ def frames(data, provinces=()):
         frame = pd.DataFrame(rows, columns=columns)
         if name == 'alertas':
             dates = pd.to_datetime(frame.fecha, errors='coerce')
-            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
+            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte'])) | frame.origen.eq("reporte_sectorial")]
         if provinces:
             frame = frame.loc[frame.provincia.isin(provinces)]
         result[name] = frame.copy()

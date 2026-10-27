@@ -38,7 +38,7 @@ def _date(value) -> str:
 
 
 # Service of an alert when its unit is not in the inventory of the cut, from the wording of the source.
-_SERVICE_WORDS = [(("infantil", "cnh", "creciendo", "cdi"), "DII"), (("adult",), "PAM_SERV"), (("discapacidad",), "PCD_SERV"),
+_SERVICE_WORDS = [(("infantil", "cnh", "creciendo", "cdi"), "DII"), (("adult", "geront"), "PAM_SERV"), (("discapacidad",), "PCD_SERV"),
                   (("protecci",), "PE"), (("acompañamiento", "acompanamiento"), "AF")]
 
 
@@ -79,7 +79,7 @@ class Response:
                 frame["canton"] = [_clean(c, names.place) for c in frame.canton]
         national["alertas"]["unidad"] = [_clean(u, names.unit) for u in national["alertas"].unidad]
         dates = pd.to_datetime(national["alertas"].fecha, errors="coerce")
-        national["alertas"] = national["alertas"].loc[dates.between(pd.Timestamp(data["desde"]), pd.Timestamp(data["corte"]))].copy()
+        national["alertas"] = national["alertas"].loc[dates.between(pd.Timestamp(data["desde"]), pd.Timestamp(data["corte"])) | national["alertas"].origen.eq("reporte_sectorial")].copy()
         if programs:
             alerts = national["alertas"]
             known = alerts.codigo_ua.astype(str).map(unit_programs or {})
@@ -155,8 +155,7 @@ class Response:
 
     def count_note(self) -> str:
         parts = [f"{count} {service}" for service, count in self.alerts.groupby("servicio").size().sort_values(ascending=False).items()]
-        return (f"{len(self.alerts)} alertas con {self.units} códigos UA distintos" + (": " + "; ".join(parts) if parts else "")
-                + ". Se excluyen los registros sin código UA.")
+        return f"{len(self.alerts)} alertas reportadas: {self.units} con código UA y {int(self.alerts.origen.eq('reporte_sectorial').sum())} reportes sectoriales."
 
     # ------------------------------------------------------------------------------------------- figures
     @property
@@ -263,7 +262,7 @@ def alerts_evolution(r: Response) -> go.Figure:
 # ------------------------------------------------------------------------------ the visuals of the section
 # Services keep one colour everywhere: Desarrollo Infantil (CDI) purple, Creciendo con Nuestros Hijos (CNH) lilac.
 SERVICE_TONES = {"Desarrollo Infantil": theme.MORADO, "CDI": theme.MORADO, "Creciendo con Nuestros Hijos (CNH)": theme.LILA_300,
-                 "CNH": theme.LILA_300}
+                 "CNH": theme.LILA_300, "Centros gerontológicos": theme.ORO, "Discapacidades · AHC": theme.FUCSIA_700}
 # Provinces of the contingency bonus keep their colour in both stages.
 PROVINCE_TONES = {"Guayas": theme.MORADO, "Esmeraldas": theme.VIOLETA_500, "El Oro": theme.LILA_300, "Los Ríos": theme.FUCSIA_700,
                   "Imbabura": theme.FUCSIA_300, "Manabí": theme.ORO, "Azuay": theme.MORADO_900}
@@ -302,9 +301,9 @@ def alerts_units(r: Response) -> go.Figure:
     for service in services:
         rows = [p for p in placed if p["servicio"] == service]
         fig.add_trace(go.Scatter(
-            x=[p["x"] for p in rows], y=[p["y"] for p in rows], mode="markers", name=service.replace(" (CNH)", " · CNH"),
+            x=[p["x"] for p in rows], y=[p["y"] for p in rows], mode="markers", name={"Creciendo con Nuestros Hijos (CNH)": "CNH", "Centros gerontológicos": "Gerontología", "Discapacidades · AHC": "AHC"}.get(service, service),
             marker=dict(symbol="square", size=30, color=SERVICE_TONES.get(service, theme.VIOLETA_500), line=dict(color="#FFFFFF", width=3)),
-            customdata=[[p["codigo"], ui._date_text(p["fecha"]), p["unidad"], p["canton"], p["estado"], p["servicio"]] for p in rows],
+            customdata=[[p["codigo"], ui._date_text(p["fecha"]) if pd.notna(p["fecha"]) else str(p.get("fecha_texto", "Sin fecha diaria")), p["unidad"], p["canton"], p["estado"], p["servicio"]] for p in rows],
             hovertemplate=("<b>%{customdata[0]}</b> · %{customdata[1]}<br>%{customdata[2]}<br>%{customdata[5]}"
                            "<br>%{y} · %{customdata[3]}<br>Estado: %{customdata[4]}<extra></extra>")))
     counts = alerts.provincia.value_counts()
@@ -312,7 +311,7 @@ def alerts_units(r: Response) -> go.Figure:
     charts.base(fig, 64 * len(provinces) + 76, dict(l=8, r=8, t=44, b=8))
     fig.update_xaxes(visible=False, range=[-0.7, max(widest, 5) - 0.3])
     fig.update_yaxes(categoryorder="array", categoryarray=provinces[::-1], tickvals=provinces,
-                     ticktext=[f"<b>{p}</b>  <span style='color:{theme.PIZARRA}'>{counts[p]}</span>" for p in provinces],
+                     ticktext=[f"<b>{_two_lines(p, 24)}</b>  <span style='color:{theme.PIZARRA}'>{counts[p]}</span>" for p in provinces],
                      tickfont=dict(size=12.5), range=[-0.6, len(provinces) - 0.4])
     fig.update_layout(legend=dict(orientation="h", y=1.04, yanchor="bottom", x=0, traceorder="normal"), hovermode="closest")
     return fig
@@ -500,7 +499,7 @@ def alerts_table(r: Response) -> None:
                    {"key": "afectacion_servicio", "label": "Afectación al servicio"},
                    {"key": "estado", "label": "Estado", "kind": "pill", "tones": STATUS_TONES},
                    {"key": "prioridad", "label": "Prioridad", "kind": "pill", "tones": PRIORITY_TONES}],
-                  [{**row, "fecha_texto": f"Registro: {ui._date_text(row['fecha'])}"} for row in rows], min_width=980)
+                  [{**row, "fecha_texto": ui._date_text(row["fecha"]) if pd.notna(row["fecha"]) else str(row.get("fecha_texto", "Sin fecha diaria"))} for row in rows], min_width=980)
 
 
 def kits_detail(r: Response) -> None:

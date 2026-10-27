@@ -19,7 +19,7 @@ from .charts import _LOCK, INK, MUTED, Figure, FigureCanvasAgg, _png, font
 from .context import number
 
 SERVICE_TONES = {"Desarrollo Infantil": theme.MORADO, "CDI": theme.MORADO, "Creciendo con Nuestros Hijos (CNH)": theme.LILA_300,
-                 "CNH": theme.LILA_300}
+                 "CNH": theme.LILA_300, "Centros gerontológicos": theme.ORO, "Discapacidades · AHC": theme.FUCSIA_700}
 PROVINCE_TONES = {"Guayas": theme.MORADO, "Esmeraldas": theme.VIOLETA_500, "El Oro": theme.LILA_300, "Los Ríos": theme.FUCSIA_700,
                   "Imbabura": theme.FUCSIA_300, "Manabí": theme.ORO, "Azuay": theme.MORADO_900}
 LIGHT = {theme.LILA_300, theme.LILA_200, theme.LILA_100, theme.ORO, theme.FUCSIA_300, theme.LILA_50}
@@ -47,7 +47,7 @@ def ink(color: str) -> str:
 
 
 def short_service(name: str) -> str:
-    return {"Creciendo con Nuestros Hijos (CNH)": "CNH", "Desarrollo Infantil": "Desarrollo Infantil"}.get(name, name)
+    return {"Creciendo con Nuestros Hijos (CNH)": "CNH", "Desarrollo Infantil": "Desarrollo Infantil", "Centros gerontológicos": "Gerontología", "Discapacidades · AHC": "AHC"}.get(name, name)
 
 
 def pct(value: float, total: float) -> str:

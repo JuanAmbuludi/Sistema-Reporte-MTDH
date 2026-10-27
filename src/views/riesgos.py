@@ -61,7 +61,7 @@ MAP_INDICATORS = {"expuestas": "UA expuestas", "porcentaje": "% expuesto", "muy_
                   "alertas": "Alertas", "kits": "Kits", "suspendidas": "UA suspendidas"}
 MAP_LABELS = {"expuestas": "UA expuestas por provincia", "porcentaje": "Porcentaje de las UA de cada provincia que está expuesto",
               "muy_alta": "UA con susceptibilidad muy alta por provincia", "multiamenaza": "Registros de multiamenaza por provincia",
-              "alertas": "Alertas con código UA por provincia", "kits": "Kits entregados en provincias priorizadas",
+              "alertas": "Alertas reportadas por provincia", "kits": "Kits entregados en provincias priorizadas",
               "suspendidas": "Unidades de atención suspendidas por provincia"}
 SUSCEPTIBILITY_CELLS = {"Media": ("#F3EFFC", "#5B46A0"), "Alta": ("#E2D9F6", "#3D216D"), "Muy alta": ("#F9DDEB", "#A32C74"),
                         "Sin categoría reportada": ("#FFFFFF", "#A59CB6"), "Sin categoría": ("#FFFFFF", "#A59CB6")}
@@ -422,7 +422,7 @@ class RiskView:
                 continue
             value = row[column]
             values[code] = float(value) if value == value else None
-            titles[code] = (f"{names.place(row['provincia'])}\n{ui.number(row['alertas'])} alertas con código UA"
+            titles[code] = (f"{names.place(row['provincia'])}\n{ui.number(row['alertas'])} alertas reportadas"
                             f"\n{ui.number(row['suspendidas'])} UA suspendidas"
                             f"\n{ui.number(row['kits'])} kits en provincias priorizadas"
                             f"\n{ui.number(row['gestionados'])} núcleos familiares con bono gestionado")
@@ -469,8 +469,8 @@ class RiskView:
         r = self.response
         kit_provinces, _ = r.places(r.kits)
         return [
-            {"label": "Alertas con código UA", "value": len(r.alerts), "icon": "shield", "tone": "oro",
-             "note": f"Registros distintos · desde {r.since:%d/%m/%Y}"},
+            {"label": "Alertas reportadas", "value": len(r.alerts), "icon": "shield", "tone": "oro",
+             "note": "Registro y reportes sectoriales"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
              "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte 26/10, 22:26"},
             {"label": "Núcleos familiares con bono gestionado", "value": int(r.managed.personas.sum()), "icon": "hand-coins", "tone": "lila",
@@ -528,10 +528,10 @@ class RiskView:
         else:
             ui.info_note("El reporte territorial no registra unidades suspendidas en la selección.", "Sin suspensiones")
         # 2. Alerts with a UA code.
-        ui.section_heading("Alertas en servicios MTDH", f"{respuesta._n(len(r.alerts), 'alerta')} con código UA · "
+        ui.section_heading("Alertas en servicios MTDH", f"{respuesta._n(len(r.alerts), 'alerta')} reportada · "
                                                         f"{r.scope_text().lower()}", "storm")
         if r.alerts.empty:
-            ui.info_note("No hay alertas con código UA en la selección.", "Sin alertas")
+            ui.info_note("No hay alertas reportadas en la selección.", "Sin alertas")
         else:
             left, right = self._pair((1.6, 1))
             with left, st.container(border=True, key="card_response_evolution"):
@@ -540,6 +540,7 @@ class RiskView:
             with right, st.container(border=True, key="card_response_units"):
                 ui.chart_title("Cada alerta, una unidad", "Por provincia · el color indica el servicio")
                 show_chart(respuesta.alerts_units(r), "response_units")
+                st.caption("La evolución diaria incluye solo fechas exactas; 6 reportes gerontológicos corresponden a agosto sin día especificado." if r.alerts.fecha.isna().any() else "")
                 st.caption(r.count_note())
             with st.container(border=True, key="card_response_alert_table"):
                 ui.chart_title("Registro de alertas", "Código y nombre de la UA, territorio, afectación al servicio y estado · de la más reciente a la más antigua")

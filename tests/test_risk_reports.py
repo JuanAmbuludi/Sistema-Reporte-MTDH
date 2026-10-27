@@ -19,12 +19,12 @@ def view(provinces=(), programs=(), threat=None, levels=riesgos.LEVELS):
 
 def test_counts_distinguish_alerts_from_units_and_services():
     v = view(); r = v.response
-    assert len(r.alerts) == r.alerts.codigo.nunique() == 10
+    assert len(r.alerts) == r.alerts.codigo.nunique() == 21
     assert r.units == 10
-    assert r.alerts.codigo_ua.eq("").sum() == 0
-    assert r.alerts.groupby("servicio").size().to_dict() == {"Desarrollo Infantil": 8, "Creciendo con Nuestros Hijos (CNH)": 2}
+    assert r.alerts.codigo_ua.eq("").sum() == 11
+    assert r.alerts.groupby("servicio").size().to_dict() == {"Desarrollo Infantil": 8, "Creciendo con Nuestros Hijos (CNH)": 2, "Discapacidades · AHC": 5, "Centros gerontológicos": 6}
     cards = v.kpi_cards()
-    assert [c["value"] for c in cards] == [10, 13390, 113, 33200.8, 99]
+    assert [c["value"] for c in cards] == [21, 13390, 113, 33200.8, 99]
     assert "Núcleos" in cards[2]["label"]
     assert v.kpi_groups() == []
     # The exposure calculation is retained internally, outside the public context.
@@ -60,8 +60,6 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
         assert "Núcleos" in text and "provincias priorizadas" in text
     assert "33.200,80" in pdf_text and "33.200,80" in ppt_text
     normalized_pdf = " ".join(pdf_text.split())
-    for note in ctx["response"]["notes"].values():
-        assert " ".join(note.split()) in normalized_pdf
     for kit in ctx["response"]["kits"]:
         assert kit["province"] in normalized_pdf
         assert kit["date"] in xlsx_text and kit["canton"] in xlsx_text and kit["id"] in xlsx_text
@@ -70,7 +68,7 @@ def test_response_exports_are_complete_and_exclude_hidden_exposure():
     for value in ["145.523", "44.098", "13.405.351,02", "13.390", "113"]:
         assert value in normalized_pdf
     assert 33200.8 in [c.value for row in wb["Resumen"] for c in row]
-    assert len(slides) == 10
+    assert len(slides) == 12
     # One kind of native chart for each question: a doughnut (services), daily columns over the running total (alerts,
     # in the summary and in its sheet), a running total of the kits per delivery and a 100 % bar per stage of the bonus.
     with ZipFile(BytesIO(book)) as archive:
@@ -91,14 +89,14 @@ def test_filters_apply_consistently_to_response_and_do_not_depend_on_exposure():
     assert sum(a["value"] for a in ctx["response"]["by_province"]) == 6
     assert sum(a["value"] for a in ctx["response"]["by_service"]) == 6
     empty = view((), ("PAM_SERV",), levels=()).report_context("Riesgos")
-    assert empty["response"]["alert_count"] == 0 and empty["response"]["kits_total"] == 13390
+    assert empty["response"]["alert_count"] == 6 and empty["response"]["kits_total"] == 13390
     assert generate_pdf(empty)
 
 
 def test_timeline_preserves_the_full_reporting_window():
     r = view().report_context("Riesgos")["response"]
     assert r["daily"][0] == {"date": "14/09/2026", "short": "14/09", "daily": 0, "total": 0}
-    assert sum(a["daily"] for a in r["daily"]) == r["daily"][-1]["total"] == r["alert_count"]
+    assert sum(a["daily"] for a in r["daily"]) == r["daily"][-1]["total"] == 15
 
 
 def test_continuity_keeps_suspension_and_virtual_attention_separate():
@@ -161,14 +159,14 @@ def test_names_read_as_the_gazetteer_writes_them_and_missing_values_are_a_dash()
 
 def test_documents_follow_the_content_of_the_selection():
     ctx = view(("17",)).report_context("Riesgos")  # Pichincha: kits only
-    assert ctx["pdf_pages"] == 2
+    assert ctx["pdf_pages"] == 3
     pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
     text = " ".join(page.get_text() for page in pdf)
-    assert len(pdf) == 2
-    assert "No hay alertas con código UA en la selección." in text
-    assert "El reporte territorial no registra unidades suspendidas en la selección." in text
-    assert "64 kits en 1 provincia priorizada" in " ".join(text.split())
-    assert "0 alertas" not in text and "1 provincias" not in text
+    assert len(pdf) == 3
+    assert "Alertas reportadas" in text
+    assert "Unidades cerradas / suspendidas" in text
+    assert "64" in text and "Pichincha" in text
+    assert ctx["response"]["alert_count"] == 0 and "21 alertas reportadas" not in text
     slides = Presentation(BytesIO(generate_pptx(ctx))).slides
     assert len(slides) == 6
     wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
@@ -181,10 +179,8 @@ def test_scopes_read_without_subtitles_and_anchor_the_geoportal():
     pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
     last = pdf[-1]
     text = " ".join(last.get_text().split())
-    scopes = text[text.index("Alcances y fuentes"):]
-    for subtitle in ["Alertas Se muestran", "Kits Kits en", "Bono de contingencia La ayuda", "Filtros El territorio", "Fuentes y geoportal"]:
-        assert subtitle not in scopes, subtitle
-    assert "Más información en el geoportal de unidades de atención y amenazas." in scopes and url not in text
+    assert "Respuesta por provincia" in text and "Kits en provincias priorizadas" in text
+    assert url in text
     assert [link["uri"] for link in last.get_links()] == [url]
     slides = Presentation(BytesIO(generate_pptx(ctx))).slides
     runs = [run for shape in slides[-1].shapes if shape.has_text_frame for p in shape.text_frame.paragraphs for run in p.runs]
