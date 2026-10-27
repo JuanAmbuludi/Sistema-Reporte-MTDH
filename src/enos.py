@@ -5,7 +5,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 ALERT_NOTE = ("Seguimiento desde el 14/09/2026, complementado con reportes sectoriales de octubre: 10 alertas con código UA y 11 reportes sectoriales. "
-              "Los 6 reportes gerontológicos describen sucesos de agosto sin día exacto; no se asignan a la evolución diaria. "
+              "Los 6 reportes gerontológicos se incorporan con fecha de reporte 26/10/2026. "
               "Los identificadores DIS/GER permiten localizar las filas incorporadas, no son códigos oficiales ni códigos UA. "
               "Las fuentes sectoriales indican que la prestación del servicio se mantiene. Alertas, unidades y personas son medidas distintas.")
 BONO_NOTE = ("La ayuda memoria no identifica pagos exclusivamente atribuibles a ENOS ni fechas individuales para recortar desde el 14/09. "

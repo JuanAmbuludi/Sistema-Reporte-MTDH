@@ -8,7 +8,11 @@ from .pdf import M,W,H,C,LOGO,_plate,_next_page,_fit,_kpis
 from .risk_response import _pdf_table,_risk_bars,Markup
 from .risks import _paragraph
 
-SERVICES={'CNH':'CNH','CDI':'CDI','PAM':'Personas adultas mayores','PCD':'Personas con discapacidad','PE':'Protección especial','AF':'Acompañamiento familiar'}
+SERVICES={'CNH':'Servicio Creciendo con Nuestros Hijos (CNH)','CDI':'Centros de Desarrollo Infantil (CDI)','PAM':'Personas adultas mayores (PAM)',
+          'PCD':'Personas con discapacidad (PCD)','PE':'Protección especial (PE)','AF':'Acompañamiento familiar (AF)'}
+# The caption of the closed units, in the words of the approved bulletin.
+CAPTION={'CNH':'unidades del servicio Creciendo con Nuestros Hijos (CNH)','CDI':'Centros de Desarrollo Infantil (CDI)',
+         'PAM':'unidades PAM','PCD':'unidades PCD','PE':'unidades PE','AF':'unidades AF'}
 
 def heading(c,text,x,y,width):
     c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',_fit(text,'Text-Bold',11,width,8.8));c.drawString(x,y,text)
@@ -52,16 +56,21 @@ def render(c,ctx,pages):
     cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago')
     cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}")
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
-    c.setFillColor(C(theme.LILA_50));c.roundRect(M,top-34,full,34,6,fill=1,stroke=0)
-    c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',23);c.drawString(M+12,top-25,number(r['continuity']['closed']))
+    caption='  ·  '.join(f"{number(a['value'])} {CAPTION.get(a['name'],a['name'])}" for a in r['continuity']['by_service'])
+    from .risks import _paragraph_height
+    band=max(34,22+_paragraph_height(caption,full-82,7.2))
+    c.setFillColor(C(theme.LILA_50));c.roundRect(M,top-band,full,band,6,fill=1,stroke=0)
+    c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',23);c.drawString(M+12,top-band/2-8,number(r['continuity']['closed']))
     c.setFont('Text-Bold',9);c.drawString(M+70,top-13,'Unidades de atención cerradas / suspendidas')
-    c.setFont('Text',7);c.drawString(M+70,top-25,r['continuity']['caption'])
-    top-=55
+    _paragraph(c,caption,M+70,top-17,full-82,size=7.2,color=C(theme.MORADO))
+    top-=band+21
+    lines=max(len(r['continuity']['by_province']),len(r['continuity']['by_service']))
+    step=21  # a name over its bar, as in the approved bulletin
     for i,(key,title) in enumerate([('by_province','Unidades de atención suspendidas por provincia'),('by_service','Unidades de atención suspendidas por servicio')]):
         x=M+i*(half+22);heading(c,title,x,top,half)
         rows=[{**a,'name':SERVICES.get(a['name'],a['name'])} for a in r['continuity'][key]]
-        _risk_bars(c,rows,x,top-23,half,21)
-    top-=23+max(len(r['continuity']['by_province']),len(r['continuity']['by_service']))*21+14
+        _risk_bars(c,rows,x,top-23,half,step)
+    top-=23+lines*step+10
     heading(c,'Detalle de las unidades de atención suspendidas',M,top,full)
     rows=[]
     for g in r['continuity']['groups']:
@@ -70,7 +79,7 @@ def render(c,ctx,pages):
         first=name_list[0] if name_list else '—'
         first=first if len(first)<=46 else first[:43]+'…'
         shown=first+(f"; y {len(name_list)-1} " + ("unidad adicional" if len(name_list)==2 else "unidades adicionales") if len(name_list)>1 else '')
-        rows.append([f"{g['province']}\n{g['canton']}",g['service'],number(g['units']),shown or '—'])
+        rows.append([Markup(f"<b>{escape(g['province'])}</b>"+(f"<br/>{escape(g['canton'])}" if g['canton'] else '')),g['service'],number(g['units']),shown or '—'])
     rows.append(['Total','',number(r['continuity']['closed']),''])
     top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','UA','Unidades identificadas'],rows,[114,45,30,full-189],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
     top=_paragraph(c,r['continuity']['note']+' Listado nominal completo en el dashboard y en Excel.',M,top,full,size=7)-6
@@ -78,13 +87,28 @@ def render(c,ctx,pages):
     _next_page(c,ctx,1,3)
 
     top=header(c,ctx,'Detalle de las unidades de atención con alerta')-16
-    c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-36,full,36,4,fill=1,stroke=0)
-    c.setFillColor(C(theme.ORO));c.rect(M,top-36,3,36,fill=1,stroke=0)
-    _paragraph(c,r['count_note'],M+12,top-12,full-24,size=8.5);top-=50
-    # One register includes every alert, with or without a UA code.
+    c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-30,full,30,4,fill=1,stroke=0)
+    c.setFillColor(C(theme.ORO));c.rect(M,top-30,3,30,fill=1,stroke=0)
+    _paragraph(c,r['count_note'],M+12,top-10,full-24,size=8.5);top-=40
+    # Every alert, with or without a UA code; the alerts by province and service and their evolution follow on the same
+    # page, as in the approved bulletin: the table takes the largest type that leaves them room.
     from .risk_response import _alert_cells
     rows=_alert_cells(r['alerts'])
-    top=_pdf_table(c,top,['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado'],[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows],[84,150,65,full-370,71],size=6.9,padding=1)-12
+    lines=max(len(r['by_province']),len(r['by_service']))
+    step=21  # a name over its bar, as in the approved bulletin
+    unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
+    below=20+24+lines*step+4+80+(14 if unknown else 0)
+    headers=['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado']
+    cells=[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows]
+    widths=[80,160,70,full-392,82]
+    top=_fitted_table(c,top,headers,cells,widths,room=top-62-below)-20
+    for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
+        x=M+i*(half+22);heading(c,title,x,top,half)
+        _risk_bars(c,r[key],x,top-22,half,step)
+    top-=24+lines*step+4
+    top=evolution(c,r['daily'],top,full)
+    if unknown:
+        top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los {r['alert_count']} registros constan en la tabla de alertas.",M,top-8,full,size=6.8)
     assert top>=62,top
     _next_page(c,ctx,2,3)
 
@@ -92,17 +116,16 @@ def render(c,ctx,pages):
     heading(c,'Respuesta por provincia',M,top,full);top-=28
     rows=[[a['name'],number(a['kits']) if a['kits'] else '—',number(a['articulation']) if a['articulation'] else '—',number(a['articulation_amount'],2) if a['articulation_amount'] else '—'] for a in r['actions']]
     rows.append(['Total',number(r['kits_total']),number(r['articulation_people']),number(r['articulation_amount'],2)])
-    top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=7.8,padding=1.5,align=['L','R','R','R'],total=True)-16
-    _paragraph(c,f"Kits: corte {r['kits_cut_full']}. Bono de contingencia: en articulación para el pago, corte {r['bonus_cut']}.",M,top,full,size=7)
-    top-=28
-    for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
-        x=M+i*(half+22);heading(c,title,x,top,half)
-        parts=[{**a,'name':a['name'].replace('Creciendo con Nuestros Hijos (CNH)','CNH').replace('Santo Domingo de los Tsáchilas','Santo Domingo de los Tsáchilas')} for a in r[key]]
-        _risk_bars(c,parts,x,top-22,half,21)
-    top-=24+max(len(r['by_province']),len(r['by_service']))*21+8
-    top=evolution(c,r['daily'],top,full)
-    unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
-    if unknown:
-        top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los {r['alert_count']} registros constan en la tabla de alertas.",M,top-12,full,size=6.8)
+    top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
+    top=_paragraph(c,f"Kits: corte {r['kits_cut_full']}. Bono de contingencia: en articulación para el pago, corte {r['bonus_cut']}.",M,top,full,size=7)
     assert top>=62,top
     assert pages==3
+
+
+def _fitted_table(c,top,headers,rows,widths,room):
+    """The alerts table in the largest type (and padding) that keeps it within ``room`` points."""
+    from reportlab.pdfgen.canvas import Canvas
+    for size,padding in ((6.9,1.2),(6.6,1),(6.3,.8),(6.0,.6),(5.8,.4)):
+        if 3000-_pdf_table(Canvas(BytesIO()),3000,headers,rows,widths,size=size,padding=padding)<=room:
+            break
+    return _pdf_table(c,top,headers,rows,widths,size=size,padding=padding)

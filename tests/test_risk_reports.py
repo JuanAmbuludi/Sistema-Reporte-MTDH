@@ -96,7 +96,8 @@ def test_filters_apply_consistently_to_response_and_do_not_depend_on_exposure():
 def test_timeline_preserves_the_full_reporting_window():
     r = view().report_context("Riesgos")["response"]
     assert r["daily"][0] == {"date": "14/09/2026", "short": "14/09", "daily": 0, "total": 0}
-    assert sum(a["daily"] for a in r["daily"]) == r["daily"][-1]["total"] == 15
+    # Every alert has its date (the gerontological reports, 26/10/2026), so the evolution holds all of them.
+    assert sum(a["daily"] for a in r["daily"]) == r["daily"][-1]["total"] == r["alert_count"] == 21
 
 
 def test_continuity_keeps_suspension_and_virtual_attention_separate():
