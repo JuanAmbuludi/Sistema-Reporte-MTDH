@@ -534,13 +534,19 @@ class RiskView:
             ui.info_note("No hay alertas reportadas en la selección.", "Sin alertas")
         else:
             left, right = self._pair((1.6, 1))
+            units = respuesta.alerts_units(r)
+            undated = ("La evolución diaria incluye solo fechas exactas; 6 reportes gerontológicos corresponden a agosto sin día especificado."
+                       if r.alerts.fecha.isna().any() else "")
+            # Both cards keep the same height: the evolution grows with the rows of the unit chart and its notes.
+            height = None if compact() else int(units.layout.height) + 37 + (40 if undated else 0)
             with left, st.container(border=True, key="card_response_evolution"):
                 ui.chart_title("Evolución de las alertas", f"Registradas cada día y acumuladas desde el {r.since:%d/%m/%Y}")
-                show_chart(respuesta.alerts_evolution(r), "response_evolution")
+                show_chart(respuesta.alerts_evolution(r, height), "response_evolution")
             with right, st.container(border=True, key="card_response_units"):
                 ui.chart_title("Cada alerta, una unidad", "Por provincia · el color indica el servicio")
-                show_chart(respuesta.alerts_units(r), "response_units")
-                st.caption("La evolución diaria incluye solo fechas exactas; 6 reportes gerontológicos corresponden a agosto sin día especificado." if r.alerts.fecha.isna().any() else "")
+                show_chart(units, "response_units")
+                if undated:
+                    st.caption(undated)
                 st.caption(r.count_note())
             with st.container(border=True, key="card_response_alert_table"):
                 ui.chart_title("Registro de alertas", "Código y nombre de la UA, territorio, afectación al servicio y estado · de la más reciente a la más antigua")

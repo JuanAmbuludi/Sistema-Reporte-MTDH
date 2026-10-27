@@ -242,7 +242,7 @@ class Response:
 
 
 # --------------------------------------------------------------------------------------------------- charts
-def alerts_evolution(r: Response) -> go.Figure:
+def alerts_evolution(r: Response, height: int | None = None) -> go.Figure:
     """Alerts registered each day from the first day of the follow-up (columns) and their running total (step line)."""
     days = pd.date_range(r.since.normalize(), r.cut.normalize(), freq="D")
     daily = (pd.to_datetime(r.alerts.fecha).dt.normalize().value_counts().reindex(days, fill_value=0) if not r.alerts.empty
@@ -264,7 +264,7 @@ def alerts_evolution(r: Response) -> go.Figure:
     fig.add_annotation(x=days[-1], y=total.iloc[-1] if len(total) else 0, text=f"<b>{int(total.iloc[-1]) if len(total) else 0} alertas</b>",
                        showarrow=False, xanchor="right", yshift=14, font=dict(size=12.5, color=theme.MORADO_900))
     fig.add_vline(x=days[0], line=dict(color=theme.LILA_200, width=1.2, dash="dot"))
-    charts.base(fig, 260, dict(l=8, r=16, t=40, b=30))
+    charts.base(fig, height or 260, dict(l=8, r=16, t=40, b=30))
     ticks = list(pd.date_range(days[0], days[-1], freq="7D"))
     fig.update_xaxes(range=[days[0] - pd.Timedelta(days=1), days[-1] + pd.Timedelta(days=1)], showgrid=False, tickvals=ticks,
                      ticktext=[f"{t.day} {ui._MONTHS_SHORT[t.month - 1]}" for t in ticks], tickfont=dict(size=11))
