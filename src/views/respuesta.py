@@ -522,7 +522,6 @@ def alerts_table(r: Response) -> None:
 
 def kits_detail(r: Response) -> None:
     """The scope of the kits figures and every Kobo delivery behind them."""
-    st.caption("Núcleos familiares reportados por entrega; no representan núcleos familiares únicos. Excel conserva todas las entregas.")
     with st.expander(f"Detalle de las {r.kit_records} entregas Kobo"):
         rows = r.kits.sort_values(["fecha", "kits"], ascending=[True, False]).to_dict("records")
         ui.rich_table([{"key": "fecha", "label": "Fecha", "kind": "date"}, {"key": "provincia", "label": "Provincia", "kind": "strong"},
