@@ -46,7 +46,8 @@ def render(c,ctx,pages):
     r=ctx['response'];full=W-2*M;half=(full-22)/2
     top=header(c,ctx)-16
     cards=[dict(k) for k in ctx['kpis'][:4]]
-    cards[0].update(label='Unidades de atención con alertas',short='Unidades de atención con alertas',value=r['units'],note=f"{r['alert_count']} alertas reportadas")
+    # Use the dashboard KPI unchanged: alerts and identified UA are different measures.
+    cards[0]['short'] = cards[0]['label']
     cards[1].update(short='Kits entregados',note=f"{r['kit_provinces']} provincias")
     cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago')
     cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}")
@@ -80,19 +81,10 @@ def render(c,ctx,pages):
     c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-36,full,36,4,fill=1,stroke=0)
     c.setFillColor(C(theme.ORO));c.rect(M,top-36,3,36,fill=1,stroke=0)
     _paragraph(c,r['count_note'],M+12,top-12,full-24,size=8.5);top-=50
-    # This table is explicitly about identified UAs, as in the approved template.
+    # One register includes every alert, with or without a UA code.
     from .risk_response import _alert_cells
-    coded=[a for a in r['alerts'] if a['ua']];rows=_alert_cells(coded)
-    top=_pdf_table(c,top,['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado'],[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows],[84,150,65,full-370,71],size=7.0,padding=2)-18
-    for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
-        x=M+i*(half+22);heading(c,title,x,top,half)
-        parts=[{**a,'name':a['name'].replace('Creciendo con Nuestros Hijos (CNH)','CNH').replace('Santo Domingo de los Tsáchilas','Santo Domingo de los Tsáchilas')} for a in r[key]]
-        _risk_bars(c,parts,x,top-22,half,20)
-    top-=24+max(len(r['by_province']),len(r['by_service']))*20+10
-    top=evolution(c,r['daily'],top,full)
-    unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
-    if unknown:
-        top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los 11 reportes sectoriales se detallan en el dashboard y Excel.",M,top-12,full,size=6.8)
+    rows=_alert_cells(r['alerts'])
+    top=_pdf_table(c,top,['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado'],[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows],[84,150,65,full-370,71],size=6.9,padding=1)-12
     assert top>=62,top
     _next_page(c,ctx,2,3)
 
@@ -100,12 +92,17 @@ def render(c,ctx,pages):
     heading(c,'Respuesta por provincia',M,top,full);top-=28
     rows=[[a['name'],number(a['kits']) if a['kits'] else '—',number(a['articulation']) if a['articulation'] else '—',number(a['articulation_amount'],2) if a['articulation_amount'] else '—'] for a in r['actions']]
     rows.append(['Total',number(r['kits_total']),number(r['articulation_people']),number(r['articulation_amount'],2)])
-    top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8,padding=3,align=['L','R','R','R'],total=True)-16
+    top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=7.8,padding=1.5,align=['L','R','R','R'],total=True)-16
     _paragraph(c,f"Kits: corte {r['kits_cut_full']}. Bono de contingencia: en articulación para el pago, corte {r['bonus_cut']}.",M,top,full,size=7)
-    sectorial=[a for a in r['alerts'] if not a['ua']]
-    if sectorial:
-        top-=27
-        heading(c,'Reportes sectoriales incorporados',M,top,full)
-        extra=[[a['code'],a['province'],a['service'],a['date'].replace(' (sin día)','')] for a in sectorial]
-        _pdf_table(c,top-16,['Reporte','Provincia','Servicio','Fecha del suceso'],extra,[85,145,175,full-405],size=7,padding=1)
+    top-=28
+    for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
+        x=M+i*(half+22);heading(c,title,x,top,half)
+        parts=[{**a,'name':a['name'].replace('Creciendo con Nuestros Hijos (CNH)','CNH').replace('Santo Domingo de los Tsáchilas','Santo Domingo de los Tsáchilas')} for a in r[key]]
+        _risk_bars(c,parts,x,top-22,half,21)
+    top-=24+max(len(r['by_province']),len(r['by_service']))*21+8
+    top=evolution(c,r['daily'],top,full)
+    unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
+    if unknown:
+        top=_paragraph(c,f"La evolución incluye {sum(d['daily'] for d in r['daily'])} registros con fecha exacta; {unknown} reportes gerontológicos de agosto no tienen día especificado. Los {r['alert_count']} registros constan en la tabla de alertas.",M,top-12,full,size=6.8)
+    assert top>=62,top
     assert pages==3
