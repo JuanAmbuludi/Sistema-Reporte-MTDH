@@ -3,7 +3,7 @@
   "criterio_alertas": "codigo_ua_y_reportes_sectoriales",
   "corte": "2026-10-27",
   "desde": "2026-09-28",
-  "generado_utc": "2026-10-27T16:37:51.930503+00:00",
+  "generado_utc": "2026-10-27T16:42:42.566886+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -1911,5 +1911,14 @@
     ]
   },
   "filtro_temporal_estricto": true,
-  "bonos_con_fecha_individual": false
+  "bonos_con_fecha_individual": false,
+  "bonos_periodos_confirmados": {
+    "articulacion": {
+      "desde": "2026-09-28",
+      "hasta": "2026-10-27",
+      "confirmacion": "El responsable confirma expresamente que los 1.171 casos y su monto corresponden al período reportado.",
+      "personas": 1171,
+      "monto": 354987.39
+    }
+  }
 }

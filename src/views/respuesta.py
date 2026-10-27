@@ -75,7 +75,7 @@ class Response:
 
     def __init__(self, data: dict, provinces=(), programs=(), unit_programs: dict | None = None):
         self.data = data
-        self.bonus_period_available = not data.get("filtro_temporal_estricto") or data.get("bonos_con_fecha_individual", False)
+        self.bonus_period_available = not data.get("filtro_temporal_estricto") or data.get("bonos_con_fecha_individual", False) or enos.period_confirmed(data, "articulacion")
         national = enos.frames(data)
         for frame in national.values():
             frame["provincia_codigo"] = [_code(p) for p in frame.provincia]

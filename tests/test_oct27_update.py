@@ -43,7 +43,7 @@ def test_approved_template_preserves_all_chart_types_and_updated_totals():
     v=RiskView();v.select(v.catalog()[-1]);assert v.prepare();ctx=v.report_context('Riesgos')
     pdf=fitz.open(stream=generate_pdf(ctx),filetype='pdf');assert len(pdf)==4
     text=' '.join(' '.join(p.get_text() for p in pdf).split())
-    for label in ['Plan ENOS - Ministerio de Trabajo','Unidades de atención con alerta','Detalle de las unidades de atención con alertas','Acciones del Ministerio','Alertas por provincia','Alertas por servicio','10.607','99','Bono de contingencia: sin desglose temporal disponible']:
+    for label in ['Plan ENOS - Ministerio de Trabajo','Unidades de atención con alerta','Detalle de las unidades de atención con alertas','Acciones del Ministerio','Alertas por provincia','Alertas por servicio','10.607','99','354.987,39']:
         assert label in text
     # Vice's review (27/10): the alerts page opens with the charts, without the history or the breakdown by code.
     page=pdf[1].get_text()
@@ -100,7 +100,7 @@ def test_consolidated_alerts_are_unique_and_preserve_prior_alerts():
     assert len(r.continuity_detail)==99
     assert sum(x['value'] for x in r.continuity_summary()['by_province'])==99
     assert sum(x['value'] for x in r.continuity_summary()['by_service'])==99
-    assert r.articulation.empty and not r.bonus_period_available
+    assert r.articulation.personas.sum()==1171 and r.bonus_period_available
 
 
 def test_reporting_window_filters_all_dated_sources_and_unknown_bonus():
@@ -112,13 +112,13 @@ def test_reporting_window_filters_all_dated_sources_and_unknown_bonus():
     assert len(r.kits)==80 and r.kits_total==10607
     assert r.kits.fecha.min()>='2026-09-28'
     assert r.alerts.fecha.min()>='2026-09-28'
-    assert r.managed.empty and r.articulation.empty
-    assert not r.bonus_period_available
+    assert r.managed.empty and r.articulation.personas.sum()==1171
+    assert r.bonus_period_available
     assert r.closed_units==99
     copy=deepcopy(d);old=deepcopy(copy['alertas'][-1]);old['fecha']='2026-09-27';old['codigo']='TEST-OUTSIDE';copy['alertas'].append(old)
     assert len(Response(copy).alerts)==39
     v=RiskView();v.select(v.catalog()[-1]);assert v.prepare();ctx=v.report_context('Riesgos')
-    assert ctx['kpis'][2]['value'] is None and ctx['kpis'][3]['value'] is None
-    assert ctx['response']['articulation_people'] is None
-    assert all(a['articulation'] is None for a in ctx['response']['actions'])
+    assert ctx['kpis'][2]['value']==1171 and round(ctx['kpis'][3]['value'],2)==354987.39
+    assert ctx['response']['articulation_people']==1171 and ctx['response']['managed_people'] is None
+    assert sum(a['articulation'] for a in ctx['response']['actions'])==1171
     assert sum(a['kits'] for a in ctx['response']['actions'])==10607

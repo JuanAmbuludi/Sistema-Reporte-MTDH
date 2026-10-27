@@ -10,3 +10,5 @@ Filtro común en dashboard y exportables: alertas por fecha de registro/reporte 
 Los filtros territoriales, las tablas de detalle y los gráficos se calculan sobre el mismo subconjunto temporal. Las proyecciones nacionales son referencia de planificación, no ejecución del período.
 
 Control del corte de ayer (26/10): 13.390 kits → 10.101; quedan 67 entregas.
+
+Actualización: el responsable confirma que los 1.171 casos en articulación y USD 354.987,39 pertenecen al período 28/09–27/10. Se restituyen en las salidas, sin inventar fechas individuales. La confirmación no se extiende a la etapa de bonos gestionados.

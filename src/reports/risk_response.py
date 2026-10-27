@@ -51,6 +51,10 @@ def build_context(view, *, title: str) -> dict:
         for action in response["actions"]:
             for key in ("managed", "managed_amount", "articulation", "articulation_amount"):
                 action[key] = None
+    if r.data.get("filtro_temporal_estricto") and not r.data.get("bonos_con_fecha_individual") and not enos.period_confirmed(r.data, "gestionados"):
+        response["managed_people"] = response["managed_amount"] = None
+        for action in response["actions"]:
+            action["managed"] = action["managed_amount"] = None
     kpis = kpis_from_cards(view.kpi_cards())
     for k in kpis:
         if k["kind"] == "money":

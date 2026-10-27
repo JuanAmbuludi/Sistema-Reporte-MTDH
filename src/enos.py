@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ALERT_NOTE = ("Seguimiento desde el 28/09/2026, complementado con reportes sectoriales de octubre. "
               "Los reportes gerontológicos utilizan su fecha de reporte. Los identificadores DIS/GER/DII permiten localizar las filas incorporadas; no son códigos oficiales ni códigos UA. "
               "Los registros repetidos de la base consolidada se cuentan una sola vez. Alertas, unidades y personas son medidas distintas.")
-BONO_NOTE = "Sin desglose temporal disponible para bonos desde el 28/09/2026. Los acumulados recibidos no permiten identificar la fecha de cada gestión. Las proyecciones son una referencia de planificación, no ejecución del período."
+BONO_NOTE = "Bono en articulación: 1.171 personas y USD 354.987,39 correspondientes al período 28/09–27/10/2026. Los bonos gestionados no cuentan con desglose temporal para este período. Las proyecciones son una referencia de planificación."
 KIT_NOTE = ("Kits en provincias priorizadas: entregas desde el 28/09/2026 hasta el corte Kobo del 27/10/2026, 13:35:45. "
             "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.")
 QUALITY_NOTE = ""
@@ -38,6 +38,12 @@ def load(path):
     return data
 
 
+def period_confirmed(data, stage):
+    period = data.get('bonos_periodos_confirmados', {}).get(stage, {})
+    return bool(period.get('confirmacion') and period.get('desde') and period.get('hasta')
+                and data['desde'] <= period['desde'] <= period['hasta'] <= data['corte'])
+
+
 def frames(data, provinces=()):
     result = {}
     for name, rows in [('alertas', data['alertas']), ('kits', data['kits']),
@@ -49,7 +55,7 @@ def frames(data, provinces=()):
         if name in ('alertas', 'kits'):
             dates = pd.to_datetime(frame.fecha, errors='coerce')
             frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
-        elif data.get('filtro_temporal_estricto'):
+        elif data.get('filtro_temporal_estricto') and not period_confirmed(data, name):
             dates = pd.to_datetime(pd.Series([r.get('fecha') for r in rows], index=frame.index), errors='coerce')
             frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
         if provinces:

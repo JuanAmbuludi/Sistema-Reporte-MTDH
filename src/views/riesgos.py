@@ -569,7 +569,7 @@ class RiskView:
             ui.section_heading("Bono de contingencia", r.scope_text(), "hand-coins")
             ui.info_note("Sin desglose temporal disponible para este período.", "Bono de contingencia")
         else:
-            ui.section_heading("Bono de contingencia", f"Pagos gestionados desde el {pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y} "
+            ui.section_heading("Bono de contingencia", f"{r.scope_text()} · "
                                                        f"y casos en articulación al {pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}", "hand-coins")
             left, right = self._pair((1.6, 1))
             with left, st.container(border=True, key="card_response_bonus"):
@@ -808,7 +808,7 @@ class RiskView:
 
     def digest(self) -> str:
         response = self.response.data.get("generado_utc") if self.response else ""
-        return fingerprint("response-v6-period-20260928", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        return fingerprint("response-v7-confirmed-bono-period", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, enos.CONTINUITY_PATH.read_text(), self.update_stamp(), str(self.response_path), response)
 
     def report_context(self, title: str) -> dict:
