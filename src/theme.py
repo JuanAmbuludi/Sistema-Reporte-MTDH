@@ -16,7 +16,7 @@ TINTA = "#20202B"         # Texto principal
 PIZARRA = "#5A5765"       # Texto secundario
 LINEA = "#ECE9F0"         # Divisores y bordes suaves
 ORO = "#F8C018"           # Oro del escudo nacional, tomado del logo oficial
-FUCSIA = "#C33F8D"        # Acento secundario: servicios de protección integral
+FUCSIA = "#C33F8D"        # Acento secundario: servicios de protección social
 BLANCO = "#FFFFFF"
 
 # --- Purple ramp at the institutional hue (OKLCH 295.6°) ----------------------
@@ -82,7 +82,7 @@ PROGRAM_ABBR = {
 }
 SECTIONS = {
     "bonos_pensiones": "Bonos y pensiones",
-    "proteccion_integral": "Servicios de protección integral",
+    "proteccion_integral": "Servicios de protección social",
 }
 
 # Natural regions used to group provinces in tables and maps.

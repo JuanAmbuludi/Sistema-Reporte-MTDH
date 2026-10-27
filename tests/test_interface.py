@@ -53,7 +53,7 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert len(app.expander) == 0, "La interfaz no usa secciones desplegables"
     assert len(app.selectbox) == 0, "Los selectores se muestran como controles visibles"
     html = _markdown(app)
-    for title in ["Transferencias monetarias", "Resultados por programa", "Resultados por territorio", "Cuadro de resultados",
+    for title in ["Transferencias monetarias no contributivas", "Resultados por programa", "Resultados por territorio", "Cuadro de resultados",
                   "Ejecución presupuestaria", "Beneficiarios por provincia", "Distribución por programa", "InfoReport"]:
         assert title in html, title
     assert html.count("<svg") >= 1 and "ec-map" in html and 'class="ec-mosaic"' in html, "El encabezado incluye el mapa parroquial"
@@ -65,8 +65,8 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert "Corte septiembre 2026" in html
     assert "update-stamp" in html and "Actualizado el" in html and "Actualización mensual" in html, "Corte y frecuencia visibles"
     assert "El corazón de Ecuador." not in html and "Velamos por la calidad de vida de los ecuatorianos" not in html
-    assert app.segmented_control(key="module").options == ["Transferencias", "Servicios", "Riesgos", "Contingencias", "Jóvenes en Acción",
-                                                           "Gestión laboral", "Presupuesto"]
+    assert app.segmented_control(key="module").options == ["Transferencias", "Servicios", "ENOS", "Contingencias", "Jóvenes en Acción",
+                                                           "Empleo", "Presupuesto"]
 
 
 def test_every_territorial_chart_switches_between_province_canton_and_parish():
@@ -91,7 +91,7 @@ def test_services_are_never_mixed_with_transfers():
     app.segmented_control(key="module").set_value("servicios").run()
     assert not app.exception
     html = _markdown(app)
-    assert "Servicios de protección integral" in html
+    assert "Servicios de protección social" in html
     assert "453.994" in html and "11.215" in html and "47,2" in html
     assert "1.578.019" not in html and "2.034.375" not in html
     assert "Geoportal de unidades de atención y amenazas" not in html, "El geoportal se trasladó a Riesgos"
@@ -115,7 +115,7 @@ def test_territory_filter_zooms_into_the_province():
     app.multiselect(key="selected_provinces").set_value(["09"]).run()
     assert not app.exception
     html = _markdown(app)
-    assert "Transferencias monetarias en Guayas" in html
+    assert "Transferencias monetarias no contributivas en Guayas" in html
     assert "312.265" in html and "del total nacional" in html
     assert "ec-locator" in html and "clipPath" in html
     assert "Cantones" in html and "Parroquias" in html, "El alcance territorial de una provincia muestra cantones y parroquias"
@@ -249,7 +249,7 @@ def test_executive_summary_of_every_section_fits_three_pages():
     pdf = pymupdf.open(stream=content, filetype="pdf")
     assert 1 < len(pdf) <= 3, "Tres páginas como máximo"
     text = " ".join(page.get_text() for page in pdf)
-    for section in ["Transferencias monetarias", "Servicios de protección integral", "Riesgos", "Contingencias y compensaciones",
+    for section in ["Transferencias monetarias no contributivas", "Servicios de protección social", "Plan ENOS", "Contingencias y compensaciones",
                     "Jóvenes en Acción", "Gestión laboral", "Presupuesto institucional", "Presupuesto social"]:
         assert section in text, section
     assert "1.578.019" in text and "13.390" in text and _labour_figures()[0] in text

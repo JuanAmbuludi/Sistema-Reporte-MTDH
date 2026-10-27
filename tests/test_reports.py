@@ -112,7 +112,7 @@ def _deck_texts(content: bytes):
 def test_context_follows_module_and_period(periods, parishes):
     data, _ = periods
     current = _context(data, parishes, "bonos_pensiones")
-    assert current["module_label"] == "Transferencias monetarias" and current["period_label"] == "Septiembre 2026"
+    assert current["module_label"] == "Transferencias monetarias no contributivas" and current["period_label"] == "Septiembre 2026"
     assert current["totals"]["people"] == 1578019
     assert [k["label"] for k in current["kpis"]] == ["Beneficiarios", "Ejecución presupuestaria", "Presupuesto ejecutado 2026",
                                                      "Presupuesto acumulado 2023–2026"]
@@ -186,7 +186,7 @@ def test_levels_follow_the_reader_choice(periods, parishes):
 def test_executive_summary_keeps_to_two_pages(periods, parishes):
     data, _ = periods
     text = _pdf_text(generate_pdf(_context(data, parishes, "bonos_pensiones")))
-    for expected in ["Transferencias monetarias", "Beneficiarios por programa", "Ejecución presupuestaria por programa",
+    for expected in ["Transferencias monetarias no contributivas", "Beneficiarios por programa", "Ejecución presupuestaria por programa",
                      "Aspectos destacados", "1.578.019", "71,0 %", "Beneficiarios por parroquia", "Detalle territorial",
                      "Provincias con más beneficiarios", "Cantones con más beneficiarios", "Parroquias con más beneficiarios",
                      "reúnen la mitad de los beneficiarios", "Página 2 de 2"]:

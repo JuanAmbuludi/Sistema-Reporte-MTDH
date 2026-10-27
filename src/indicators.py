@@ -114,13 +114,13 @@ EXTRA_DEFINITIONS = {"unidades": "Unidades de atención que prestan cada servici
 
 MODULES: dict[str, Module] = {
     "transferencias": Module(
-        id="transferencias", label="Transferencias monetarias", short_label="Transferencias", sections=("bonos_pensiones",),
+        id="transferencias", label="Transferencias monetarias no contributivas", short_label="Transferencias", sections=("bonos_pensiones",),
         description="Beneficiarios y presupuesto de los bonos y pensiones, por programa, provincia y parroquia.",
         item="programa", items="programas", people="Beneficiarios", people_icon="hand-coins",
     ),
     "servicios": Module(
-        id="servicios", label="Servicios de protección integral", short_label="Servicios", sections=("proteccion_integral",),
-        description="Usuarios, unidades de atención y presupuesto de los servicios de protección integral, por servicio, "
+        id="servicios", label="Servicios de protección social", short_label="Servicios", sections=("proteccion_integral",),
+        description="Usuarios, unidades de atención y presupuesto de los servicios de protección social, por servicio, "
                     "provincia y parroquia.",
         item="servicio", items="servicios", people="Usuarios", people_icon="users",
         extra=(Indicator("unidades", "Unidades de atención", "count", "building", "unidades"),),
@@ -129,16 +129,16 @@ MODULES: dict[str, Module] = {
 
 # Every area of the consultation, in the order of the institutional bulletin.
 AREAS: dict[str, dict] = {
-    "transferencias": {"label": "Transferencias monetarias", "short": "Transferencias", "kind": "territorial"},
-    "servicios": {"label": "Servicios de protección integral", "short": "Servicios", "kind": "territorial"},
-    "riesgos": {"label": "Riesgos", "short": "Riesgos", "kind": "riesgos"},
+    "transferencias": {"label": "Transferencias monetarias no contributivas", "short": "Transferencias", "kind": "territorial"},
+    "servicios": {"label": "Servicios de protección social", "short": "Servicios", "kind": "territorial"},
+    "riesgos": {"label": "Plan ENOS", "short": "ENOS", "kind": "riesgos"},
     "contingencias": {"label": "Contingencias y compensaciones", "short": "Contingencias", "kind": "contingencias",
                       "description": "Bonos por orfandad por femicidio, cobertura de contingencias y eventos de origen natural o "
                                      "antrópico, y mecanismos de compensación: personas, montos y presupuesto de cada mes."},
     "jovenes": {"label": "Jóvenes en Acción", "short": "Jóvenes en Acción", "kind": "jovenes",
                 "description": "Jóvenes registrados y habilitados, transferencias acreditadas y ejecución presupuestaria de "
                                "cada fase del programa."},
-    "laboral": {"label": "Gestión laboral", "short": "Gestión laboral", "kind": "laboral",
+    "laboral": {"label": "Gestión laboral", "short": "Empleo", "kind": "laboral",
                 "description": "Contratos de trabajo vigentes en el país por provincia y cantón, su perfil, y las "
                                "compensaciones jubilares pagadas a exservidores y extrabajadores públicos."},
     "presupuesto": {"label": "Presupuesto institucional", "short": "Presupuesto", "kind": "presupuesto",

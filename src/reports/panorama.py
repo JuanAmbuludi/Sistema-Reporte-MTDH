@@ -22,13 +22,13 @@ from .areas import kpis_from_cards
 from .context import INSTITUTION, PRODUCT, stamp
 
 LOG = logging.getLogger(__name__)
-SHORT = {"transferencias": "Transferencias", "servicios": "Servicios", "riesgos": "Riesgos", "contingencias": "Contingencias",
-         "jovenes": "Jóvenes en Acción", "laboral": "Gestión laboral", "presupuesto": "Presupuesto institucional",
+SHORT = {"transferencias": "Transferencias", "servicios": "Servicios", "riesgos": "ENOS", "contingencias": "Contingencias",
+         "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto institucional",
          "presupuesto_social": "Presupuesto social"}
 SECTIONS = [
-    ("transferencias", "Transferencias monetarias", "hand-coins"),
-    ("servicios", "Servicios de protección integral", "users"),
-    ("riesgos", "Riesgos: respuesta del Ministerio", "storm"),
+    ("transferencias", "Transferencias monetarias no contributivas", "hand-coins"),
+    ("servicios", "Servicios de protección social", "users"),
+    ("riesgos", "Plan ENOS: respuesta del Ministerio", "storm"),
     ("contingencias", "Contingencias y compensaciones", "shield"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
     ("laboral", "Gestión laboral", "briefcase"),

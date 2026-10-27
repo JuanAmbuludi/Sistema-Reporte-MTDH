@@ -14,7 +14,7 @@ import pandas as pd
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "processed"
 SECTIONS = {
     "bonos_pensiones": "Bonos y pensiones",
-    "proteccion_integral": "Servicios de protección integral",
+    "proteccion_integral": "Servicios de protección social",
 }
 MONEY_COLUMNS = ["monto_fiscal", "monto_gobierno", "monto_anterior", "presupuesto_ejecutado", "presupuesto_codificado"]
 METRIC_COLUMNS = ["usuarios", "unidades", *MONEY_COLUMNS]

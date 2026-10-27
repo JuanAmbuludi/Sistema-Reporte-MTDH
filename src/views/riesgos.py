@@ -259,7 +259,7 @@ def province_bars(rows: pd.DataFrame, metric: str, highlight: set[str]) -> go.Fi
 # --------------------------------------------------------------------------------------------------- view
 class RiskView:
     id = "riesgos"
-    label = "Riesgos"
+    label = "Plan ENOS"
     kind = "riesgos"
     empty_message = "La matriz de riesgos no registra unidades de atención para esta combinación de territorio y servicio."
     @property
@@ -439,7 +439,7 @@ class RiskView:
     # ----------------------------------------------------------------------------------------------- band
     def hero_copy(self) -> tuple[str, str, str]:
         follow = self.response.scope_text() if self.response else "Seguimiento institucional"
-        return (follow, "Riesgos", "Alertas en los servicios MTDH y acciones de respuesta del Ministerio.")
+        return (follow, "Plan ENOS", "Alertas en los servicios MTDH y acciones de respuesta del Ministerio.")
 
     def update_stamp(self) -> dict:
         from src.corte import ECUADOR, long_date
