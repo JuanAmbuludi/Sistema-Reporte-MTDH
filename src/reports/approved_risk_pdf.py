@@ -79,7 +79,7 @@ def render(c,ctx,pages):
         shown=first+(f"; y {len(name_list)-1} " + ("unidad adicional" if len(name_list)==2 else "unidades adicionales") if len(name_list)>1 else '')
         rows.append([Markup(f"<b>{escape(g['province'])}</b>"+(f"<br/>{escape(g['canton'])}" if g['canton'] else '')),g['service'],number(g['units']),shown or '—'])
     rows.append(['Total','',number(r['continuity']['closed']),''])
-    top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','UA','Unidades identificadas'],rows,[100,104,28,full-232],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
+    top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','Unidad de Atención','Unidades identificadas'],rows,[100,104,58,full-262],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
     top=_paragraph(c,r['continuity']['note']+' Listado nominal completo en el dashboard y en Excel.',M,top,full,size=7)-6
     assert top>=62,top
     _next_page(c,ctx,1,pages)
@@ -94,7 +94,9 @@ def render(c,ctx,pages):
         # Every alert, with or without a UA code; the alerts by province and service and their evolution follow on the same
         # page, as in the approved bulletin: the table takes the largest type that leaves them room.
         from .risk_response import _alert_cells
-        rows=_alert_cells(part)
+        # Labels in full: «Unidad de Atención» for UA and «Atención en el Hogar y Comunidad» for AHC.
+        rows=[{k:(Markup(v.replace('UA ','Unidad de Atención ').replace('AHC','Atención en el Hogar y Comunidad')) if isinstance(v,Markup) else v)
+               for k,v in a.items()} for a in _alert_cells(part)]
         lines=max(len(r['by_province']),len(r['by_service']))
         step=21  # a name over its bar, as in the approved bulletin
         unknown=sum(1 for a in r['alerts'] if 'sin día' in a['date'])
@@ -106,7 +108,7 @@ def render(c,ctx,pages):
         if last:
             for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
                 x=M+i*(half+22);heading(c,title,x,top,half)
-                _risk_bars(c,r[key],x,top-22,half,step)
+                _risk_bars(c,[{**a,'name':a['name'].replace('AHC','Atención en el Hogar y Comunidad')} for a in r[key]],x,top-22,half,step)
             top-=24+lines*step+4
             top=evolution(c,r['daily'],top,full)
             if unknown:
