@@ -87,7 +87,6 @@ def render(c,ctx,pages):
         if 3000-_pdf_table(Canvas(BytesIO()),3000,*args,size=size,padding=padding,align=['L','L','R','L'],total=True)<=top-18-62-40:
             break
     top=_pdf_table(c,top-18,*args,size=size,padding=padding,align=['L','L','R','L'],total=True)-12
-    top=_paragraph(c,r['continuity']['note']+' Listado nominal completo en el dashboard y en Excel.',M,top,full,size=7)-6
     assert top>=62,top
     _next_page(c,ctx,1,pages)
 
@@ -128,7 +127,6 @@ def render(c,ctx,pages):
     rows=[[a['name'],number(a['kits']) if a['kits'] else '—',number(a['articulation']) if a['articulation'] else '—',number(a['articulation_amount'],2) if a['articulation_amount'] else '—'] for a in r['actions']]
     rows.append(['Total',number(r['kits_total']),number(r['articulation_people']),number(r['articulation_amount'],2)])
     top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
-    top=_paragraph(c,f"Kits: corte {r['kits_cut_full']}. Bono de contingencia: en articulación para el pago, corte {r['bonus_cut']}.",M,top,full,size=7)
     assert top>=62,top
     assert pages==2+len(chunks)
 
