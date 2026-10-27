@@ -79,7 +79,14 @@ def render(c,ctx,pages):
         shown=first+(f"; y {len(name_list)-1} " + ("unidad adicional" if len(name_list)==2 else "unidades adicionales") if len(name_list)>1 else '')
         rows.append([Markup(f"<b>{escape(g['province'])}</b>"+(f"<br/>{escape(g['canton'])}" if g['canton'] else '')),g['service'],number(g['units']),shown or '—'])
     rows.append(['Total','',number(r['continuity']['closed']),''])
-    top=_pdf_table(c,top-18,['Provincia / cantón','Servicio','Unidad de Atención','Unidades identificadas'],rows,[100,104,58,full-262],size=7.1,padding=1.2,align=['L','L','R','L'],total=True)-12
+    # The detail takes the largest type and padding that the page holds (as in the approved bulletin), keeping room
+    # for its source line.
+    from reportlab.pdfgen.canvas import Canvas
+    args=(['Provincia / cantón','Servicio','Unidad de Atención','Unidades identificadas'],rows,[100,104,58,full-262])
+    for size,padding in ((8.4,4.6),(8.2,4),(8,3.4),(7.8,2.8),(7.5,2.2),(7.1,1.2)):
+        if 3000-_pdf_table(Canvas(BytesIO()),3000,*args,size=size,padding=padding,align=['L','L','R','L'],total=True)<=top-18-62-40:
+            break
+    top=_pdf_table(c,top-18,*args,size=size,padding=padding,align=['L','L','R','L'],total=True)-12
     top=_paragraph(c,r['continuity']['note']+' Listado nominal completo en el dashboard y en Excel.',M,top,full,size=7)-6
     assert top>=62,top
     _next_page(c,ctx,1,pages)
