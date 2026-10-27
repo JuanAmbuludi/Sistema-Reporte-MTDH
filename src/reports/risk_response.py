@@ -30,6 +30,8 @@ def build_context(view, *, title: str) -> dict:
     response["continuity"]["caption"] = r.suspension_caption()
     response["continuity"]["groups"] = r.suspended_groups()
     response["continuity"]["detail"] = r.continuity_detail.to_dict("records")
+    response["continuity"]["empty"] = ("El reporte territorial no registra unidades suspendidas en la selección." if r.available["continuidad"]
+                                       else f"El reporte territorial de unidades suspendidas ({r.continuity_cut_text()}) queda fuera del periodo.")
     tiles: dict[tuple, int] = {}
     for d in response["continuity"]["detail"]:
         if d["estado"] in ("Suspendida", "Suspendida presencial"):
@@ -38,7 +40,9 @@ def build_context(view, *, title: str) -> dict:
     response["continuity"]["tiles"] = [{"province": a, "canton": b, "service": c, "units": n} for (a, b, c), n in tiles.items()]
     response["kits_provinces"] = r.kits_summary()
     response["families_total"] = int(r.kits.familias.sum())
-    response["kits_cut_full"] = "27/10/2026 · 13:35:45"
+    response["kits_cut_full"] = enos.cut_text(r.cuts["kits"]).replace(", ", " · ")
+    moment = pd.Timestamp(r.cuts["kits"])
+    response["kits_cut_short"] = f"{moment:%d/%m/%Y, %H:%M}" if (moment.hour, moment.minute) != (0, 0) else f"{moment:%d/%m/%Y}"
     response["actions"] = [{"name": row["nombre"], "cantons": row["provincia_sub"].removeprefix("Cantones: "),
                             "kits": int(row["kits"]), "managed": int(row["gestionados"]),
                             "managed_amount": float(row["monto_gestionado"]), "articulation": int(row["articulacion"]),
@@ -51,13 +55,13 @@ def build_context(view, *, title: str) -> dict:
         for action in response["actions"]:
             for key in ("managed", "managed_amount", "articulation", "articulation_amount"):
                 action[key] = None
-    if r.data.get("filtro_temporal_estricto") and not r.data.get("bonos_con_fecha_individual") and not enos.period_confirmed(r.data, "gestionados"):
+    if not r.available["gestionados"]:
         response["managed_people"] = response["managed_amount"] = None
         for action in response["actions"]:
             action["managed"] = action["managed_amount"] = None
     kpis = kpis_from_cards(view.kpi_cards())
     for k in kpis:
-        if k["kind"] == "money":
+        if k["kind"] == "money" and k["value"] is not None:
             k["display_value"] = f"USD {number(k['value'], 2)}"
             k["exact_money"] = True
     ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True,
@@ -113,7 +117,7 @@ def _continuity_finding(continuity: dict) -> str:
 
 def _notes(ctx):
     r = ctx["response"]
-    return [("Alertas", r["notes"]["alerts"]),
+    return [("Alcance del periodo", r["notes"]["period"]), ("Alertas", r["notes"]["alerts"]),
             ("Kits", r["notes"]["kits"]), ("Bono de contingencia", r["notes"]["bonus"]),
             ("Filtros", r["notes"]["filters"])]
 
@@ -603,7 +607,7 @@ def render_pptx(prs, ctx):
     if r["kits_provinces"]:
         s = slide("Kits entregados en provincias priorizadas")
         _title(s, f"{number(r['kits_total'])} kits en {_count(r['kit_provinces'], 'provincia')}", 0.55, 1.36, 12.2,
-               f"{_count(r['deliveries'], 'registro')} Kobo · corte 27/10/2026, 13:35 · cada círculo es una entrega y su tamaño indica los kits")
+               f"{_count(r['deliveries'], 'registro')} Kobo · corte {r['kits_cut_short']} · cada círculo es una entrega y su tamaño indica los kits")
         # As tall as its provinces need (a few provinces do not stretch over the whole slide).
         height = min(4.55, max(1.7, 0.21 * len(r["kits_provinces"]) + 1.0))
         _picture(s, kits_png(r["kits_provinces"], r["kits"], r["since"], 12.2, height, dpi=200, scale=1.3), 0.55, 2.1, w=12.2)
@@ -704,7 +708,7 @@ def render_pptx(prs, ctx):
     # geoportal closes the left column as a link.
     s = slide("Nota metodológica y fuentes")
     columns = [([r["notes"]["alerts"], r["notes"]["kits"]] + ([continuity["note"]] if continuity["closed"] else []), ctx["geoportal"]),
-               ([r["notes"]["bonus"], r["notes"]["filters"], "Fuentes: " + ctx["sources"]], None)]
+               ([r["notes"]["period"], r["notes"]["bonus"], r["notes"]["filters"], "Fuentes: " + ctx["sources"]], None)]
     for index, (texts, link) in enumerate(columns):
         frame = s.shapes.add_textbox(Inches(0.55 + index * 6.25), Inches(1.45), Inches(5.95), Inches(5.0)).text_frame
         frame.word_wrap = True
@@ -810,9 +814,10 @@ def render_workbook(book):
     row = book.heading(summary, row + 1, "Cifras clave", ctx["period_label"], last=15)
     cards = [(k["label"], k["value"], book.kpi_format(k), k.get("note", ""), accents.get(k.get("tone"), theme.MORADO)) for k in ctx["kpis"]]
     row = book.kpi_row(summary, row + 1, cards, first=1, last=15) + 1
+    cut = continuity["cut"].replace(" · ", ", ")
     row = book.heading(summary, row, "Continuidad de los servicios",
-                       f"{number(closed)} UA suspendidas · corte territorial: 26/10/2026, 16:00" if closed else "Corte territorial: 26/10/2026, 16:00",
-                       last=15)
+                       (f"{number(closed)} UA suspendidas · corte territorial: {cut}" if closed else f"Corte territorial: {cut}")
+                       if continuity["available"] else f"Corte territorial: {cut}, fuera del periodo", last=15)
     if closed:
         top = row + 1
         services = [{"name": short_service(x["name"]), "value": x["value"], "share": x["value"] / closed} for x in continuity["by_service"]]
@@ -839,13 +844,13 @@ def render_workbook(book):
                              {"x_offset": 4, "y_offset": 2})
         row = max(left, top + 13) + 1
     else:
-        row = empty(summary, row + 1, "El reporte territorial no registra unidades suspendidas en la selección.", 15) + 1
+        row = empty(summary, row + 1, continuity["empty"], 15) + 1
     evolution_row = book.heading(summary, row, "Evolución de las alertas",
                                  f"{_count(r['alert_count'], 'alerta')} reportada · desde el {r['since']}", last=15)
     if r["alerts"]:
         row = evolution_row + 16
     else:
-        row = empty(summary, evolution_row + 1, "No hay alertas reportadas en la selección.", 15) + 1
+        row = empty(summary, evolution_row + 1, "No hay alertas reportadas en la selección y el periodo.", 15) + 1
     for index, (key, title) in enumerate([("map_values", "Alertas reportadas"), ("suspended_map_values", "UA suspendidas"),
                                           ("kits_map_values", "Kits entregados")]):
         picture = map_png(ctx[key], layer="provincia", selected=set(ctx["selected_codes"]), mode="light", label=title, marks=False,
@@ -871,7 +876,7 @@ def render_workbook(book):
                [{**d, "canton": d["canton"] or "—", "unidad": d["unidad"] or "—"} for d in detail], note=continuity["note"], last=6,
                autofilter=True, total={"unidades": sum(int(d["unidades"]) for d in detail)})
     else:
-        empty(ws, row + 1, "El reporte territorial no registra unidades suspendidas en la selección.", 6)
+        empty(ws, row + 1, continuity["empty"], 6)
 
     # ------------------------------------------------------------- every alert
     ws, row = _sheet(book, "Alertas", theme.ORO, "Alertas reportadas", [2.4, 19, 13, 13, 16, 11, 40, 30, 58, 16, 11, 2.4])
@@ -887,7 +892,7 @@ def render_workbook(book):
                         math.ceil(len(a["province"]) / 12), math.ceil(len(a["canton"]) / 12))
             ws.set_row(first + index, max(21, 14 * lines + 7))
     else:
-        empty(ws, row + 1, "No hay alertas reportadas en la selección.", 10)
+        empty(ws, row + 1, "No hay alertas reportadas en la selección y el periodo.", 10)
 
     # ---------------------------------------------------------- the evolution
     ws, row = _sheet(book, "Evolución", theme.ORO, "Evolución de las alertas", [2.4, 14, 20, 15, 3] + [11.0] * 9 + [2.4])
@@ -899,7 +904,7 @@ def render_workbook(book):
         ws.insert_chart(row + 1, 5, evolution_chart(first, end, 736, 360), {"x_offset": 6, "y_offset": 6})
         summary.insert_chart(evolution_row, 1, evolution_chart(first, end, 1140, 290), {"y_offset": 6})
     else:
-        empty(ws, row + 1, "No hay alertas reportadas en la selección.", 13)
+        empty(ws, row + 1, "No hay alertas reportadas en la selección y el periodo.", 13)
 
     # ------------------------------------------------- kits: provinces and time
     ws, row = _sheet(book, "Kits", theme.VIOLETA_500, "Kits entregados en provincias priorizadas", [2.4, 28, 11, 14, 18, 12, 3] + [11.0] * 7 + [2.4])
@@ -917,7 +922,7 @@ def render_workbook(book):
                        "Cada entrega, en la hoja Entregas Kobo.", book.f(font_size=9.5, font_color=theme.PIZARRA, text_wrap=True, valign="top"))
         ws.set_row(row + 1, 30)
     else:
-        empty(ws, kits_top, "No hay entregas de kits en la selección.", 13)
+        empty(ws, kits_top, "No hay entregas de kits en la selección y el periodo.", 13)
 
     ws, row = _sheet(book, "Entregas Kobo", theme.VIOLETA_500, "Cada entrega de kits", [2.4, 13, 29, 30, 10, 15, 22, 15, 2.4])
     if r["kits"]:
@@ -954,7 +959,7 @@ def render_workbook(book):
             height = round((27 + 36 + 19 * len(provinces) + 22) * 4 / 3)
             kits_sheet.insert_chart(kits_top, 7, framed(chart, "Kits acumulados por fecha de entrega", 574, height), {"x_offset": 6})
     else:
-        empty(ws, row + 1, "No hay entregas de kits en la selección.", 7)
+        empty(ws, row + 1, "No hay entregas de kits en la selección y el periodo.", 7)
 
     # ---------------------------------------------------------------- the bonus
     ws, row = _sheet(book, "Bono", theme.ORO, "Bono de contingencia", [2.4, 24, 22, 22, 22, 24, 2.4], landscape=False)

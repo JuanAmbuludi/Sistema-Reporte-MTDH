@@ -24,7 +24,7 @@ def header(c,ctx,title=None):
     c.drawImage(logo,x,H-44,width=height*iw/ih,height=height,mask='auto')
     if cover:
         picture=emblem_png(set(ctx['selected_codes']));c.drawImage(ImageReader(BytesIO(picture)),W-M-150,bottom+6,width=150,height=124,mask='auto')
-        c.setFillColor(C('#FFE7A3'));c.setFont('Text-Semi',9);c.drawString(M,H-61,f"Resumen ejecutivo · Del {ctx['response']['since']} al {ctx['response']['cut']}")
+        c.setFillColor(C('#FFE7A3'));c.setFont('Text-Semi',9);c.drawString(M,H-61,f"Resumen ejecutivo · {ctx['period_label']}")
         c.setFillColor(C('#FFFFFF'));c.setFont('Text-Semi',19)
         c.drawString(M,H-88,'Plan ENOS - Ministerio de Trabajo');c.drawString(M,H-110,'y Desarrollo Humano')
     else:
@@ -51,15 +51,20 @@ def render(c,ctx,pages):
     cards[0]['short'] = cards[0]['label']
     cards[1].update(short='Kits entregados',note=f"{r['kit_provinces']} provincias")
     cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago' if r['bonus_period_available'] else 'Sin desglose temporal')
-    cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],display_value=f"USD {number(r['articulation_amount'],2)}",note=f"En gestión · corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
+    cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],
+                    display_value=f"USD {number(r['articulation_amount'],2)}" if r['articulation_amount'] is not None else '—',
+                    note=f"En gestión · corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
     # One frame holds the closed units and the two charts that break them down, so the charts read as parts of that figure.
     frame_top=top;top-=9
     caption=' · '.join(f"{number(a['value'])} {CAPTION.get(a['name'],'de '+a['name'])}" for a in r['continuity']['by_service'])
+    if not r['continuity']['available']:
+        caption=r['continuity']['empty']
     from .risks import _paragraph_height
     band=max(34,22+_paragraph_height(caption,full-82,7.2))
     c.setFillColor(C(theme.LILA_50));c.roundRect(M+9,top-band,full-18,band,6,fill=1,stroke=0)
-    c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',23);c.drawString(M+21,top-band/2-8,number(r['continuity']['closed']))
+    closed=number(r['continuity']['closed']) if r['continuity']['available'] else '—'
+    c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',23);c.drawString(M+21,top-band/2-8,closed)
     c.setFont('Text-Bold',9);c.drawString(M+79,top-13,'Unidades de atención cerradas / suspendidas')
     _paragraph(c,caption,M+79,top-17,full-100,size=7.2,color=C(theme.MORADO))
     top-=band+21
@@ -83,7 +88,7 @@ def render(c,ctx,pages):
         first=first if len(first)<=46 else first[:43]+'…'
         shown=first+(f"; y {len(name_list)-1} " + ("unidad adicional" if len(name_list)==2 else "unidades adicionales") if len(name_list)>1 else '')
         rows.append([Markup(f"<b>{escape(g['province'])}</b>"+(f"<br/>{escape(g['canton'])}" if g['canton'] else '')),g['service'],number(g['units']),shown or '—'])
-    rows.append(['Total','',number(r['continuity']['closed']),''])
+    rows.append(['Total','',number(r['continuity']['closed']) if r['continuity']['available'] else '—',''])
     # The detail takes the largest type and padding that the page holds (as in the approved bulletin), keeping room
     # for its source line.
     from reportlab.pdfgen.canvas import Canvas

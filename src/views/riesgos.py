@@ -8,7 +8,7 @@ units of different threats are never added: a unit exposed to two threats is one
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from textwrap import wrap
 
 import numpy as np
@@ -34,6 +34,11 @@ def _read_details(version: int) -> pd.DataFrame:
 @st.cache_data(show_spinner=False)
 def _read_matrix(version: int) -> pd.DataFrame:
     return pd.read_parquet(riesgos.MATRIX_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def _window(path: str, version: int) -> tuple[pd.Timestamp, pd.Timestamp]:
+    return enos.window(enos.load(path))
 
 
 METHODOLOGY = (
@@ -65,8 +70,6 @@ MAP_LABELS = {"expuestas": "UA expuestas por provincia", "porcentaje": "Porcenta
               "suspendidas": "Unidades de atención suspendidas por provincia"}
 SUSCEPTIBILITY_CELLS = {"Media": ("#F3EFFC", "#5B46A0"), "Alta": ("#E2D9F6", "#3D216D"), "Muy alta": ("#F9DDEB", "#A32C74"),
                         "Sin categoría reportada": ("#FFFFFF", "#A59CB6"), "Sin categoría": ("#FFFFFF", "#A59CB6")}
-RESPONSE_SCOPES = [("Alertas", enos.ALERT_NOTE), ("Kits", enos.KIT_NOTE), ("Bono de contingencia", enos.BONO_NOTE),
-                   ("Filtros", respuesta.FILTERS_NOTE)]
 RANK_METRICS = {"expuestas": "UA expuestas", "porcentaje": "% del inventario", "muy_alta": "Muy alta"}
 
 
@@ -273,10 +276,50 @@ class RiskView:
                        else self.data.iloc[:0].rename(columns={"unidades": "registros"}))
         self.provinces, self.programs, self.threat, self.levels = [], [], None, riesgos.LEVELS
         self.map_indicator = "alertas"
-        # The response of the Ministry: one snapshot per cut of the follow-up (alerts, kits and contingency bonus).
+        # The response of the Ministry: one publication per day reported (alerts, kits and contingency bonus; continuity of
+        # the services apart).  The period of the consultation runs from the start of the follow-up to the last day reported.
         self.snapshots = enos.snapshots()
         self.response_path = self.snapshots[-1] if self.snapshots else None
+        self.continuity_path = enos.in_force(enos.CONTINUITY)[0]
         self.response = None
+        self.first, self.last = self.window()
+        self.since, self.until = self.first, self.last
+
+    def window(self) -> tuple[pd.Timestamp, pd.Timestamp]:
+        """First day of the follow-up (the latest publication holds its whole history) and the last day reported."""
+        if not self.response_path:
+            today = pd.Timestamp.today().normalize()
+            return today, today
+        first, _cut = _window(str(self.response_path), self.response_path.stat().st_mtime_ns)
+        days = [day for pattern in (enos.SNAPSHOT, enos.CONTINUITY) for day, _path in enos.publications(pattern)]
+        return first, max(days)
+
+    def period_for(self, since, until) -> dict:
+        """The period of the consultation, on top of the cut of the internal exposure (the latest of the inventory)."""
+        catalog = self.catalog()
+        exposure = catalog[-1] if catalog else {"id": "", "year": int(pd.Timestamp(until).year), "month": None}
+        since, until = pd.Timestamp(since).normalize(), pd.Timestamp(until).normalize()
+        return {**exposure, "label": f"Del {since:%d/%m/%Y} al {until:%d/%m/%Y}", "since": since, "until": until,
+                "stamp": f"{since:%Y-%m-%d}_al_{until:%Y-%m-%d}"}
+
+    def period_controls(self) -> dict:
+        """«Desde» and «Hasta» take the place of the year and month: the end of the period chooses the publication in force
+        that day, so a period ending on a day reproduces what was reported then."""
+        first, last = self.first.date(), self.last.date()
+        for key, default in (("risk_since", first), ("risk_until", last)):
+            value = st.session_state.get(key)
+            if not isinstance(value, date) or not first <= value <= last:
+                st.session_state[key] = default
+        left, right = st.columns(2, gap="small")
+        with left:
+            since = st.date_input("Desde", key="risk_since", min_value=first, max_value=last, format="DD/MM/YYYY",
+                                  help="Primer día del periodo: alertas y kits desde esta fecha.")
+        if st.session_state["risk_until"] < since:
+            st.session_state["risk_until"] = since
+        with right:
+            until = st.date_input("Hasta", key="risk_until", min_value=since, max_value=last, format="DD/MM/YYYY",
+                                  help="Último día del periodo: las cifras se presentan como se reportaron ese día.")
+        return self.period_for(since, until)
 
     def catalog(self) -> list[dict]:
         from src.corte import MONTHS
@@ -287,11 +330,15 @@ class RiskView:
                 for p in sorted(self.data.periodo_id.unique())]
 
     # ----------------------------------------------------------------------------------------- consultation
-    def select(self, period: dict, provinces=(), programs=(), threat=None, levels=riesgos.LEVELS) -> None:
-        """A cut and a selection without widgets (scripts, tests and the summary of every section)."""
-        self.period, self.provinces, self.programs = period, list(provinces), list(programs)
+    def select(self, period: dict, provinces=(), programs=(), threat=None, levels=riesgos.LEVELS, *, since=None, until=None) -> None:
+        """A cut and a selection without widgets (scripts, tests and the summary of every section).  Without ``since`` and
+        ``until`` (nor in ``period``), the whole follow-up up to the last day reported."""
+        self.provinces, self.programs = list(provinces), list(programs)
         self.threat, self.levels = threat, tuple(levels)
-        self.response_path = self.snapshots[-1] if self.snapshots else None
+        since = since if since is not None else period.get("since", self.first)
+        until = until if until is not None else period.get("until", self.last)
+        self.period = {**self.period_for(since, until), **{k: period[k] for k in ("id", "year", "month") if k in period}}
+        self.since, self.until = self.period["since"], self.period["until"]
 
     def _names(self, period_id: str) -> tuple[dict, dict]:
         scoped = self.data.loc[self.data.periodo_id.eq(period_id)]
@@ -302,6 +349,7 @@ class RiskView:
 
     def controls(self, period: dict) -> None:
         self.period = period
+        self.since, self.until = period.get("since", self.first), period.get("until", self.last)
         province_names, service_names = self._names(period["id"])
         for key, options in [("risk_provinces", province_names), ("risk_programs", service_names),
                              ("risk_threats", riesgos.THREATS)]:
@@ -317,25 +365,19 @@ class RiskView:
             self.programs = st.multiselect("Servicio", list(service_names), format_func=service_names.get,
                                            placeholder="Todos los servicios", key="risk_programs")
         self.threat, self.levels = None, riesgos.LEVELS
-        if len(self.snapshots) > 1:
-            cuts = {path.stem[-10:]: path for path in self.snapshots}
-            if st.session_state.get("risk_response_cut") not in cuts:
-                st.session_state["risk_response_cut"] = list(cuts)[-1]
-            cut = st.selectbox("Corte del seguimiento de la respuesta", list(cuts), key="risk_response_cut",
-                               format_func=lambda x: pd.Timestamp(x).strftime("%d/%m/%Y"))
-            self.response_path = cuts[cut]
-        elif self.snapshots:
-            self.response_path = self.snapshots[-1]
-        if self.provinces or self.programs:
-            st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=self._clear, type="tertiary",
-                      key="risk_reset_filters")
+        whole = (pd.Timestamp(self.since), pd.Timestamp(self.until)) == (self.first, self.last)
+        if self.provinces or self.programs or not whole:
+            st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=self._clear, args=(self.first.date(), self.last.date()),
+                      type="tertiary", key="risk_reset_filters")
 
     @staticmethod
-    def _clear() -> None:
+    def _clear(first: date | None = None, last: date | None = None) -> None:
         st.session_state["risk_provinces"] = []
         st.session_state["risk_programs"] = []
         st.session_state["risk_threats"] = []
         st.session_state["risk_levels"] = list(riesgos.LEVELS)
+        if first and last:
+            st.session_state["risk_since"], st.session_state["risk_until"] = first, last
 
     def prepare(self) -> bool:
         pid = self.period["id"]
@@ -379,12 +421,18 @@ class RiskView:
         self.selection_label = f"{self.threat_label} · susceptibilidad {self.levels_label.lower()}"
         self.context_label = f"{self.period['label']} · {self.territory_label} · {self.programs_label}"
         self.response = None
+        # The publication in force on the last day of the period: what was reported that day.
+        self.response_path, exact = enos.in_force(enos.SNAPSHOT, self.until)
+        self.continuity_path, _exact = enos.in_force(enos.CONTINUITY, self.until)
         if self.response_path:
             unit_programs = {}
             if self.programs:
                 units = riesgos.select(self.inventory, pid, (), ())
                 unit_programs = dict(zip(units.codigo_ua.astype(str), units.programa_id))
-            self.response = respuesta.Response(enos.load(self.response_path), self.provinces, self.programs, unit_programs)
+            self.response = respuesta.Response(
+                enos.load(self.response_path), self.provinces, self.programs, unit_programs, since=self.since, until=self.until,
+                continuity=enos.continuity(self.continuity_path) if self.continuity_path else {"registros": [], "detalle": []},
+                publication={"dia": enos.publication_day(self.response_path), "exacta": exact})
         return True
 
     # ----------------------------------------------------------------------------------------------- band
@@ -396,7 +444,7 @@ class RiskView:
         from src.corte import ECUADOR, long_date
         r = self.response
         updated = long_date(datetime.fromisoformat(r.data["generado_utc"]).astimezone(ECUADOR)) if r else ""
-        cut = f"Respuesta al {r.cut:%d/%m/%Y}" if r else "Sin seguimiento disponible"
+        cut = f"Respuesta al {r.end:%d/%m/%Y}" if r else "Sin seguimiento disponible"
         return {"cut": cut, "updated": updated, "short": cut,
                 "line": cut + (f" · Actualizado el {updated}" if updated else ""),
                 "frequency": "Según cortes recibidos", "frequency_short": "según cortes recibidos"}
@@ -468,17 +516,22 @@ class RiskView:
     def _response_kpis(self) -> list[dict]:
         r = self.response
         kit_provinces, _ = r.places(r.kits)
+        continuity = r.available["continuidad"]
+        cut = r.continuity_cut
+        cut_day = f"{cut:%d/%m/%Y}" if cut is not None else ""
         return [
             {"label": "Alertas reportadas", "value": len(r.alerts), "icon": "shield", "tone": "oro",
              "note": "Registro y reportes sectoriales"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
-             "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte 27/10, 13:35"},
+             "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte {enos.short_cut(r.cuts['kits'])}"},
             {"label": "Personas · Bono de Contingencia", "value": int(r.articulation.personas.sum()) if r.bonus_period_available else None, "icon": "hand-coins", "tone": "lila",
              "note": "En articulación para el pago" if r.bonus_period_available else "Sin desglose temporal disponible"},
-            {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()) if r.bonus_period_available else None, "prefix": "USD", "decimals": 2,
+            {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()) if r.bonus_period_available else None,
+             "prefix": "USD" if r.bonus_period_available else None, "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}" if r.bonus_period_available else "Sin desglose temporal disponible"},
-            {"label": "Unidades cerradas / suspendidas", "value": r.closed_units, "icon": "shield", "tone": "fucsia",
-             "note": r.suspension_short() + " · corte 26/10/2026"},
+            # A territorial report outside the period has no figure in it (never a zero).
+            {"label": "Unidades cerradas / suspendidas", "value": r.closed_units if continuity else None, "icon": "shield", "tone": "fucsia",
+             "note": r.suspension_short() + f" · corte {cut_day}" if continuity else "Sin reporte territorial en el periodo"},
         ]
 
     def kpi_cards(self) -> list[dict]:
@@ -506,14 +559,23 @@ class RiskView:
         delivery in time) and how the bonus advances (a strip per stage), closing with the summary by province."""
         r = self.response
         acting = self.action_rows()
+        if not r.whole or not r.publication.get("exacta", True):
+            # A period other than the whole reporting period says which publication its figures come from and what it lacks.
+            ui.info_note(" ".join(t for t in [r.publication_text(), r.missing_text()] if t), f"Periodo {r.scope_text().lower()}",
+                         tone="info" if r.publication.get("exacta", True) else "warn")
         if self.programs:
             ui.info_note(f"Las alertas y la continuidad corresponden a {self.programs_label.lower() if len(self.programs) > 1 else self.programs_label}; "
                          "los kits y el bono de contingencia no se asocian a un servicio y se muestran por territorio.",
                          "Alcance del filtro de servicio")
         # 1. Continuity of the services.
-        ui.section_heading("Continuidad de los servicios", f"{respuesta._n(r.closed_units, 'unidad suspendida', 'unidades suspendidas')} · "
-                                                           "corte territorial: 26/10/2026, 16:00", "shield")
-        if r.closed_units:
+        continuity = r.continuity_summary()
+        ui.section_heading("Continuidad de los servicios", " · ".join(t for t in [
+            respuesta._n(r.closed_units, 'unidad suspendida', 'unidades suspendidas') if continuity["available"] else "",
+            continuity["heading"]] if t), "shield")
+        if not continuity["available"]:
+            ui.info_note(f"El reporte territorial de unidades suspendidas ({r.continuity_cut_text()}) queda fuera del periodo.",
+                         "Sin reporte territorial en el periodo")
+        elif r.closed_units:
             left, right = self._pair((1.6, 1))
             with left, st.container(border=True, key="card_continuity_map"):
                 ui.chart_title("Dónde se suspendió la atención", "Provincia y cantón · el color indica el servicio")
@@ -524,19 +586,20 @@ class RiskView:
             with st.container(border=True, key="card_suspended_units_detail"):
                 ui.chart_title("Unidades suspendidas", "Provincia, cantón, servicio y nombre de las unidades")
                 respuesta.suspended_table(r)
-                st.caption(enos.CONTINUITY_NOTE)
+                st.caption(continuity["note"])
         else:
             ui.info_note("El reporte territorial no registra unidades suspendidas en la selección.", "Sin suspensiones")
         # 2. Alerts with a UA code.
         ui.section_heading("Alertas en servicios MTDH", f"{respuesta._n(len(r.alerts), 'alerta')} reportada · "
                                                         f"{r.scope_text().lower()}", "storm")
         if r.alerts.empty:
-            ui.info_note("No hay alertas reportadas en la selección.", "Sin alertas")
+            ui.info_note("No hay alertas reportadas en la selección y el periodo.", "Sin alertas")
         else:
             left, right = self._pair((1.6, 1))
             units = respuesta.alerts_units(r)
-            undated = ("La evolución diaria incluye solo fechas exactas; 6 reportes gerontológicos corresponden a agosto sin día especificado."
-                       if r.alerts.fecha.isna().any() else "")
+            undated_count = int(pd.to_datetime(r.alerts.fecha, errors="coerce").isna().sum())
+            undated = (f"La evolución diaria incluye solo fechas exactas; {respuesta._n(undated_count, 'reporte')} sin día especificado."
+                       if undated_count else "")
             # Both cards keep the same height: the evolution grows with the rows of the unit chart and its notes.
             height = None if compact() else int(units.layout.height) + 37 + (40 if undated else 0)
             with left, st.container(border=True, key="card_response_evolution"):
@@ -554,9 +617,9 @@ class RiskView:
         # 3. Kits delivered.
         kit_provinces, _ = r.places(r.kits)
         ui.section_heading("Kits entregados", f"{ui.number(r.kits_total)} kits en {respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · "
-                                              f"{r.kit_records} registros Kobo · corte 27/10, 13:35", "life-buoy")
+                                              f"{r.kit_records} registros Kobo · corte {enos.short_cut(r.cuts['kits'])}", "life-buoy")
         if r.kits.empty:
-            ui.info_note("No hay entregas de kits en la selección.", "Sin entregas")
+            ui.info_note("No hay entregas de kits en la selección y el periodo.", "Sin entregas")
         else:
             with st.container(border=True, key="card_response_kits"):
                 ui.chart_title("Kits por provincia y entregas en el tiempo",
@@ -617,13 +680,16 @@ class RiskView:
             ui.rich_table(columns, rows.to_dict("records"), total=total)
             st.caption("Bono: sin desglose temporal disponible." if not self.response.bonus_period_available else f"Bono de Contingencia en articulación para el pago: actualización {self.response.cut_text('bonos')}.")
         rows = self.action_rows()
+        # A stage of the bonus without a period of its own inside the one consulted has no figure (never a zero).
+        if not self.response.available["gestionados"]:
+            rows[["gestionados", "monto_gestionado"]] = None
         if not self.response.bonus_period_available:
-            rows[["gestionados","monto_gestionado","articulacion","monto_articulacion"]]=None
+            rows[["articulacion", "monto_articulacion"]] = None
         layout = [("Provincia", "nombre", "text", 26.0), ("Kits", "kits", "int", 12.0),
                   ("Bono gestionado (núcleos familiares)", "gestionados", "int", 22.0), ("Monto gestionado (USD)", "monto_gestionado", "usd", 22.0),
                   ("En articulación (personas)", "articulacion", "int", 22.0), ("Monto en articulación (USD)", "monto_articulacion", "usd", 24.0)]
         download_table(rows, layout, title="Acciones del Ministerio por provincia", subtitle=self.response.scope_text(),
-                       period_label=self.response.scope_text(), file_name=f"MTDH_riesgos_acciones_{self.response.cut:%Y-%m-%d}.xlsx",
+                       period_label=self.response.scope_text(), file_name=f"MTDH_riesgos_acciones_{self.period_for(self.since, self.until)['stamp']}.xlsx",
                        key="risk_integrated_xlsx", share_fields=(), label="Descargar acciones por provincia (Excel)")
 
     def integrated_rows(self) -> pd.DataFrame:
@@ -763,9 +829,11 @@ class RiskView:
                                key="risk_xlsx", share_fields=())
 
     def methodology(self) -> None:
-        # Each scope reads on its own, without subtitles; the geoportal closes the note as a link.
-        scopes = RESPONSE_SCOPES + [("Revisión de alertas", enos.QUALITY_NOTE), ("Continuidad de atención", enos.CONTINUITY_NOTE)]
-        items = "".join(f"<p>{ui._esc(text)}</p>" for _term, text in scopes if text)
+        # Each scope reads on its own, without subtitles; the geoportal closes the note as a link.  The scopes are those written
+        # for the publication in force, with the figures of the period.
+        notes = self.response.notes() if self.response else {}
+        scopes = [notes.get(key, "") for key in ("period", "alerts", "kits", "bonus", "filters", "quality", "continuity")]
+        items = "".join(f"<p>{ui._esc(text)}</p>" for text in scopes if text)
         st.markdown(f'<section class="method-card"><header><span class="method-icon">{ui.icon("info", 20)}</span>'
                     f'<h3>Nota metodológica</h3></header><div class="method-notes">{items}</div>'
                     '<p class="method-source">Fuentes: Subsecretaría Territorial (análisis de alertas), corte Kobo de kits '
@@ -780,7 +848,11 @@ class RiskView:
 
     # ---------------------------------------------------------------------------------------------- reports
     def scope_items(self) -> list[tuple[str, str]]:
-        return [("Seguimiento", self.response.scope_text() if self.response else "Sin corte"),
+        r = self.response
+        if not r:
+            return [("Periodo", "Sin corte"), ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
+        day = f"{pd.Timestamp(r.publication['dia']):%d/%m/%Y}"
+        return [("Periodo", r.scope_text()), ("Publicación", day if r.publication.get("exacta", True) else f"{day} · reconstruida"),
                 ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
 
     def products_notes(self) -> dict[str, str]:
@@ -807,9 +879,11 @@ class RiskView:
         return self.map_svg("alertas", night=False, width=300)[0]
 
     def digest(self) -> str:
-        response = self.response.data.get("generado_utc") if self.response else ""
-        return fingerprint("response-v7-confirmed-bono-period", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
-                           self.threat, self.levels, METHODOLOGY, enos.CONTINUITY_PATH.read_text(), self.update_stamp(), str(self.response_path), response)
+        # The period and the content of the publications in force: a new publication or another period is another document.
+        published = [enos.fingerprint(path) for path in (self.response_path, self.continuity_path) if path]
+        return fingerprint("response-period-v6", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+                           self.threat, self.levels, METHODOLOGY, str(self.since), str(self.until), str(self.response_path),
+                           str(self.continuity_path), published, self.update_stamp())
 
     def report_context(self, title: str) -> dict:
         from src.reports.risks import build_context

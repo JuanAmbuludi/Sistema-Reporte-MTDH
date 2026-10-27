@@ -16,7 +16,7 @@ El boletín N.º 0044 de Educación (25/10) se emplea como referencia de estruct
 
 ## Fuentes y actualización
 
-El snapshot `data/processed/seguimiento_enos_2026-10-26.json` publica únicamente campos operativos necesarios. Omite relatos libres, domicilios, responsables, teléfonos y datos personales de familias. Conserva las huellas de las fuentes.
+Cada publicación `data/processed/seguimiento_enos_AAAA-MM-DD.json` publica únicamente campos operativos necesarios. Omite relatos libres, domicilios, responsables, teléfonos y datos personales de familias. Conserva las huellas de las fuentes.
 
 ```bash
 python scripts/build_enos.py \
@@ -27,7 +27,21 @@ python scripts/build_enos.py \
   --start 2026-09-14 --cut 2026-10-26 --kits-cut 2026-10-25 --bonos-cut 2026-10-23
 ```
 
-Cada corte se guarda en su propio JSON. La interfaz permite elegir los cortes recibidos. El CSV de kits es una transcripción revisada de `Reporte_ministerial_kits_provincias_priorizadas_rev.pdf`; para nuevos cortes se debe suministrar el archivo actualizado. El parser de bonos conserva la provincia de las celdas verticalmente combinadas del Word. Los alcances narrativos de cada fuente deben revisarse cuando cambien sus periodos o criterios.
+El CSV de kits es una transcripción revisada de `Reporte_ministerial_kits_provincias_priorizadas_rev.pdf`; para nuevos cortes se debe suministrar el archivo actualizado. El parser de bonos conserva la provincia de las celdas verticalmente combinadas del Word. Los alcances narrativos de cada fuente deben revisarse cuando cambien sus periodos o criterios.
+
+## Periodo y trazabilidad de lo reportado
+
+**Riesgos** se consulta por periodo: **Desde** y **Hasta** reemplazan al año y al mes en el panel de consulta y se aplican al tablero y a los tres exportables (resumen ejecutivo, presentación y libro de datos). Por omisión el periodo va del inicio del seguimiento (`desde`, hoy 28/09/2026) al último día reportado. Cada fuente se recorta por su propia fecha: alertas por su fecha de registro o reporte, kits por su fecha de entrega y unidades suspendidas por la fecha del corte territorial. El bono de contingencia no tiene fecha por registro: solo se presenta cuando el periodo confirmado por el responsable (`bonos_periodos_confirmados`) está dentro del consultado; si no, figura como no disponible, nunca como cero.
+
+**Cada día reportado es una publicación propia**, nombrada por ese día: `seguimiento_enos_AAAA-MM-DD.json` (alertas, kits, bono y sus alcances en `notas`) y `continuidad_servicios_AAAA-MM-DD.json` (unidades suspendidas). El **Hasta** elige la publicación vigente ese día, de modo que un periodo que termina el 27/10 reproduce exactamente lo reportado el 27/10 aunque mañana lleguen datos nuevos. Un periodo que termina antes de la primera publicación guardada se reconstruye con ella según la fecha de cada registro, y el tablero lo advierte.
+
+Para reportar un día nuevo no se edita el anterior:
+
+```bash
+python scripts/nuevo_corte_riesgos.py 2026-10-28
+```
+
+El script copia la última publicación de cada fuente a los archivos del nuevo día y cierra el día anterior: registra la huella SHA-256 de sus archivos en `data/processed/cortes_riesgos.json`. Los datos nuevos se cargan después en los archivos del nuevo día (`scripts/update_kobo_kits.py` actualiza por omisión la última publicación). La prueba `tests/test_riesgos_periodo.py` falla si un día cerrado cambia.
 
 ## Estabilidad de la aplicación
 

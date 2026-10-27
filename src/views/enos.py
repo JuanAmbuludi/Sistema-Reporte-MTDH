@@ -116,10 +116,10 @@ class EnosView:
             ui.chart_title('Detalle de alertas', 'Código y nombre de UA cuando constan en la fuente')
             self._table(self.alerts, {'codigo':'Alerta','fecha':'Fecha de registro','provincia':'Provincia','canton':'Cantón',
                         'estado':'Estado','codigo_ua':'Código UA','unidad':'Unidad de atención','servicio':'Servicio','afectacion_servicio':'Afectación al servicio','afectados_fuente':'Afectados (campo fuente)'}, 'enos_alerts')
-        ui.info_note(enos.ALERT_NOTE,'Alcance de las alertas')
+        ui.info_note(enos.notes(self.data)['alertas'],'Alcance de las alertas')
         st.caption(enos.QUALITY_NOTE)
         ui.section_heading('Kits entregados en provincias priorizadas', 'Entregas documentadas del fin de semana', 'life-buoy')
-        st.caption(enos.KIT_NOTE)
+        st.caption(enos.kit_note(self.data, enos.frames(self.data)['kits']))
         st.caption(f'{self.kits.provincia.nunique()} provincias · {self.kits[["provincia","canton"]].drop_duplicates().shape[0]} cantones · '
                    f'{len(self.kits)} entregas registradas')
         columns = [st.container(),st.container()] if compact() else st.columns([1, 1.25], gap='medium')
@@ -135,7 +135,7 @@ class EnosView:
                      {'label':'Núcleos familiares potenciales','value':plan['nucleos'],'icon':'users','note':'Proyección nacional'},
                      {'label':'Inversión estimada','value':plan['monto']/1e6,'decimals':2,'prefix':'USD','suffix':'millones',
                       'icon':'banknote','note':'Planificación, no ejecución'}],overlap=False)
-        ui.info_note(enos.BONO_NOTE,'Alcance disponible del bono',tone='warn')
+        ui.info_note(enos.notes(self.data)['bono'],'Alcance disponible del bono',tone='warn')
         columns = [st.container(),st.container()] if compact() else st.columns(2, gap='medium')
         for box,(key,title) in zip(columns, [('gestionados','Pagos gestionados por inundaciones'),('articulacion','En articulación por inundaciones')]):
             frame = self.frames[key]

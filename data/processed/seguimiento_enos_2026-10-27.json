@@ -1819,6 +1819,11 @@
     "bonos_desde": "2026-08-29",
     "bonos_gestionados": "2026-10-23"
   },
+  "notas": {
+    "alertas": "Seguimiento desde el 28/09/2026, complementado con reportes sectoriales de octubre. Los reportes gerontológicos utilizan su fecha de reporte. Los identificadores DIS/GER/DII permiten localizar las filas incorporadas; no son códigos oficiales ni códigos UA. Los registros repetidos de la base consolidada se cuentan una sola vez. Alertas, unidades y personas son medidas distintas.",
+    "kits": "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.",
+    "bono": "Bono en articulación: 1.171 personas y USD 354.987,39 correspondientes al período 28/09–27/10/2026. Los bonos gestionados no cuentan con desglose temporal para este período. Las proyecciones son una referencia de planificación."
+  },
   "control": {
     "alertas_detalle_original": 31,
     "alertas_desde_inicio": 31,

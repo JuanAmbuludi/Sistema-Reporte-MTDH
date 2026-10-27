@@ -11,7 +11,8 @@ def build_context(view,title):
                kpis=kpis_from_cards(view.kpi_cards()), alerts=view.alerts.to_dict('records'), kits=view.kits.to_dict('records'),
                provinces=enos.summary(view.alerts,'provincia'), states=enos.summary(view.alerts,'estado'),
                days=enos.summary(view.alerts,'fecha'), plan=view.data['bonos']['planificacion'], scope=view.scope_items(),
-               alert_note=enos.ALERT_NOTE,kit_note=enos.KIT_NOTE,bono_note=enos.BONO_NOTE,quality_note=enos.QUALITY_NOTE,
+               alert_note=enos.notes(view.data)['alertas'],kit_note=enos.kit_note(view.data,enos.frames(view.data)['kits']),
+               bono_note=enos.notes(view.data)['bono'],quality_note=enos.QUALITY_NOTE,
                reference=enos.REFERENCE, sources=view.data['fuentes'],
                bonos=[{**r,'stage':label} for key,label in [('gestionados','Gestionado'),('articulacion','En articulación')]
                        for r in view.frames[key].to_dict('records')],

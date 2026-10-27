@@ -98,6 +98,9 @@ html{scroll-behavior:smooth}
 .st-key-risk_levels button[aria-pressed="true"]:nth-child(3){background:var(--fucsia-700)!important;border-color:var(--fucsia-700)!important}
 .st-key-risk_levels button[aria-pressed="true"]:nth-child(n+2) p{color:#fff!important}
 .st-key-consulta [data-baseweb="select"]>div{border-radius:12px;border-color:#DDD5EA;min-height:44px;background:#FBFAFE}
+/* Riesgos: the period of days (Desde · Hasta) in the place of the year and the month */
+.st-key-consulta [data-testid="stDateInput"] [data-baseweb="input"]{border-radius:12px;border-color:#DDD5EA;min-height:44px;background:#FBFAFE}
+.st-key-consulta [data-testid="stDateInput"] input{font-weight:600;color:var(--morado-800);font-variant-numeric:tabular-nums}
 .st-key-consulta [data-baseweb="tag"]{background:var(--lila-50)!important;border:1px solid var(--lila-200);border-radius:999px!important}
 .st-key-consulta [data-baseweb="tag"] span{color:var(--morado-800)!important;font-weight:600}
 .st-key-reset_filters button{padding:0!important;min-height:28px;color:var(--morado)!important}

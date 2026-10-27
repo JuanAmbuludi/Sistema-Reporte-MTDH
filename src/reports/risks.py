@@ -227,8 +227,6 @@ def build_context(view, *, title: str) -> dict:
 def _response(r) -> dict:
     """The actions of the Ministry for the documents (alerts, kits and contingency bonus, with their cuts and scopes)."""
     import pandas as pd
-    from src import enos
-    from src.views import respuesta
     alerts = r.alerts.sort_values(["fecha", "codigo"], ascending=[False, False])
     alert_provinces, alert_cantons = r.places(r.alerts)
     kit_provinces, kit_cantons = r.places(r.kits)
@@ -239,6 +237,8 @@ def _response(r) -> dict:
     bonus = sorted(set(managed.index) | set(articulation.index), key=lambda p: -(managed.personas.get(p, 0) + articulation.personas.get(p, 0)))
     return {
         "since": f"{r.since:%d/%m/%Y}", "cut": f"{r.cut:%d/%m/%Y}", "scope": r.scope_text(),
+        "start": f"{r.start:%d/%m/%Y}", "end": f"{r.end:%d/%m/%Y}",
+        "available": dict(r.available), "publication": r.publication_text(), "missing": r.missing_text(),
         "alerts": [{"code": a["codigo"], "date": pd.Timestamp(a['fecha']).strftime('%d/%m/%Y') if pd.notna(a['fecha']) else a.get('fecha_texto', 'Sin fecha diaria'), "province": a["provincia"], "canton": a["canton"],
                     "place": f"{a['provincia']} · {a['canton']}", "unit": a["unidad"] or "—", "ua": a["codigo_ua"],
                     "service": a["servicio"], "impact": a["afectacion_servicio"], "status": a["estado"], "priority": a["prioridad"]}
@@ -261,8 +261,7 @@ def _response(r) -> dict:
         "articulation_people": int(r.articulation.personas.sum()), "articulation_amount": float(r.articulation.monto.sum()),
         "bonus_cut": f"{pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}", "bonus_since": f"{pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y}",
         "plan": dict(r.plan),
-        "notes": {"alerts": enos.ALERT_NOTE, "kits": enos.KIT_NOTE, "bonus": enos.BONO_NOTE, "quality": enos.QUALITY_NOTE,
-                  "filters": respuesta.FILTERS_NOTE},
+        "notes": r.notes(),
     }
 
 

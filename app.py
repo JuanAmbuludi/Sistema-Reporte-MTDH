@@ -124,7 +124,8 @@ with st.container(key="band"):
             view = views[area]
             if hasattr(view, "pre_controls"):
                 view.pre_controls()
-            period = period_controls(view.catalog())
+            # Riesgos reads a period of days (Desde · Hasta) instead of a year and a month.
+            period = view.period_controls() if hasattr(view, "period_controls") else period_controls(view.catalog())
             view.controls(period)
     ready = view.prepare()
     stamp = view.update_stamp() if hasattr(view, "update_stamp") else corte.stamp(view.id, period)
@@ -173,6 +174,8 @@ LEVEL_SUFFIX = {"provincia": "_provincias", "canton": "_cantones", "parroquia": 
 
 
 def kpi_text(card: dict) -> str:
+    if card.get("value") is None:
+        return "—"
     value = ui.number(card["value"], card.get("decimals", 0))
     if card.get("suffix") == "%":
         return f"{value} %"
@@ -233,7 +236,7 @@ def report_center() -> None:
         if generated.get("digest") == digest:
             ui.info_note("El documento conserva el periodo, el ámbito y la selección vigentes.", f"{product} listo", tone="ok")
             level = LEVEL_SUFFIX.get(getattr(view, "report_level", ""), "") if hasattr(view, "report_options") and not everything else ""
-            stamp_id = datetime.now(corte.ECUADOR).strftime("%Y-%m-%d") if everything else period["id"]
+            stamp_id = datetime.now(corte.ECUADOR).strftime("%Y-%m-%d") if everything else period.get("stamp", period["id"])
             st.download_button(f"Descargar {name}", generated["content"],
                                file_name=f'MTDH_{spec["slug"]}_{file_id}_{stamp_id}{level}.{spec["ext"]}', mime=spec["mime"],
                                icon=":material/download:", type="primary", width="stretch", key="download_report")

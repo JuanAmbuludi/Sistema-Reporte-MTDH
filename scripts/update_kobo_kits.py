@@ -61,5 +61,8 @@ def update(source, snapshot):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(); parser.add_argument('source')
-    parser.add_argument('--snapshot', default=ROOT/'data/processed/seguimiento_enos_2026-10-26.json')
-    args = parser.parse_args(); update(args.source, args.snapshot)
+    # By default, the publication of the day being reported (open it first with scripts/nuevo_corte_riesgos.py).
+    parser.add_argument('--snapshot', default=None)
+    args = parser.parse_args()
+    from src import enos
+    update(args.source, args.snapshot or enos.snapshots()[-1])
