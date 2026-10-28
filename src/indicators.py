@@ -119,7 +119,7 @@ MODULES: dict[str, Module] = {
         item="programa", items="programas", people="Beneficiarios", people_icon="hand-coins",
     ),
     "servicios": Module(
-        id="servicios", label="Servicios de protección social", short_label="Servicios", sections=("proteccion_integral",),
+        id="servicios", label="Servicios de protección social", short_label="Servicios sociales", sections=("proteccion_integral",),
         description="Usuarios, unidades de atención y presupuesto de los servicios de protección social, por servicio, "
                     "provincia y parroquia.",
         item="servicio", items="servicios", people="Usuarios", people_icon="users",
@@ -130,7 +130,7 @@ MODULES: dict[str, Module] = {
 # Every area of the consultation, in the order of the institutional bulletin.
 AREAS: dict[str, dict] = {
     "transferencias": {"label": "Transferencias monetarias no contributivas", "short": "Transferencias", "kind": "territorial"},
-    "servicios": {"label": "Servicios de protección social", "short": "Servicios", "kind": "territorial"},
+    "servicios": {"label": "Servicios de protección social", "short": "Servicios sociales", "kind": "territorial"},
     "riesgos": {"label": "Plan ENOS", "short": "ENOS", "kind": "riesgos"},
     "contingencias": {"label": "Contingencias y compensaciones", "short": "Contingencias", "kind": "contingencias",
                       "description": "Bonos por orfandad por femicidio, cobertura de contingencias y eventos de origen natural o "

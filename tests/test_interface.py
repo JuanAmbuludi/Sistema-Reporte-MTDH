@@ -65,7 +65,7 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert "Corte septiembre 2026" in html
     assert "update-stamp" in html and "Actualizado el" in html and "Actualización mensual" in html, "Corte y frecuencia visibles"
     assert "El corazón de Ecuador." not in html and "Velamos por la calidad de vida de los ecuatorianos" not in html
-    assert app.segmented_control(key="module").options == ["Transferencias", "Servicios", "ENOS", "Contingencias", "Jóvenes en Acción",
+    assert app.segmented_control(key="module").options == ["Transferencias", "Servicios sociales", "ENOS", "Contingencias", "Jóvenes en Acción",
                                                            "Empleo", "Presupuesto"]
 
 
