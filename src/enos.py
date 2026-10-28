@@ -151,7 +151,7 @@ def continuity_cuts(data: dict) -> str:
 
 # ------------------------------------------------------------------------------------------------ records
 def included(row, data):
-    if row.get("origen") == "reporte_sectorial" and data.get("criterio_alertas") == "codigo_ua_y_reportes_sectoriales":
+    if row.get("origen") in ("reporte_sectorial", "aplicativo") and data.get("criterio_alertas") == "codigo_ua_y_reportes_sectoriales":
         return bool(row.get("fuente")) and bool(row.get("servicio"))
     if data.get("criterio_alertas") in ("codigo_ua", "codigo_ua_y_reportes_sectoriales"):
         return (str(row.get("codigo_ua", "")).strip() not in ("", "—", "-", "nan", "None")

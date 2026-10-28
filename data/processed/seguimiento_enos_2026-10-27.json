@@ -3,7 +3,7 @@
   "criterio_alertas": "codigo_ua_y_reportes_sectoriales",
   "corte": "2026-10-27",
   "desde": "2026-09-28",
-  "generado_utc": "2026-10-27T16:42:42.566886+00:00",
+  "generado_utc": "2026-10-28T00:53:09.174010+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -848,6 +848,113 @@
       "acciones_ejecutadas": "Familias con difícil acceso por qué en los sectores donde habitan están llenos de agua",
       "acciones_pendientes": "",
       "medidas_servicio": ""
+    },
+    {
+      "codigo": "ALT-2026-000364",
+      "fecha": "2026-10-27",
+      "provincia": "El Oro",
+      "canton": "Huaquillas",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "48759",
+      "unidad": "UNIDAD DE ATENCIÓN PARA ADULTOS MAYORES DEL CANTÓN HUAQUILLAS",
+      "afectados_fuente": 30,
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Centros gerontológicos",
+      "afectacion_servicio": "Daños en techos y canaletas y presencia de goteras; mantenimiento solicitado.",
+      "origen": "aplicativo",
+      "fecha_texto": "2026-10-27",
+      "mes_reporte": "2026-10",
+      "fuente": "02-alertas-aplicativo-2026-10-27.xlsx",
+      "reportes_relacionados": [
+        "GER-2026-001"
+      ]
+    },
+    {
+      "codigo": "ALT-2026-000363",
+      "fecha": "2026-10-27",
+      "provincia": "El Oro",
+      "canton": "Zaruma",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "46358",
+      "unidad": "CENTRO GERONTOLOGICO RESIDENCIAL DEL BUEN VIVIR ZARUMA",
+      "afectados_fuente": 30,
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Centros gerontológicos",
+      "afectacion_servicio": "Daños en techos y canaletas y presencia de goteras; mantenimiento solicitado.",
+      "origen": "aplicativo",
+      "fecha_texto": "2026-10-27",
+      "mes_reporte": "2026-10",
+      "fuente": "02-alertas-aplicativo-2026-10-27.xlsx",
+      "reportes_relacionados": []
+    },
+    {
+      "codigo": "ALT-2026-000362",
+      "fecha": "2026-10-27",
+      "provincia": "Guayas",
+      "canton": "Salitre",
+      "estado": "Pendiente",
+      "prioridad": "Media",
+      "codigo_ua": "",
+      "unidad": "VARIAS",
+      "afectados_fuente": 171,
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Desarrollo Infantil",
+      "afectacion_servicio": "Lluvias e inundación dificultan el acceso a cinco CDI de Salitre; dos reportan suspensión.",
+      "origen": "aplicativo",
+      "fecha_texto": "2026-10-27",
+      "mes_reporte": "2026-10",
+      "fuente": "02-alertas-aplicativo-2026-10-27.xlsx",
+      "reportes_relacionados": [
+        "DII-2026-014",
+        "DII-2026-015",
+        "DII-2026-016",
+        "DII-2026-017",
+        "DII-2026-018"
+      ]
+    },
+    {
+      "codigo": "ALT-2026-000361",
+      "fecha": "2026-10-27",
+      "provincia": "Manabí",
+      "canton": "Pedernales",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "CENTRO GERONTOLÓGICO PEDERNALES",
+      "afectados_fuente": 30,
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Centros gerontológicos",
+      "afectacion_servicio": "Filtraciones de agua por el techo y humedad en paredes del centro gerontológico.",
+      "origen": "aplicativo",
+      "fecha_texto": "2026-10-27",
+      "mes_reporte": "2026-10",
+      "fuente": "02-alertas-aplicativo-2026-10-27.xlsx",
+      "reportes_relacionados": [
+        "GER-2026-005"
+      ]
+    },
+    {
+      "codigo": "ALT-2026-000360",
+      "fecha": "2026-10-27",
+      "provincia": "Manabí",
+      "canton": "Portoviejo",
+      "estado": "Pendiente",
+      "prioridad": "Baja",
+      "codigo_ua": "",
+      "unidad": "UNIDAD DE ATENCIÓN GUILLERMINA LOOR",
+      "afectados_fuente": 30,
+      "afectacion_servicio_confirmada": true,
+      "servicio": "Centros gerontológicos",
+      "afectacion_servicio": "Afectación de adecuaciones provisionales para mitigar filtraciones en áreas de adultos mayores.",
+      "origen": "aplicativo",
+      "fecha_texto": "2026-10-27",
+      "mes_reporte": "2026-10",
+      "fuente": "02-alertas-aplicativo-2026-10-27.xlsx",
+      "reportes_relacionados": [
+        "GER-2026-004"
+      ]
     }
   ],
   "kits": [
@@ -1738,6 +1845,46 @@
       "canton": "Cuenca",
       "kits": 200,
       "familias": 70
+    },
+    {
+      "id_kobo": "902352974",
+      "fecha": "2026-10-27",
+      "provincia": "Azuay",
+      "canton": "Gualaceo",
+      "kits": 74,
+      "familias": 25
+    },
+    {
+      "id_kobo": "902359232",
+      "fecha": "2026-10-27",
+      "provincia": "Cañar",
+      "canton": "Azogues",
+      "kits": 1,
+      "familias": 1
+    },
+    {
+      "id_kobo": "902328436",
+      "fecha": "2026-10-27",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 153,
+      "familias": 153
+    },
+    {
+      "id_kobo": "902349943",
+      "fecha": "2026-10-27",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "kits": 120,
+      "familias": 120
+    },
+    {
+      "id_kobo": "902346677",
+      "fecha": "2026-10-27",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "kits": 12,
+      "familias": 7
     }
   ],
   "bonos": {
@@ -1814,13 +1961,14 @@
   },
   "cortes": {
     "alertas": "2026-10-27",
-    "kits": "2026-10-27T13:35:45",
+    "kits": "2026-10-27",
     "bonos": "2026-10-27",
     "bonos_desde": "2026-08-29",
-    "bonos_gestionados": "2026-10-23"
+    "bonos_gestionados": "2026-10-23",
+    "brigadas": "2026-10-22"
   },
   "notas": {
-    "alertas": "Seguimiento desde el 28/09/2026, complementado con reportes sectoriales de octubre. Los reportes gerontológicos utilizan su fecha de reporte. Los identificadores DIS/GER/DII permiten localizar las filas incorporadas; no son códigos oficiales ni códigos UA. Los registros repetidos de la base consolidada se cuentan una sola vez. Alertas, unidades y personas son medidas distintas.",
+    "alertas": "Seguimiento desde el 28/09/2026. Se cuentan registros de alerta del aplicativo y reportes sectoriales, no eventos ni unidades únicas. Las nuevas alertas se incorporan por su código oficial; las coincidencias con reportes sectoriales se conservan vinculadas, sin eliminar antecedentes. El archivo recibido anuncia 7 alertas, pero contiene 5 filas de detalle.",
     "kits": "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.",
     "bono": "Bono en articulación: 1.171 personas y USD 354.987,39 correspondientes al período 28/09–27/10/2026. Los bonos gestionados no cuentan con desglose temporal para este período. Las proyecciones son una referencia de planificación."
   },
@@ -1833,7 +1981,7 @@
     "alertas_revision_inicio_solicitado": "2026-09-14",
     "alertas_sin_revision": 0,
     "resumen_excel_no_utilizado": "Las hojas resumen incluyen otras categorías y fechas.",
-    "alertas_total": 39,
+    "alertas_total": 44,
     "alertas_sectoriales_incorporadas": 29,
     "alertas_sectoriales_sin_fecha_diaria": 0,
     "bonos_revision": "Articulación actualizada con la tabla provincial remitida el 27/10: 1.171 personas y USD 354.987,39. Gestionados y planificación conservan su fuente previa.",
@@ -1852,7 +2000,10 @@
       25
     ],
     "inicio_reporte": "2026-09-28",
-    "criterio_temporal": "Alertas: fecha de registro/reporte validada. Kits: fecha de entrega. Continuidad: fecha del corte territorial. Bonos acumulados sin fecha individual: no disponibles para el período."
+    "criterio_temporal": "Alertas: fecha de registro/reporte validada. Kits: fecha de entrega. Continuidad: fecha del corte territorial. Bonos acumulados sin fecha individual: no disponibles para el período.",
+    "alertas_actualizacion_aplicativo": 5,
+    "encabezado_alertas_fuente": "7 alertas en el alcance del reporte",
+    "alertas_detalle_recibido": 5
   },
   "fuentes": [
     {
@@ -1893,27 +2044,43 @@
       "sha256": "147452b1bdfef6b57a6a0bd28aaf5974308187389e0133e24aa7ef54b57c71e0",
       "contenido": "Bono en articulación: 1.171 personas; USD 354.987,39",
       "nombre": "imagen.png"
+    },
+    {
+      "nombre": "02-alertas-aplicativo-2026-10-27.xlsx",
+      "sha256": "ddd767c7f1cee9f4aa70dde5cc274e919083c371c13de63425e6a5856a30d865"
+    },
+    {
+      "nombre": "03-UNIDADES-SIN-ATENCIO-N-27.10.2026-CORTE-19H00-.xlsx",
+      "sha256": "fe5e0395a83225e379b7e87860716b2b013f3721c6c9ba73ce06a19b6374dde3"
+    },
+    {
+      "nombre": "01-22.10.2026-RESULTADOS-BRIGADAS-SOCIALES-POR-EL-NUEVO-ECUADOR_MATRIZ.xlsx",
+      "sha256": "16cd4d5c901a1637dcebac69b5565c40729b26ee0cbcf3f00fd52fb150946dbf"
+    },
+    {
+      "nombre": "01-Resumen_kits_MTDH_26-27_octubre_2026.xlsx",
+      "sha256": "7dfedca1398d8868826639166de5946cea2cf93acb1ec1ad5f609e2f4321c572"
     }
   ],
   "kits_metadatos": {
-    "fuente": "01-Reporte_entregas_kits_MTDH_corte_27_octubre_2026_procesado.xlsx",
-    "corte": "27/10/2026 13:35:45",
+    "fuente": "01-Resumen_kits_MTDH_26-27_octubre_2026.xlsx",
+    "corte": "27/10/2026 (sin hora indicada)",
     "desde": "2026-08-31",
     "hasta": "2026-10-27",
-    "registros": 111,
-    "kits": 13981,
-    "familias_reportadas": 12987,
-    "reemplaza_corte_anterior": true,
+    "registros": 116,
+    "kits": 14341,
+    "familias_reportadas": 13293,
+    "reemplaza_corte_anterior": false,
     "unidad_publicada": "Núcleos familiares",
-    "variacion_kits": 591,
-    "registros_nuevos": 22,
     "validacion": "Total reportado en Kobo, conciliado con el resumen provincial; no es verificación independiente de entrega.",
     "observaciones_control": [
       {
         "id_kobo": "901621820",
         "observacion": "Cañar: la columna de kits reporta 1; la observación menciona una solicitud aún no recibida. Se conserva el total reportado, pendiente de validación territorial."
       }
-    ]
+    ],
+    "registros_actualizacion": 12,
+    "modo_actualizacion": "Actualización por ID de registro; conserva entregas anteriores"
   },
   "filtro_temporal_estricto": true,
   "bonos_con_fecha_individual": false,
@@ -1925,5 +2092,14 @@
       "personas": 1171,
       "monto": 354987.39
     }
-  }
+  },
+  "brigadas": [
+    {
+      "id": "BRI-2995",
+      "fecha": "2026-10-13",
+      "provincia": "Guayas",
+      "canton": "Balao",
+      "tipo": "Emergencia"
+    }
+  ]
 }

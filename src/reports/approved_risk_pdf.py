@@ -55,6 +55,13 @@ def render(c,ctx,pages):
                     display_value=f"USD {number(r['articulation_amount'],2)}" if r['articulation_amount'] is not None else '—',
                     note=f"En gestión · corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
+    brigade = next((k for k in ctx['kpis'] if k['label']=='Brigadas de emergencia'), None)
+    if brigade is not None:
+        c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-32,full,32,5,fill=1,stroke=0)
+        c.setFillColor(C(theme.MORADO_900));c.setFont('Text-Bold',21);c.drawString(M+12,top-23,number(brigade['value']))
+        c.setFont('Text-Bold',9);c.drawString(M+49,top-13,'Brigadas de emergencia')
+        c.setFont('Text',8);c.drawString(M+49,top-25,brigade.get('note',''))
+        top-=40
     # One frame holds the closed units and the two charts that break them down, so the charts read as parts of that figure.
     frame_top=top;top-=9
     caption=' · '.join(f"{number(a['value'])} {CAPTION.get(a['name'],'de '+a['name'])}" for a in r['continuity']['by_service'])
@@ -69,7 +76,7 @@ def render(c,ctx,pages):
     _paragraph(c,caption,M+79,top-17,full-100,size=7.2,color=C(theme.MORADO))
     top-=band+21
     lines=max(len(r['continuity']['by_province']),len(r['continuity']['by_service']))
-    step=21  # a name over its bar, as in the approved bulletin
+    step=19 if lines>4 else 21  # keep the expanded service breakdown within the cover
     inner=(full-18-22)/2
     for i,(key,title) in enumerate([('by_province','Unidades de atención suspendidas por provincia'),('by_service','Unidades de atención suspendidas por servicio')]):
         x=M+9+i*(inner+22);heading(c,title,x,top,inner)
@@ -138,7 +145,7 @@ def render(c,ctx,pages):
     assert pages==2+len(chunks)
 
 
-FIRST_ROWS,NEXT_ROWS=16,24  # alerts on the page that opens with the charts, and on each following page
+FIRST_ROWS,NEXT_ROWS=14,22  # alerts on the page that opens with the charts, and on each following page
 
 
 def alert_chunks(alerts):

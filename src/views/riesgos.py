@@ -536,7 +536,13 @@ class RiskView:
         ]
 
     def kpi_cards(self) -> list[dict]:
-        return self._response_kpis() if self.response else []
+        cards = self._response_kpis() if self.response else []
+        if self.response and "brigadas" in self.response.data:
+            rows = self.response.brigadas
+            places = "; ".join(dict.fromkeys(f"{r['provincia']} · {r['canton']}" for r in rows))
+            cards.append({"label": "Brigadas de emergencia", "value": len(rows), "icon": "users", "tone": "oro",
+                          "note": places or "Sin brigadas en la selección"})
+        return cards
 
     def kpi_groups(self) -> list[dict]:
         # One full-width row; exposure calculations remain internal.

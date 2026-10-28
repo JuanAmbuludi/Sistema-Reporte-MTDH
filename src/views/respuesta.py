@@ -132,6 +132,9 @@ class Response:
         self.programs = list(programs)
         self.national = national
         chosen = set(provinces)
+        self.brigadas = [row for row in data.get("brigadas", [])
+                         if max(self.start, self.first) <= pd.Timestamp(row["fecha"]) <= min(self.end, self.last)
+                         and (not chosen or _code(row["provincia"]) in chosen)]
         self.frames = {k: (f.loc[f.provincia_codigo.isin(chosen)] if chosen else f).copy() for k, f in national.items()}
         self.alerts, self.kits = self.frames["alertas"], self.frames["kits"]
         self.managed, self.articulation = self.frames["gestionados"], self.frames["articulacion"]
@@ -276,7 +279,8 @@ class Response:
 
     def count_note(self) -> str:
         parts = [f"{count} {service}" for service, count in self.alerts.groupby("servicio").size().sort_values(ascending=False).items()]
-        return f"{len(self.alerts)} alertas reportadas: {self.units} con código UA y {int(self.alerts.origen.eq('reporte_sectorial').sum())} reportes sectoriales."
+        sectorial = int(self.alerts.origen.eq('reporte_sectorial').sum())
+        return f"{len(self.alerts)} registros: {len(self.alerts)-sectorial} alertas del aplicativo y {sectorial} reportes sectoriales. No equivalen a eventos únicos."
 
     # ------------------------------------------------------------------------------------------- figures
     @property

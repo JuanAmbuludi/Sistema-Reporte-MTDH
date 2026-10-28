@@ -19,6 +19,7 @@ def build_context(view, *, title: str) -> dict:
     r = view.response
     ctx = _base(view, "riesgos", title)
     response = _response(r)
+    response["brigadas"] = r.brigadas
     response["by_province"] = enos.summary(r.alerts, "provincia")
     response["by_service"] = enos.summary(r.alerts, "servicio")
     days = pd.date_range(r.since, r.cut, freq="D")
