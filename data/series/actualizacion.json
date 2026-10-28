@@ -47,7 +47,7 @@
       "bytes": 16823
     },
     "web": {
-      "consulta_utc": "2026-10-27T17:12:45.104681+00:00",
+      "consulta_utc": "2026-10-28T18:22:29.573113+00:00",
       "recursos": [
         {
           "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpi_contratos.html",
@@ -56,13 +56,13 @@
         },
         {
           "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/kpis.html",
-          "sha256": "5b79060c95aff0bd0dde0e94367fdc41293f5c3ce79646d78a7d7e5c3adb7a2e",
-          "bytes": 46900
+          "sha256": "678166ca9c2bb6193312013f5620ab7b9c1d96b306e6e862b02072a9df9b9618",
+          "bytes": 47226
         },
         {
           "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/contratos/dashboard_data.json",
-          "sha256": "ef9e2513819db034bed47fbf589218f82c784ff43b35deb6344305e838fb5f23",
-          "bytes": 1654557
+          "sha256": "4694725e065e276634d721d1ba1785174caf2811fd59b8e5cef1ae5d5672fede",
+          "bytes": 1654829
         },
         {
           "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/kpis/kpi_trabajo.csv",
@@ -165,12 +165,12 @@
       "universo": "Grupos de gasto 58, 57 y 78 del presupuesto social; no es todo el presupuesto institucional."
     },
     "contratos": {
-      "fecha_corte": "2026-10-27",
-      "fecha_hora_corte": "2026-10-27T03:35",
-      "registrados": 13521147,
+      "fecha_corte": "2026-10-28",
+      "fecha_hora_corte": "2026-10-28T03:24",
+      "registrados": 13525737,
       "por_estado": {
-        "Finalizado": 10729835,
-        "Vigente": 2791312
+        "Finalizado": 10733532,
+        "Vigente": 2792205
       },
       "territorio": "Provincia y cantón; la fuente no publica parroquia.",
       "naturaleza": "Stock registrado a fecha_corte, no nuevos contratos del mes.",
@@ -954,83 +954,83 @@
     },
     {
       "base": "laboral/contratos_act.parquet",
-      "filas": 152821,
+      "filas": 203778,
       "columnas": 10,
-      "bytes": 443109,
+      "bytes": 565717,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "76ba0b4f6ed239533382f6e21b42cdecaa1477705d0957f87318dd273b6c2adb"
+      "sha256": "adaba974578c949bdafba702240004203892b0f8be6cf20327b58d1861e55b2d"
     },
     {
       "base": "laboral/contratos_base.parquet",
-      "filas": 1629,
+      "filas": 2172,
       "columnas": 11,
-      "bytes": 8713,
+      "bytes": 10227,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "28e1c1234a3445a7cdec7453b065534f539983049a5cf701382973cf1745e88e"
+      "sha256": "e45acabf4d46317e0753193dbf1b2290ffd6b39b30cad4ac72f48afbcfe5a50d"
     },
     {
       "base": "laboral/contratos_canton.parquet",
-      "filas": 11690,
+      "filas": 15587,
       "columnas": 12,
-      "bytes": 25642,
+      "bytes": 29196,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "bf599a8d72e88d5b0e01d33eda63ca6a1c3d9ba29e2cb7d3d9299e7f9bcad6f6"
+      "sha256": "5074359db3571f083604a0e7bde8e209d544911be60967af9cd13d02495f49d4"
     },
     {
       "base": "laboral/contratos_empresas.parquet",
-      "filas": 234,
+      "filas": 312,
       "columnas": 8,
-      "bytes": 4007,
+      "bytes": 4220,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "5a1bf05b472134d6e5d544a3d71e4978936e7819a78a7264908ca08c56f2ab37"
+      "sha256": "2e4e34f04de3749cbb2bdad25745dbb4baf29ec3f4fd7bad13210b70dc83955d"
     },
     {
       "base": "laboral/contratos_etnia.parquet",
-      "filas": 9755,
+      "filas": 13007,
       "columnas": 12,
-      "bytes": 21566,
+      "bytes": 24185,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "2500d1cb7cb561ff261213fae4001fca14f8126d5297609a4aa4d227149540e3"
+      "sha256": "a1fb68fbbff1e763fa651ecee55613617fa43ec615c18e4d9b6eaadea891e778"
     },
     {
       "base": "laboral/contratos_nac.parquet",
-      "filas": 13815,
+      "filas": 18422,
       "columnas": 12,
-      "bytes": 19983,
+      "bytes": 23297,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "c5dacbd61d2715508a3675e3e00a154511a1b8bca367671afe5dc818f47e9865"
+      "sha256": "764b800382125d3a01dfd22be8340deba1d0a305664afdc789834241740b696c"
     },
     {
       "base": "laboral/contratos_rama.parquet",
-      "filas": 29127,
+      "filas": 38835,
       "columnas": 12,
-      "bytes": 54968,
+      "bytes": 71670,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "26bde214ee6c6ec91dafcbb1f2cb482196e923e97a56e8555b909aec8f48dca4"
+      "sha256": "a9cf167e3e7824114de4820750b633af8d684f310205d62cb60aff7fe6a393ed"
     },
     {
       "base": "laboral/contratos_tipo.parquet",
-      "filas": 26887,
+      "filas": 35850,
       "columnas": 12,
-      "bytes": 46417,
+      "bytes": 59498,
       "periodos": [
         "2026-10"
       ],
-      "sha256": "922d38c6a5ef4ef4951dd49bfd89cc89c133f189fecb66d0ba3146825efa241f"
+      "sha256": "6926450b9affcd4496a5ccea9284ebcbe7759c63730fffa0f5e698efe390d203"
     },
     {
       "base": "laboral/jubilados.parquet",
