@@ -282,6 +282,8 @@ class RiskView:
         self.response_path = self.snapshots[-1] if self.snapshots else None
         self.continuity_path = enos.in_force(enos.CONTINUITY)[0]
         self.response = None
+        self.query_mode = "publicacion"
+        self.history_data = None
         self.first, self.last = self.window()
         self.since, self.until = self.first, self.last
 
@@ -300,22 +302,69 @@ class RiskView:
         exposure = catalog[-1] if catalog else {"id": "", "year": int(pd.Timestamp(until).year), "month": None}
         since, until = pd.Timestamp(since).normalize(), pd.Timestamp(until).normalize()
         return {**exposure, "label": f"Del {since:%d/%m/%Y} al {until:%d/%m/%Y}", "since": since, "until": until,
-                "stamp": f"{since:%Y-%m-%d}_al_{until:%Y-%m-%d}"}
+                "stamp": f"{since:%Y-%m-%d}_al_{until:%Y-%m-%d}", "mode": self.query_mode}
+
+    def _history(self) -> dict:
+        if self.history_data is None:
+            self.history_data = enos.history()
+        return self.history_data
 
     def period_controls(self) -> dict:
-        """Choose an issued report, not an event-date slice of today's mutable base."""
+        """Date ranges use the whole register; issued reports keep their own sources."""
+        mode = st.segmented_control("Consulta", ["Por período", "Reportes publicados"], default="Por período",
+                                    key="risk_mode", required=True, width="stretch")
+        self.query_mode = "periodo" if mode == "Por período" else "publicacion"
+        if self.query_mode == "periodo":
+            first, last = (d.date() for d in enos.history_window(self._history()))
+            old_bounds = st.session_state.get("risk_history_bounds")
+            keys = ("risk_period_since", "risk_period_until")
+            saved = st.session_state.get("risk_period_selection", (None, None))
+            previous = tuple(st.session_state.get(key, saved[i]) for i, key in enumerate(keys))
+            if old_bounds is not None and previous == tuple(old_bounds):
+                self._all_history(first, last)
+            st.session_state["risk_history_bounds"] = (first, last)
+            for i, (key, default) in enumerate(zip(keys, (first, last))):
+                value = st.session_state.get(key, saved[i])
+                if not isinstance(value, date):
+                    st.session_state[key] = default
+                elif value < first or value > last:
+                    st.session_state[key] = max(first, min(value, last))
+                elif key not in st.session_state:
+                    st.session_state[key] = value
+            st.button("Todo el historial", key="risk_all_history", type="tertiary",
+                      on_click=self._all_history, args=(first, last))
+            left, right = st.columns(2, gap="small")
+            with left:
+                since = st.date_input("Desde", key=keys[0], min_value=first, max_value=last, format="DD/MM/YYYY")
+            with right:
+                until = st.date_input("Hasta", key=keys[1], min_value=first, max_value=last, format="DD/MM/YYYY")
+            st.session_state["risk_period_selection"] = (since, until)
+            st.caption(f"Datos disponibles del {first:%d/%m/%Y} al {last:%d/%m/%Y}. Ambos días se incluyen.")
+            return self.period_for(since, until)
         available = enos.publications(enos.SNAPSHOT)
         first, last = available[0][0].date(), available[-1][0].date()
-        value = st.session_state.get("risk_until")
+        value = st.session_state.get("risk_until", st.session_state.get("risk_published_selection"))
         if not isinstance(value, date) or not first <= value <= last:
             st.session_state["risk_until"] = last
+        elif "risk_until" not in st.session_state:
+            st.session_state["risk_until"] = value
         until = st.date_input("Fecha del reporte", key="risk_until", min_value=first, max_value=last, format="DD/MM/YYYY",
                               help="Recupera las cifras y los cortes de la publicación guardada de ese día. El bono conserva su acumulado confirmado.")
+        st.session_state["risk_published_selection"] = until
         path, _exact = enos.in_force(enos.SNAPSHOT, until)
         since, _cut = _window(str(path), path.stat().st_mtime_ns)
         st.session_state["risk_since"] = since.date()
         st.caption(f"Reportes disponibles desde el {first:%d/%m/%Y}.")
-        return self.period_for(since, until)
+        issued = enos.publication_day(path)
+        if issued.date() != until:
+            st.caption(f"Sin publicación para ese día. Se muestra el reporte publicado el {issued:%d/%m/%Y}.")
+        return self.period_for(since, issued)
+
+    @staticmethod
+    def _all_history(first: date, last: date) -> None:
+        st.session_state["risk_period_since"] = first
+        st.session_state["risk_period_until"] = last
+        st.session_state["risk_period_selection"] = (first, last)
 
     def catalog(self) -> list[dict]:
         from src.corte import MONTHS
@@ -326,15 +375,25 @@ class RiskView:
                 for p in sorted(self.data.periodo_id.unique())]
 
     # ----------------------------------------------------------------------------------------- consultation
-    def select(self, period: dict, provinces=(), programs=(), threat=None, levels=riesgos.LEVELS, *, since=None, until=None) -> None:
+    def select(self, period: dict, provinces=(), programs=(), threat=None, levels=riesgos.LEVELS, *, since=None, until=None,
+               mode=None) -> None:
         """A cut and a selection without widgets (scripts, tests and the summary of every section).  Without ``since`` and
         ``until`` (nor in ``period``), the whole follow-up up to the last day reported."""
         self.provinces, self.programs = list(provinces), list(programs)
         self.threat, self.levels = threat, tuple(levels)
-        until = until if until is not None else period.get("until", self.last)
-        path, _exact = enos.in_force(enos.SNAPSHOT, until)
-        first = _window(str(path), path.stat().st_mtime_ns)[0] if path else self.first
+        self.query_mode = mode or period.get("mode", "publicacion")
+        if self.query_mode not in ("periodo", "publicacion"):
+            raise ValueError("El modo debe ser periodo o publicacion.")
+        if self.query_mode == "periodo":
+            first, last = enos.history_window(self._history())
+            until = until if until is not None else period.get("until", last)
+        else:
+            until = until if until is not None else period.get("until", self.last)
+            path, _exact = enos.in_force(enos.SNAPSHOT, until)
+            first = _window(str(path), path.stat().st_mtime_ns)[0] if path else self.first
         since = since if since is not None else period.get("since", first)
+        if enos.day(since) > enos.day(until):
+            raise ValueError("La fecha Desde no puede ser posterior a Hasta.")
         self.period = {**self.period_for(since, until), **{k: period[k] for k in ("id", "year", "month") if k in period}}
         self.since, self.until = self.period["since"], self.period["until"]
 
@@ -347,6 +406,7 @@ class RiskView:
 
     def controls(self, period: dict) -> None:
         self.period = period
+        self.query_mode = period.get("mode", "publicacion")
         self.since, self.until = period.get("since", self.first), period.get("until", self.last)
         province_names, service_names = self._names(period["id"])
         for key, options in [("risk_provinces", province_names), ("risk_programs", service_names),
@@ -363,21 +423,29 @@ class RiskView:
             self.programs = st.multiselect("Servicio", list(service_names), format_func=service_names.get,
                                            placeholder="Todos los servicios", key="risk_programs")
         self.threat, self.levels = None, riesgos.LEVELS
-        whole = (pd.Timestamp(self.since), pd.Timestamp(self.until)) == (self.first, self.last)
+        first, last = enos.history_window(self._history()) if self.query_mode == "periodo" else (self.first, self.last)
+        whole = (pd.Timestamp(self.since), pd.Timestamp(self.until)) == (first, last)
         if self.provinces or self.programs or not whole:
-            st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=self._clear, args=(self.first.date(), self.last.date()),
+            st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=self._clear, args=(first.date(), last.date(), self.query_mode),
                       type="tertiary", key="risk_reset_filters")
 
     @staticmethod
-    def _clear(first: date | None = None, last: date | None = None) -> None:
+    def _clear(first: date | None = None, last: date | None = None, mode="publicacion") -> None:
         st.session_state["risk_provinces"] = []
         st.session_state["risk_programs"] = []
         st.session_state["risk_threats"] = []
         st.session_state["risk_levels"] = list(riesgos.LEVELS)
         if first and last:
-            st.session_state["risk_since"], st.session_state["risk_until"] = first, last
+            if mode == "periodo":
+                RiskView._all_history(first, last)
+            else:
+                st.session_state["risk_since"], st.session_state["risk_until"] = first, last
 
     def prepare(self) -> bool:
+        if enos.day(self.since) > enos.day(self.until):
+            self.response = None
+            self.empty_message = "La fecha Desde no puede ser posterior a Hasta. Ajuste el período de consulta."
+            return False
         pid = self.period["id"]
         levels = self.levels
         self.scoped = riesgos.select(self.data, pid, self.provinces, self.programs)
@@ -420,7 +488,7 @@ class RiskView:
         self.context_label = f"{self.period['label']} · {self.territory_label} · {self.programs_label}"
         self.response = None
         # The publication in force on the last day of the period: what was reported that day.
-        self.response_path, exact = enos.in_force(enos.SNAPSHOT, self.until)
+        self.response_path, exact = enos.in_force(enos.SNAPSHOT, None if self.query_mode == "periodo" else self.until)
         self.continuity_path, _exact = enos.in_force(enos.CONTINUITY, self.until)
         if not self.response_path:
             self.empty_message = "No hay una publicación de Riesgos guardada para esa fecha."
@@ -430,10 +498,12 @@ class RiskView:
             if self.programs:
                 units = riesgos.select(self.inventory, pid, (), ())
                 unit_programs = dict(zip(units.codigo_ua.astype(str), units.programa_id))
-            self.response = respuesta.Response(
-                enos.load(self.response_path), self.provinces, self.programs, unit_programs, since=self.since, until=self.until,
-                continuity=enos.continuity(self.continuity_path) if self.continuity_path else {"registros": [], "detalle": []},
-                publication={"dia": enos.publication_day(self.response_path), "exacta": exact})
+            data = self._history() if self.query_mode == "periodo" else enos.load(self.response_path)
+            continuity = (enos.continuity_at(self.until) if self.query_mode == "periodo" else
+                          enos.continuity(self.continuity_path) if self.continuity_path else {"registros": [], "detalle": []})
+            self.response = respuesta.Response(data, self.provinces, self.programs, unit_programs,
+                since=self.since, until=self.until, continuity=continuity,
+                publication={"dia": enos.publication_day(self.response_path), "exacta": exact and self.query_mode == "publicacion"})
         return True
 
     # ----------------------------------------------------------------------------------------------- band
@@ -538,8 +608,10 @@ class RiskView:
     def kpi_cards(self) -> list[dict]:
         cards = self._response_kpis() if self.response else []
         if self.response and "brigadas" in self.response.data:
-            rows = getattr(self.response, "brigadas", self.response.data.get("brigadas", []))
-            places = "; ".join(dict.fromkeys(f"{r['provincia']} · {r['canton']}" for r in rows))
+            rows = self.response.brigadas
+            places_list = list(dict.fromkeys(f"{r['provincia']} · {r['canton']}" for r in rows))
+            places = "; ".join(places_list) if len(places_list) <= 3 and len("; ".join(places_list)) < 100 else (
+                f"{len({r['provincia'] for r in rows})} provincias · {len(places_list)} cantones")
             cards.append({"label": "Brigadas de emergencia", "value": len(rows), "icon": "users", "tone": "oro",
                           "note": places or "Sin brigadas en la selección"})
         return cards
@@ -569,7 +641,7 @@ class RiskView:
         if not r.whole or not r.publication.get("exacta", True):
             # A period other than the whole reporting period says which publication its figures come from and what it lacks.
             ui.info_note(" ".join(t for t in [r.publication_text(), r.missing_text()] if t), f"Periodo {r.scope_text().lower()}",
-                         tone="info" if r.publication.get("exacta", True) else "warn")
+                         tone="info" if r.by_period or r.publication.get("exacta", True) else "warn")
         if self.programs:
             ui.info_note(f"Las alertas y la continuidad corresponden a {self.programs_label.lower() if len(self.programs) > 1 else self.programs_label}; "
                          "los kits y el bono de contingencia no se asocian a un servicio y se muestran por territorio.",
@@ -580,7 +652,7 @@ class RiskView:
             respuesta._n(r.closed_units, 'unidad suspendida', 'unidades suspendidas') if continuity["available"] else "",
             continuity["heading"]] if t), "shield")
         if not continuity["available"]:
-            ui.info_note(f"El reporte territorial de unidades suspendidas ({r.continuity_cut_text()}) queda fuera del periodo.",
+            ui.info_note(r.missing_text(),
                          "Sin reporte territorial en el periodo")
         elif r.closed_units:
             left, right = self._pair((1.6, 1))
@@ -859,8 +931,9 @@ class RiskView:
         if not r:
             return [("Periodo", "Sin corte"), ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
         day = f"{pd.Timestamp(r.publication['dia']):%d/%m/%Y}"
-        return [("Periodo", r.scope_text()), ("Publicación", day if r.publication.get("exacta", True) else f"{day} · reconstruida"),
-                ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
+        origin = ("Consulta", "Por período · registros disponibles") if r.by_period else (
+            "Publicación", day if r.publication.get("exacta", True) else f"{day} · reconstruida")
+        return [("Periodo", r.scope_text()), origin, ("Territorio", self.territory_label), ("Servicios", self.programs_label)]
 
     def products_notes(self) -> dict[str, str]:
         return {"resumen": "Boletín PDF con paginación automática: cifras clave, continuidad de los servicios y evolución de las alertas; registro de "
@@ -887,8 +960,9 @@ class RiskView:
 
     def digest(self) -> str:
         # The period and the content of the publications in force: a new publication or another period is another document.
-        published = [enos.fingerprint(path) for path in (self.response_path, self.continuity_path) if path]
-        return fingerprint("response-publications-v7", self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        paths = enos.history_paths() if self.query_mode == "periodo" else [p for p in (self.response_path, self.continuity_path) if p]
+        published = [enos.fingerprint(path) for path in paths]
+        return fingerprint("response-history-v8", self.query_mode, self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
                            self.threat, self.levels, METHODOLOGY, str(self.since), str(self.until), str(self.response_path),
                            str(self.continuity_path), published, self.update_stamp())
 

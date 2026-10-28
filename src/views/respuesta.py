@@ -94,9 +94,12 @@ class Response:
     def __init__(self, data: dict, provinces=(), programs=(), unit_programs: dict | None = None, *, since=None, until=None,
                  continuity: dict | None = None, publication: dict | None = None):
         self.data = data
+        self.by_period = data.get("consulta") == "periodo"
         self.first, self.last = enos.window(data)
         self.start = pd.Timestamp(since).normalize() if since is not None else self.first
         self.end = pd.Timestamp(until).normalize() if until is not None else self.last
+        if self.start > self.end:
+            raise ValueError("La fecha Desde no puede ser posterior a Hasta.")
         # The day the figures were reported and whether that publication was in force at the end of the period (False: a
         # reconstruction with a later publication, cut by the dates of its records).
         self.publication = publication or {"dia": self.last, "exacta": True}
@@ -111,7 +114,7 @@ class Response:
         # Alerts and kits: their own dates, inside the reporting period and the period consulted.
         for key in ("alertas", "kits"):
             frame = national[key]
-            dates = pd.to_datetime(frame.fecha, errors="coerce")
+            dates = enos.dates(frame.fecha)
             national[key] = frame.loc[dates.between(max(self.start, self.first), min(self.end, self.last))].copy()
         self.cuts = data["cortes"]
         self.available = {"gestionados": self._stage("gestionados", self.cuts.get("bonos_gestionados") or self.cuts.get("bonos")),
@@ -121,7 +124,7 @@ class Response:
                 national[key] = national[key].iloc[0:0].copy()
             elif data.get("bonos_con_fecha_individual"):
                 # Records with a date of their own (when a source gives them) are cut by it.
-                dates = pd.to_datetime(pd.Series([r.get("fecha") for r in data["bonos"][key]]).reindex(national[key].index), errors="coerce")
+                dates = enos.dates(pd.Series([r.get("fecha") for r in data["bonos"][key]]).reindex(national[key].index))
                 national[key] = national[key].loc[dates.between(self.start, self.end)].copy()
         self.bonus_period_available = self.available["articulacion"]
         if programs:
@@ -133,20 +136,22 @@ class Response:
         self.national = national
         chosen = set(provinces)
         self.brigadas = [row for row in data.get("brigadas", [])
-                         if max(self.start, self.first) <= pd.Timestamp(row["fecha"]) <= min(self.end, self.last)
+                         if max(self.start, self.first) <= enos.day(row["fecha"]) <= min(self.end, self.last)
                          and (not chosen or _code(row["provincia"]) in chosen)]
         self.frames = {k: (f.loc[f.provincia_codigo.isin(chosen)] if chosen else f).copy() for k, f in national.items()}
         self.alerts, self.kits = self.frames["alertas"], self.frames["kits"]
         self.managed, self.articulation = self.frames["gestionados"], self.frames["articulacion"]
         self.plan = data["bonos"]["planificacion"]
         # The days of the period inside the reporting period: the daily evolution of the alerts runs from «since» to «cut».
-        self.since = max(self.first, self.start)
-        self.cut = min(self.last, self.end)
+        self.since = self.start if self.by_period else max(self.first, self.start)
+        self.cut = self.end if self.by_period else min(self.last, self.end)
         # Continuity of the services: each territorial report by its date.
-        self.continuity_data = continuity if continuity is not None else enos.continuity()
+        self.continuity_data = continuity if continuity is not None else (
+            enos.continuity_at(self.end) if self.by_period else enos.continuity())
         records = _frame(self.continuity_data.get("registros", []), _CONTINUITY_COLUMNS)
-        inside = pd.to_datetime(records.corte_fuente, errors="coerce").between(self.start, self.end)
-        self.available["continuidad"] = bool(inside.any()) or records.empty
+        observation_dates = enos.dates(records.corte_fuente)
+        inside = observation_dates.le(self.end) if self.by_period else observation_dates.between(self.start, self.end)
+        self.available["continuidad"] = self.continuity_data.get("disponible", bool(inside.any()) or records.empty)
         continuity = records.loc[inside].copy()
         continuity["unidades"] = pd.to_numeric(continuity.unidades, errors="coerce").fillna(0).astype(int)
         continuity["servicio"] = continuity.servicio.replace(SERVICE_NAMES)
@@ -159,7 +164,9 @@ class Response:
         self.continuity = continuity
         detail = pd.DataFrame(self.continuity_data.get("detalle", []))
         if not detail.empty:
-            detail = detail.loc[pd.to_datetime(detail.corte_fuente, errors="coerce").between(self.start, self.end)].copy()
+            observation_dates = enos.dates(detail.corte_fuente)
+            inside = observation_dates.le(self.end) if self.by_period else observation_dates.between(self.start, self.end)
+            detail = detail.loc[inside].copy()
             detail["servicio"] = detail.servicio.replace(SERVICE_NAMES)
             detail["canton"] = [_clean(c, names.place) for c in detail.canton]
             detail["unidad"] = [_clean(u, names.unit) for u in detail.unidad]
@@ -199,11 +206,14 @@ class Response:
             parts.append("Bono de contingencia: sin desglose temporal disponible para este período." if self.data.get("filtro_temporal_estricto")
                          else f"Bono de contingencia: corte {enos.cut_text(self.cuts['bonos'])}, posterior al periodo.")
         if not self.available["continuidad"]:
-            parts.append(f"Unidades suspendidas: el reporte territorial del {self.continuity_cut_text()} queda fuera del periodo.")
+            parts.append("Unidades suspendidas: no hay un corte territorial disponible hasta la fecha seleccionada."
+                         if self.by_period else f"Unidades suspendidas: el reporte territorial del {self.continuity_cut_text()} queda fuera del periodo.")
         return " ".join(parts)
 
     def publication_text(self) -> str:
         """«Cifras tal como se reportaron el 27/10/2026» or, before the first publication, how the period is reconstructed."""
+        if self.by_period:
+            return "Consulta por fecha de registro con las versiones más recientes de las bases disponibles."
         day = pd.Timestamp(self.publication["dia"])
         if self.publication.get("exacta", True):
             return f"Cifras tal como se reportaron el {_date(day)}."
@@ -211,6 +221,13 @@ class Response:
                 "según la fecha de cada registro.")
 
     def period_note(self) -> str:
+        if self.by_period:
+            text = (f"Periodo del {_date(self.start)} al {_date(self.end)}, ambos días incluidos. Alertas por fecha de registro o reporte; "
+                    "kits por fecha de entrega; brigadas por fecha de realización. Unidades suspendidas: último corte territorial "
+                    "disponible hasta la fecha final, sin sumar cortes. El bono conserva su acumulado confirmado y no representa "
+                    "un flujo diario. " + self.publication_text())
+            missing = self.missing_text()
+            return f"{text} {missing}" if missing else text
         text = (f"Periodo del {_date(self.start)} al {_date(self.end)}. Alertas por su fecha de registro o reporte validada; kits por su "
                 "fecha de entrega; unidades suspendidas por la fecha del corte territorial. El bono de contingencia se mantiene "
                 "como acumulado confirmado al cambiar la fecha del reporte; no representa un flujo diario. "

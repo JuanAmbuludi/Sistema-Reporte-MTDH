@@ -1,0 +1,531 @@
+{
+  "schema": 1,
+  "corte": "2026-10-22",
+  "desde": "2026-02-27",
+  "hasta": "2026-10-13",
+  "generado_utc": "2026-10-28T17:04:52.088817+00:00",
+  "criterio": "Todas las filas de tipo EMERGENCIA de la fuente; sin filtro por período del reporte.",
+  "brigadas": [
+    {
+      "id": "BRI-2193",
+      "fecha": "2026-02-27",
+      "provincia": "Orellana",
+      "canton": "Francisco de Orellana",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2195",
+      "fecha": "2026-02-27",
+      "provincia": "Manabí",
+      "canton": "Jipijapa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2196",
+      "fecha": "2026-02-27",
+      "provincia": "Guayas",
+      "canton": "Playas",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2203",
+      "fecha": "2026-02-27",
+      "provincia": "Guayas",
+      "canton": "Guayaquil",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2205",
+      "fecha": "2026-02-28",
+      "provincia": "Manabí",
+      "canton": "Manta",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2207",
+      "fecha": "2026-02-28",
+      "provincia": "Guayas",
+      "canton": "Durán",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2209",
+      "fecha": "2026-03-01",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2210",
+      "fecha": "2026-03-01",
+      "provincia": "Cañar",
+      "canton": "Cañar",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2213",
+      "fecha": "2026-03-03",
+      "provincia": "Guayas",
+      "canton": "Milagro",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2217",
+      "fecha": "2026-03-05",
+      "provincia": "Esmeraldas",
+      "canton": "Quinindé",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2219",
+      "fecha": "2026-03-05",
+      "provincia": "Guayas",
+      "canton": "Salitre",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2221",
+      "fecha": "2026-03-06",
+      "provincia": "Esmeraldas",
+      "canton": "Quinindé",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2222",
+      "fecha": "2026-03-06",
+      "provincia": "Manabí",
+      "canton": "Sucre",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2223",
+      "fecha": "2026-03-06",
+      "provincia": "Guayas",
+      "canton": "Balzar",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2224",
+      "fecha": "2026-03-06",
+      "provincia": "Guayas",
+      "canton": "Alfredo Baquerizo Moreno",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2227",
+      "fecha": "2026-03-06",
+      "provincia": "Cañar",
+      "canton": "La Troncal",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2230",
+      "fecha": "2026-03-09",
+      "provincia": "Esmeraldas",
+      "canton": "Rioverde",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2232",
+      "fecha": "2026-03-09",
+      "provincia": "El Oro",
+      "canton": "Machala",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2234",
+      "fecha": "2026-03-10",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2237",
+      "fecha": "2026-03-10",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2241",
+      "fecha": "2026-03-11",
+      "provincia": "Loja",
+      "canton": "Pindal",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2242",
+      "fecha": "2026-03-11",
+      "provincia": "Loja",
+      "canton": "Quilanga",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2243",
+      "fecha": "2026-03-11",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2247",
+      "fecha": "2026-03-12",
+      "provincia": "Los Ríos",
+      "canton": "Vinces",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2248",
+      "fecha": "2026-03-12",
+      "provincia": "Azuay",
+      "canton": "Girón",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2249",
+      "fecha": "2026-03-12",
+      "provincia": "El Oro",
+      "canton": "Zaruma",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2250",
+      "fecha": "2026-03-13",
+      "provincia": "Pichincha",
+      "canton": "San Miguel de los Bancos",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2252",
+      "fecha": "2026-03-13",
+      "provincia": "Santo Domingo de los Tsáchilas",
+      "canton": "Santo Domingo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2253",
+      "fecha": "2026-03-13",
+      "provincia": "Guayas",
+      "canton": "Pedro Carbo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2256",
+      "fecha": "2026-03-13",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2261",
+      "fecha": "2026-03-14",
+      "provincia": "Guayas",
+      "canton": "Durán",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2263",
+      "fecha": "2026-03-16",
+      "provincia": "Los Ríos",
+      "canton": "Babahoyo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2265",
+      "fecha": "2026-03-17",
+      "provincia": "Cotopaxi",
+      "canton": "Sigchos",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2266",
+      "fecha": "2026-03-17",
+      "provincia": "Manabí",
+      "canton": "Rocafuerte",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2269",
+      "fecha": "2026-03-17",
+      "provincia": "Los Ríos",
+      "canton": "Babahoyo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2272",
+      "fecha": "2026-03-18",
+      "provincia": "Cotopaxi",
+      "canton": "Pangua",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2274",
+      "fecha": "2026-03-18",
+      "provincia": "Los Ríos",
+      "canton": "Puebloviejo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2275",
+      "fecha": "2026-03-18",
+      "provincia": "Azuay",
+      "canton": "Santa Isabel",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2279",
+      "fecha": "2026-03-19",
+      "provincia": "Cotopaxi",
+      "canton": "La Maná",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2281",
+      "fecha": "2026-03-19",
+      "provincia": "Los Ríos",
+      "canton": "Puebloviejo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2282",
+      "fecha": "2026-03-19",
+      "provincia": "Los Ríos",
+      "canton": "Urdaneta",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2284",
+      "fecha": "2026-03-19",
+      "provincia": "El Oro",
+      "canton": "Zaruma",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2286",
+      "fecha": "2026-03-20",
+      "provincia": "Esmeraldas",
+      "canton": "Muisne",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2290",
+      "fecha": "2026-03-20",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2291",
+      "fecha": "2026-03-20",
+      "provincia": "El Oro",
+      "canton": "Las Lajas",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2294",
+      "fecha": "2026-03-21",
+      "provincia": "Esmeraldas",
+      "canton": "Rioverde",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2295",
+      "fecha": "2026-03-21",
+      "provincia": "Guayas",
+      "canton": "Durán",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2298",
+      "fecha": "2026-03-23",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2303",
+      "fecha": "2026-03-24",
+      "provincia": "Los Ríos",
+      "canton": "Babahoyo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2304",
+      "fecha": "2026-03-24",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2308",
+      "fecha": "2026-03-25",
+      "provincia": "Los Ríos",
+      "canton": "Baba",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2309",
+      "fecha": "2026-03-25",
+      "provincia": "El Oro",
+      "canton": "Arenillas",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2311",
+      "fecha": "2026-03-26",
+      "provincia": "El Oro",
+      "canton": "Pasaje",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2321",
+      "fecha": "2026-03-27",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2324",
+      "fecha": "2026-03-27",
+      "provincia": "El Oro",
+      "canton": "Portovelo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2325",
+      "fecha": "2026-03-27",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2334",
+      "fecha": "2026-04-02",
+      "provincia": "Santa Elena",
+      "canton": "Santa Elena",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2341",
+      "fecha": "2026-04-07",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2355",
+      "fecha": "2026-04-10",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2357",
+      "fecha": "2026-04-13",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2381",
+      "fecha": "2026-04-17",
+      "provincia": "El Oro",
+      "canton": "Santa Rosa",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2425",
+      "fecha": "2026-05-06",
+      "provincia": "Los Ríos",
+      "canton": "Babahoyo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2426",
+      "fecha": "2026-05-06",
+      "provincia": "Los Ríos",
+      "canton": "Babahoyo",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2647",
+      "fecha": "2026-07-04",
+      "provincia": "Zamora Chinchipe",
+      "canton": "Zamora",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2661",
+      "fecha": "2026-07-08",
+      "provincia": "Zamora Chinchipe",
+      "canton": "Zamora",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2665",
+      "fecha": "2026-07-09",
+      "provincia": "Zamora Chinchipe",
+      "canton": "Zamora",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2674",
+      "fecha": "2026-07-10",
+      "provincia": "Zamora Chinchipe",
+      "canton": "Zamora",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2718",
+      "fecha": "2026-07-21",
+      "provincia": "Zamora Chinchipe",
+      "canton": "Zamora",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2929",
+      "fecha": "2026-09-24",
+      "provincia": "El Oro",
+      "canton": "Pasaje",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2935",
+      "fecha": "2026-09-25",
+      "provincia": "Guayas",
+      "canton": "Salitre",
+      "tipo": "Emergencia"
+    },
+    {
+      "id": "BRI-2995",
+      "fecha": "2026-10-13",
+      "provincia": "Guayas",
+      "canton": "Balao",
+      "tipo": "Emergencia"
+    }
+  ],
+  "fuentes": [
+    {
+      "nombre": "01-22.10.2026-RESULTADOS-BRIGADAS-SOCIALES-POR-EL-NUEVO-ECUADOR_MATRIZ.xlsx",
+      "sha256": "16cd4d5c901a1637dcebac69b5565c40729b26ee0cbcf3f00fd52fb150946dbf",
+      "corte": "2026-10-22",
+      "hoja": "PLANIFICACIÓN"
+    }
+  ],
+  "control": {
+    "filas_fuente": 3038,
+    "filas_emergencia": 71,
+    "registros": 71,
+    "duplicados_identicos": 0,
+    "ids_duplicados": [],
+    "filas_totales_o_vacias": 1,
+    "tipos_fuente": {
+      "EMERGENCIA": 71,
+      "FOCALIZADA - VICE - TIPO A": 23,
+      "PICHINCHA - MDG": 13,
+      "PRIORIZADA - PRESI": 51,
+      "REGULAR - VICE - TIPO B": 31,
+      "REGULAR MTDH": 2849
+    }
+  }
+}

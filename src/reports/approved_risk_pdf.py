@@ -141,6 +141,16 @@ def render(c,ctx,pages):
     top=_pdf_table(c,top,['Provincia','Kits entregados',Markup(escape(ctx['kpis'][2]['label'].split(' · ')[0])+'<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
     if not r['bonus_period_available']:
         top=_paragraph(c,'Bono de contingencia: sin desglose temporal disponible para el período reportado.',M,top,full,size=7)
+    if ctx.get('query_mode') == 'periodo':
+        heading(c,'Alcance de las fuentes',M,top-8,full)
+        top-=25
+        scope=f"Consulta: {ctx['period_label']}. Kits: corte {r['kits_cut_full']}."
+        if r.get('brigadas_cut'):
+            scope+=f" Brigadas de emergencia: corte {r['brigadas_cut']}."
+        top=_paragraph(c,scope,M,top,full,size=7.3)-8
+        state=(f"Unidades suspendidas: situación del corte territorial {r['continuity']['cut']}; no se acumulan cortes."
+               if r['continuity']['available'] else r['continuity']['empty'])
+        top=_paragraph(c,state+' El Bono de Contingencia conserva el acumulado confirmado al '+r['bonus_cut']+'.',M,top,full,size=7.3)-8
     assert top>=62,top
     assert pages==2+len(chunks)
 

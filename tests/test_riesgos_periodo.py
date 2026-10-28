@@ -68,8 +68,8 @@ def test_the_whole_reporting_period_is_the_default():
     assert r.whole and r.publication == {"dia": pd.Timestamp("2026-10-27"), "exacta": True}
     assert v.period["label"] == r.scope_text() == "Del 28/09/2026 al 27/10/2026"
     assert v.period["stamp"] == "2026-09-28_al_2026-10-27"
-    assert values(v) == [39, 10607, 1171, 354987.39, 99]
-    assert r.notes()["kits"].startswith("Kits en provincias priorizadas: entregas desde el 28/09/2026 hasta el corte Kobo del 27/10/2026, 13:35:45.")
+    assert values(v) == [44, 11207, 1171, 354987.39, 124, 1]
+    assert r.notes()["kits"].startswith("Kits en provincias priorizadas: entregas desde el 28/09/2026 hasta el corte Kobo del 27/10/2026.")
 
 
 def test_a_period_cuts_alerts_kits_and_territorial_reports_by_their_own_dates():
@@ -77,11 +77,11 @@ def test_a_period_cuts_alerts_kits_and_territorial_reports_by_their_own_dates():
     v = view(since="2026-10-20")
     part = v.response
     alert_days, kit_days = pd.to_datetime(full.alerts.fecha), pd.to_datetime(full.kits.fecha)
-    assert len(part.alerts) == int(alert_days.ge("2026-10-20").sum()) == 34
+    assert len(part.alerts) == int(alert_days.ge("2026-10-20").sum()) == 39
     assert part.kits_total == int(full.kits.loc[kit_days.ge("2026-10-20"), "kits"].sum())
     assert pd.to_datetime(part.alerts.fecha).ge("2026-10-20").all() and pd.to_datetime(part.kits.fecha).ge("2026-10-20").all()
     # The confirmed bonus is an accumulated reference, independent of the selected dates.
-    assert part.closed_units == 99
+    assert part.closed_units == 124
     cards = v.kpi_cards()
     assert cards[2]["value"] == 1171 and cards[3]["value"] == 354987.39
     assert "flujo diario" in part.period_note()
@@ -152,6 +152,7 @@ def test_the_dashboard_selects_the_reported_day_and_can_return_to_today():
     from test_interface import _logged_in_app, _markdown
     app = _logged_in_app()
     app.segmented_control(key="module").set_value("riesgos").run()
+    app.segmented_control(key="risk_mode").set_value("Reportes publicados").run()
     assert not app.exception
     assert [(d.label, d.value) for d in app.date_input] == [("Fecha del reporte", date(2026, 10, 27))]
     assert "Del 28/09/2026 al 27/10/2026" in _markdown(app)
@@ -163,7 +164,7 @@ def test_the_dashboard_selects_the_reported_day_and_can_return_to_today():
     assert "Sin desglose temporal disponible" not in html
     next(b for b in app.button if b.label == "Restablecer filtros").click().run()
     assert [d.value for d in app.date_input] == [date(2026, 10, 27)]
-    assert "10.607" in _markdown(app) and "1.171" in _markdown(app)
+    assert "11.207" in _markdown(app) and "1.171" in _markdown(app)
 
 
 def test_yesterday_matches_the_approved_pdf_and_every_provincial_total():

@@ -19,12 +19,12 @@ def build_context(view, *, title: str) -> dict:
     r = view.response
     ctx = _base(view, "riesgos", title)
     response = _response(r)
-    # A session that kept an earlier Response (before the brigades) still exports.
-    response["brigadas"] = getattr(r, "brigadas", r.data.get("brigadas", []))
+    response["brigadas"] = r.brigadas
+    response["brigadas_cut"] = r.cut_text("brigadas") if r.cuts.get("brigadas") else ""
     response["by_province"] = enos.summary(r.alerts, "provincia")
     response["by_service"] = enos.summary(r.alerts, "servicio")
     days = pd.date_range(r.since, r.cut, freq="D")
-    daily = pd.to_datetime(r.alerts.fecha).value_counts().reindex(days, fill_value=0)
+    daily = enos.dates(r.alerts.fecha).value_counts().reindex(days, fill_value=0)
     response["daily"] = [{"date": d.strftime("%d/%m/%Y"), "short": d.strftime("%d/%m"), "daily": int(n), "total": int(c)}
                          for (d, n), c in zip(daily.items(), daily.cumsum())]
     response["count_note"] = r.count_note()
@@ -33,7 +33,8 @@ def build_context(view, *, title: str) -> dict:
     response["continuity"]["groups"] = r.suspended_groups()
     response["continuity"]["detail"] = r.continuity_detail.to_dict("records")
     response["continuity"]["empty"] = ("El reporte territorial no registra unidades suspendidas en la selección." if r.available["continuidad"]
-                                       else f"El reporte territorial de unidades suspendidas ({r.continuity_cut_text()}) queda fuera del periodo.")
+                                       else "No hay un corte territorial disponible hasta la fecha seleccionada."
+                                       if r.by_period else f"El reporte territorial de unidades suspendidas ({r.continuity_cut_text()}) queda fuera del periodo.")
     tiles: dict[tuple, int] = {}
     for d in response["continuity"]["detail"]:
         if d["estado"] in ("Suspendida", "Suspendida presencial"):
@@ -66,7 +67,7 @@ def build_context(view, *, title: str) -> dict:
         if k["kind"] == "money" and k["value"] is not None:
             k["display_value"] = f"USD {number(k['value'], 2)}"
             k["exact_money"] = True
-    ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True,
+    ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True, query_mode="periodo" if r.by_period else "publicacion",
                pdf_pages=2 + len(alert_chunks(response["alerts"])), approved_risk_template=True, selected_codes=list(view.provinces),
                map_values=view.map_values("alertas")[0], kits_map_values=view.map_values("kits")[0],
                suspended_map_values=view.map_values("suspendidas")[0],
@@ -75,7 +76,7 @@ def build_context(view, *, title: str) -> dict:
                sources="Subsecretaría Territorial (análisis de alertas); corte Kobo de kits; ayuda memoria del bono de contingencia; base territorial de afectaciones por lluvias.",
                insights=_findings(r, response))
     archive = r.data.get("pdf_publicado")
-    if archive and r.whole and not view.provinces and not view.programs:
+    if archive and not r.by_period and r.whole and not view.provinces and not view.programs:
         # Only the complete national historical publication uses the original PDF.
         # Filtered exports remain generated from their own selected rows.
         if [card["value"] for card in view.kpi_cards()] != archive["kpis"]:
@@ -827,7 +828,7 @@ def render_workbook(book):
     cut = continuity["cut"].replace(" · ", ", ")
     row = book.heading(summary, row, "Continuidad de los servicios",
                        (f"{number(closed)} UA suspendidas · corte territorial: {cut}" if closed else f"Corte territorial: {cut}")
-                       if continuity["available"] else f"Corte territorial: {cut}, fuera del periodo", last=15)
+                       if continuity["available"] else continuity["empty"], last=15)
     if closed:
         top = row + 1
         services = [{"name": short_service(x["name"]), "value": x["value"], "share": x["value"] / closed} for x in continuity["by_service"]]

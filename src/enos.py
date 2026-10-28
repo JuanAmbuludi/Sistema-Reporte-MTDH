@@ -3,16 +3,18 @@
 Every day the follow-up is reported is kept as a publication of its own, named by that day:
 ``seguimiento_enos_AAAA-MM-DD.json`` (alerts, kits and the contingency bonus, with the scopes written that day in
 ``notas``) and ``continuidad_servicios_AAAA-MM-DD.json`` (units whose attention was suspended).  A report for a period
-uses, for each source, the publication in force on its last day (the latest one reported that day or before), so what was
-reported on a day can be reproduced after new data arrive.  A published day is never edited: new data open a new
+can either recover the publication in force on its last day or query the complete available event history by date.
+The historical-publication mode reproduces what was reported after new data arrive. A published day is never edited: new data open a new
 publication (``scripts/nuevo_corte_riesgos.py``), and the days already closed keep their SHA-256 in ``cortes_riesgos.json``.
 
 Inside a publication every source is cut by its own dates (``filtro_temporal_estricto``): alerts by their date of
 registration or report, kits by their date of delivery and the suspended units by the date of their territorial report.
 The confirmed contingency bonus is an accumulated reference, not a daily flow: its people and amounts remain unchanged
-when the report date changes. Earlier dates without a saved publication are unavailable, never reconstructed from a later file.
+when the report date changes. Earlier dates without a saved publication have no archived bulletin; their available
+dated records can still be queried through ``history()`` using the latest known version of each source identifier.
 """
 from pathlib import Path
+from copy import deepcopy
 import hashlib
 import json
 import pandas as pd
@@ -87,6 +89,141 @@ def archived_pdf(metadata: dict) -> bytes:
 def window(data: dict) -> tuple[pd.Timestamp, pd.Timestamp]:
     """The reporting period of a publication: from its start (``desde``) to its cut."""
     return pd.Timestamp(data["desde"]).normalize(), pd.Timestamp(data["corte"]).normalize()
+
+
+def day(value) -> pd.Timestamp:
+    """Calendar day recorded by the source, including rows carrying a time."""
+    value = pd.Timestamp(value)
+    return value.normalize().tz_localize(None) if pd.notna(value) else pd.NaT
+
+
+def dates(values) -> pd.Series:
+    """Comparable calendar days; do not drop events on the final afternoon."""
+    return pd.Series([day(value) for value in values], index=values.index if isinstance(values, pd.Series) else None,
+                     dtype="datetime64[ns]")
+
+
+def ensure_open(path) -> None:
+    """Ingestion may write the open publication, never a previously issued day."""
+    path = Path(path)
+    if any(path.name in files for files in ledger().get("cerrados", {}).values()):
+        raise ValueError(f"{path.name} es una publicación cerrada; abra un corte nuevo antes de cargar datos.")
+    if path.name.startswith("seguimiento_enos_"):
+        found = publications(SNAPSHOT)
+        if found and publication_day(path) < found[-1][0]:
+            raise ValueError(f"{path.name} precede al último corte; las publicaciones anteriores no se reescriben.")
+
+
+def history_paths() -> list[Path]:
+    paths = [path for pattern in (SNAPSHOT, CONTINUITY) for _date, path in publications(pattern)]
+    brigades = FOLDER / "brigadas_emergencia.json"
+    return paths + ([brigades] if brigades.exists() else [])
+
+
+def history() -> dict:
+    """Current known event history, reconciled by source ID before applying dates.
+
+    Daily publications remain immutable. A newer version of an ID replaces the
+    older version even when its date or inclusion decision changes. A source
+    explicitly marked as a complete replacement replaces its own register.
+    Continuity and the bonus are observations/balances, never summed over cuts.
+    """
+    found = publications()
+    if not found:
+        raise ValueError("No hay bases de seguimiento disponibles.")
+    registers = {"alertas": {}, "kits": {}}
+    brigade_sources, sources = [], {}
+    data = None
+    for published, path in found:
+        current = json.loads(path.read_text(encoding="utf-8"))
+        data = deepcopy(current)
+        for name, key in (("alertas", "codigo"), ("kits", "id_kobo")):
+            full = current.get(f"{name}_metadatos", {}).get("reemplaza_corte_anterior", False)
+            if full:
+                registers[name].clear()
+            seen = set()
+            for row in current.get(name, []):
+                identifier = str(row.get(key) or "").strip()
+                if not identifier or identifier in seen:
+                    raise ValueError(f"{path.name}: {name} requiere identificadores únicos y no vacíos.")
+                seen.add(identifier)
+                # Keep an explicit exclusion as the winning version, rather than reviving an older row.
+                registers[name][identifier] = (deepcopy(row), name != "alertas" or included(row, current))
+        for identifier in current.get("control", {}).get("alertas_excluidas_codigos", []):
+            registers["alertas"].pop(str(identifier).strip(), None)
+        if "brigadas" in current:
+            brigade_sources.append((day(current.get("cortes", {}).get("brigadas", published)), 0,
+                                    current["brigadas"], False))
+        for source in current.get("fuentes", []):
+            sources[(source.get("nombre"), source.get("sha256"))] = source
+    assert data is not None
+    for name in registers:
+        data[name] = [row for row, keep in registers[name].values() if keep]
+    from src import brigadas
+    complete = brigadas.load(FOLDER / "brigadas_emergencia.json")
+    if complete.get("corte"):
+        brigade_sources.append((day(complete["corte"]), 1, complete.get("brigadas", []), True))
+        for source in complete.get("fuentes", []):
+            sources[(source.get("nombre"), source.get("sha256"))] = source
+    brigade_rows = {}
+    for cut, _priority, rows, full in sorted(brigade_sources, key=lambda s: (s[0], s[1])):
+        if full:
+            brigade_rows.clear()
+        seen = set()
+        for row in rows:
+            identifier = str(row.get("id") or "").strip()
+            if not identifier or identifier in seen:
+                raise ValueError("La base de brigadas requiere identificadores únicos y no vacíos.")
+            seen.add(identifier)
+            brigade_rows[identifier] = deepcopy(row)
+        data.setdefault("cortes", {})["brigadas"] = cut.strftime("%Y-%m-%d")
+    data["brigadas"] = list(brigade_rows.values())
+    recorded_days, coverage = [], {}
+    for name in ("alertas", "kits", "brigadas"):
+        for row in data[name]:
+            moment = day(row.get("fecha"))
+            if pd.isna(moment):
+                raise ValueError(f"La base de {name} contiene un registro sin fecha válida.")
+            row["fecha"] = moment.strftime("%Y-%m-%d")
+        data[name].sort(key=lambda row: (row["fecha"], str(row.get("codigo", row.get("id_kobo", row.get("id"))))))
+        days = [day(row["fecha"]) for row in data[name]]
+        if days:
+            coverage[name] = {"desde": min(days).strftime("%Y-%m-%d"), "hasta": max(days).strftime("%Y-%m-%d"),
+                              "registros": len(days)}
+            recorded_days.extend(days)
+    for _published, path in publications(CONTINUITY):
+        cut = continuity_cut(continuity(path))
+        if cut is not None:
+            recorded_days.append(day(cut))
+    if not recorded_days:
+        raise ValueError("Las bases no contienen registros con fecha para consultar.")
+    data.update(desde=min(recorded_days).strftime("%Y-%m-%d"), corte=max(recorded_days).strftime("%Y-%m-%d"),
+                consulta="periodo", cobertura_registros=coverage, fuentes=list(sources.values()),
+                publicacion_fuente=found[-1][0].strftime("%Y-%m-%d"))
+    data.pop("pdf_publicado", None)
+    data.setdefault("notas", {}).update(
+        alertas="Registros de alerta del aplicativo y reportes sectoriales según sus criterios de inclusión. "
+                "Cada identificador se cuenta una vez con su versión más reciente; no equivale a eventos ni unidades únicas.",
+        bono="El Bono de Contingencia conserva su acumulado confirmado al cambiar el período consultado. "
+             f"Corte de la fuente: {cut_text(data['cortes']['bonos'])}.")
+    return data
+
+
+def history_window(data: dict | None = None) -> tuple[pd.Timestamp, pd.Timestamp]:
+    return window(history() if data is None else data)
+
+
+def continuity_at(until) -> dict:
+    """One latest territorial observation at/before the end, never summed cuts."""
+    available = []
+    for published, path in publications(CONTINUITY):
+        data = continuity(path)
+        cut = continuity_cut(data)
+        if cut is not None and day(cut) <= day(until):
+            available.append((cut, published, data))
+    if not available:
+        return {"registros": [], "detalle": [], "disponible": False}
+    return max(available, key=lambda item: (item[0], item[1]))[2]
 
 
 # ------------------------------------------------------------------------------------------------ texts
@@ -187,16 +324,17 @@ def frames(data, provinces=()):
     result = {}
     for name, rows in [('alertas', data['alertas']), ('kits', data['kits']),
                        ('gestionados', data['bonos']['gestionados']), ('articulacion', data['bonos']['articulacion'])]:
-        if name == 'alertas':
+        if name == 'alertas' and data.get('consulta') != 'periodo':
+            # history() already evaluated the winning record using its own source's criteria.
             rows = [r for r in rows if included(r, data)]
         columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits','familias','id_kobo'] if name == 'kits' else ['provincia','evento','personas','monto']
         frame = pd.DataFrame(rows, columns=columns)
         if name in ('alertas', 'kits'):
-            dates = pd.to_datetime(frame.fecha, errors='coerce')
-            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
+            recorded = dates(frame.fecha)
+            frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]
         elif data.get('filtro_temporal_estricto') and not (fixed_bonus(data, name) or period_confirmed(data, name)):
-            dates = pd.to_datetime(pd.Series([r.get('fecha') for r in rows], index=frame.index), errors='coerce')
-            frame = frame.loc[dates.between(pd.Timestamp(data['desde']), pd.Timestamp(data['corte']))]
+            recorded = dates(pd.Series([r.get('fecha') for r in rows], index=frame.index))
+            frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]
         if provinces:
             frame = frame.loc[frame.provincia.isin(provinces)]
         result[name] = frame.copy()
