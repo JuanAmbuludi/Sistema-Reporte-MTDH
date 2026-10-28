@@ -60,10 +60,8 @@ def _login_map() -> str:
 
 
 def _login_layout():
-    from src.login_art import photo
     from src.ui import icon, logo_data
     logo = f'<img class="brand-logo" src="{logo_data()}" alt="Gobierno del Ecuador · Ministerio de Trabajo y Desarrollo Humano"/>' if logo_data() else ""
-    art = photo()
     band = st.container(key="login_band", vertical_alignment="center")
     with band:
         left, right = st.columns([1.25, 1], gap="large", vertical_alignment="center")
@@ -72,8 +70,7 @@ def _login_layout():
                 f'<div class="login-copy">{logo}<h1>InfoReport</h1>'
                 '<p>Indicadores institucionales por periodo, ámbito y territorio, con reportes listos para compartir.</p>'
                 '<p class="login-slogan"><b>El corazón de Ecuador.</b> Velamos por la calidad de vida de los ecuatorianos</p>'
-                # The map and the welcome photo take turns (styles.css); without a photo, the map alone.
-                f'<div class="login-map{" with-photo" if art else ""}">{_login_map()}{art}</div></div>',
+                f'<div class="login-map">{_login_map()}</div></div>',
                 unsafe_allow_html=True,
             )
         card = right.container(key="login_card")
