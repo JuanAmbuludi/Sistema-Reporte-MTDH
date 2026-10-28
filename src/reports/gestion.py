@@ -55,8 +55,8 @@ def _money_m(value: float) -> str:
 
 
 def _block(key: str, label: str, icon: str, span: str, kpis: list, visual: dict | None, table: dict | None, findings: list) -> dict:
-    return {"key": key, "label": label, "icon": icon, "period": span, "kpis": kpis[:5], "visual": visual, "table": table,
-            **({"body_h": 140} if len(kpis) > 4 else {}),
+    return {"key": key, "label": label, "icon": icon, "period": span, "kpis": kpis[:6], "visual": visual, "table": table,
+            **({"body_h": 28 * min(6, len(kpis))} if len(kpis) > 4 else {}),
             "findings": [f for f in findings if f.get("text")][:2], "update": {"label": span}}
 
 
@@ -133,21 +133,35 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
             bono = r.articulation.groupby("provincia", as_index=False).agg(bono_familias=("personas", "sum"), bono_monto=("monto", "sum"))
             # The alerts of the follow-up start after the period of the report in some cases (their base begins in October
             # 2026): the report then shows every alert up to the latest cut, with its own dates, as the dashboard does.
-            latest = response_view() if r.alerts.empty else None
-            alert_rows = latest.response.alerts if latest is not None else r.alerts
+            latest = response_view() if r.alerts.empty or not r.available["continuidad"] else None
+            alert_rows = latest.response.alerts if latest is not None and r.alerts.empty else r.alerts
             alerts_available = not alert_rows.empty
             alert_dates = pd.to_datetime(alert_rows.fecha, errors="coerce") if alerts_available else pd.Series(dtype="datetime64[ns]")
             alert_span = (f"del {alert_dates.min():%d/%m} al {alert_dates.max():%d/%m/%Y}" if alerts_available and alert_dates.notna().any() else "")
-            outside = latest is not None and alerts_available
+            outside = latest is not None and r.alerts.empty and alerts_available
+            # Suspended units are a territorial state: the last cut of the period, or the latest cut with its own date when
+            # the period has none (never a sum of cuts, never a zero for a missing cut).
+            continuity = r if r.available["continuidad"] else (latest.response if latest is not None and
+                                                                 latest.response.available["continuidad"] else None)
+            closed_outside = continuity is not None and continuity is not r
+            closed_cut = continuity.continuity_cut if continuity is not None else None
             alerts = alert_rows.groupby("provincia", as_index=False).size().rename(columns={"size": "alertas"})
+            if continuity is not None:
+                closed_rows = continuity.continuity.loc[continuity.continuity.estado.isin(["Suspendida", "Suspendida presencial"])]
+                closed = closed_rows.groupby("provincia", as_index=False).unidades.sum().rename(columns={"unidades": "suspendidas"})
+            else:
+                closed = pd.DataFrame(columns=["provincia", "suspendidas"])
             table = (kits.merge(bono, on="provincia", how="outer").merge(alerts, on="provincia", how="outer")
-                     .fillna({"kits": 0, "familias": 0, "bono_familias": 0, "bono_monto": 0, "alertas": 0}))
+                     .merge(closed, on="provincia", how="outer")
+                     .fillna({"kits": 0, "familias": 0, "bono_familias": 0, "bono_monto": 0, "alertas": 0, "suspendidas": 0}))
             table = table.sort_values(["kits", "bono_familias", "alertas"], ascending=False).reset_index(drop=True)
             for column in ("bono_familias", "bono_monto"):
                 table[column] = table[column].where(table[column] > 0)
             table["alertas"] = table.alertas.where(table.alertas > 0, 0 if alerts_available else None) if alerts_available else None
+            table["suspendidas"] = table.suspendidas if continuity is not None else None
             province_rows = table.to_dict("records")
             province_rows.append({"provincia": "Total nacional", "alertas": float(len(alert_rows)) if alerts_available else None,
+                                  "suspendidas": float(continuity.closed_units) if continuity is not None else None,
                                   "kits": float(table.kits.sum()),
                                   "familias": float(table.familias.sum()), "bono_familias": float(table.bono_familias.sum()),
                                   "bono_monto": float(table.bono_monto.sum()), "selected": True})
@@ -171,25 +185,28 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                     _kpi("Monto · bono de contingencia", float(r.articulation.monto.sum()), "money", note=bonus_scope(r), decimals=2),
                     _kpi("Alertas registradas", float(len(alert_rows)) if alerts_available else None, note=alert_note),
                     _kpi("UA con alertas registradas", units if alerts_available else None,
-                         note=(f"Al {alert_dates.max():%d/%m/%Y}" if outside else "Con código de UA") if alerts_available else "")]
-            continuity_text = (f"{number(r.closed_units)} unidades de atención registran atención suspendida "
-                               f"({r.suspension_short()})." if r.available["continuidad"] else
-                               f"No hay un corte territorial de unidades suspendidas hasta el {r.end:%d/%m/%Y}.")
+                         note=(f"Al {alert_dates.max():%d/%m/%Y}" if outside else "Con código de UA") if alerts_available else ""),
+                    _kpi("Unidades suspendidas", float(continuity.closed_units) if continuity is not None else None,
+                         note=f"Corte {closed_cut:%d/%m/%Y}" if closed_cut is not None else "Sin corte territorial")]
+            continuity_text = (f"{'Al ' + format(closed_cut, '%d/%m/%Y') + ', ' if closed_cut is not None else ''}"
+                               f"{number(continuity.closed_units)} unidades de atención registran atención suspendida "
+                               f"({continuity.suspension_short()})" + (", según el último corte territorial disponible." if closed_outside else ".")
+                               if continuity is not None else "No hay un corte territorial de unidades suspendidas disponible.")
             if outside:
                 continuity_text = (f"Las alertas se registran desde el {alert_dates.min():%d/%m/%Y}: se presentan las {number(len(alert_rows))} "
                                    f"registradas hasta el {alert_dates.max():%d/%m/%Y}. " + continuity_text)
             findings = [{"icon": "calendar", "text": f"{bonus_scope(r)}. El bono se conserva como referencia y no se contabiliza como pago del período."},
                         {"icon": "shield", "text": continuity_text}]
+            table_title = "Alertas, unidades suspendidas, kits y bono por provincia"
             blocks.append(_block("riesgos", "Plan ENOS: respuesta ante el Fenómeno El Niño", "storm",
                                  r.scope_text(), kpis, visual,
-                                 {"title": "Alertas, kits y bono de contingencia por provincia",
-                                  "note": ("Alertas al último corte · kits del período · bono de referencia" if outside
-                                           else "Alertas y kits del período · bono de referencia"),
-                                  "columns": [("Provincia", "provincia", None, "text"),
-                                              (f"Alertas al {alert_dates.max():%d/%m}" if outside else "Alertas", "alertas", 62, "int"),
-                                              ("Kits entregados", "kits", 78, "int"),
-                                              ("Familias con kit", "familias", 78, "int"), ("Familias con bono", "bono_familias", 84, "int"),
-                                              ("Monto del bono (USD)", "bono_monto", 96, "usd")],
+                                 {"title": table_title,
+                                  "note": (f"Alertas y UA al {closed_cut or alert_dates.max():%d/%m} · kits del período"
+                                           if outside or closed_outside else "Alertas y kits del período"),
+                                  "columns": [("Provincia", "provincia", None, "text"), ("Alertas", "alertas", 42, "int"),
+                                              ("UA suspendidas", "suspendidas", 62, "int"), ("Kits entregados", "kits", 62, "int"),
+                                              ("Familias con kit", "familias", 64, "int"), ("Familias con bono", "bono_familias", 70, "int"),
+                                              ("Monto del bono (USD)", "bono_monto", 84, "usd")],
                                   "rows": province_rows}, findings))
             deliveries += [{"what": "Kits humanitarios · Fenómeno El Niño", "detail": "kits entregados a familias afectadas",
                             "amount_people": total_kits, "money": None, "icon": "life-buoy", "context": f"{kit_provinces} provincias priorizadas"},

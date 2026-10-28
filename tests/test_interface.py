@@ -330,7 +330,7 @@ def test_period_bulletins_cover_the_year_and_the_government_period():
         text = " ".join(page.get_text() for page in pdf)
         assert 4 <= len(pdf) <= 5 and expected in text and "Gestión realizada desde " in text and "Aspectos destacados del periodo" in text
         for section in ["Transferencias monetarias no contributivas", "Servicios de protección social", "Fenómeno El Niño",
-                        "Alertas, kits y bono de contingencia por provincia", "Brigadas sociales", "Crédito de Desarrollo Humano",
+                        "Alertas, unidades suspendidas, kits y bono por provincia", "Brigadas sociales", "Crédito de Desarrollo Humano",
                         "Contingencias y compensaciones", "Jóvenes en Acción", "Empleo", "Presupuesto institucional", "1.578.019",
                         "Cobertura y presupuesto por bono y pensión"]:
             assert section in text, (mode, section)
