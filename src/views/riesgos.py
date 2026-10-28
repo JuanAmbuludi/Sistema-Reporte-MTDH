@@ -525,8 +525,8 @@ class RiskView:
              "note": "Registro y reportes sectoriales"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
              "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte {enos.short_cut(r.cuts['kits'])}"},
-            {"label": "Personas · Bono de Contingencia", "value": int(r.articulation.personas.sum()) if r.bonus_period_available else None, "icon": "hand-coins", "tone": "lila",
-             "note": "En articulación para el pago" if r.bonus_period_available else "Sin desglose temporal disponible"},
+            {"label": r.data.get("bonos_presentacion", {}).get("unidad", "Personas") + " · Bono de Contingencia", "value": int(r.articulation.personas.sum()) if r.bonus_period_available else None, "icon": "users" if "bonos_presentacion" in r.data else "hand-coins", "tone": "oro" if "bonos_presentacion" in r.data else "lila",
+             "note": r.data.get("bonos_presentacion", {}).get("estado", "En articulación para el pago") if r.bonus_period_available else "Sin desglose temporal disponible"},
             {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()) if r.bonus_period_available else None,
              "prefix": "USD" if r.bonus_period_available else None, "decimals": 2,
              "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}" if r.bonus_period_available else "Sin desglose temporal disponible"},
@@ -676,7 +676,7 @@ class RiskView:
         else:
             columns = [{"key": "nombre", "label": "Provincia", "kind": "strong", "sub": "provincia_sub"},
                        {"key": "kits", "label": "Kits", "kind": "num", "zero": "dash", "sub": "kits_sub"},
-                       {"key": "articulacion", "label": "Personas · Bono de Contingencia", "kind": "num", "zero": "dash"},
+                       {"key": "articulacion", "label": self.response.data.get("bonos_presentacion", {}).get("unidad", "Personas") + " · Bono de Contingencia", "kind": "num", "zero": "dash"},
                        {"key": "monto_articulacion", "label": "Monto (USD) · Bono de Contingencia", "kind": "money", "zero": "dash"}]
             total = {"nombre": f"Total de {respuesta._n(len(rows), 'provincia')}", **{c["key"]: rows[c["key"]].sum() for c in columns[1:]}}
             if not self.response.bonus_period_available:
@@ -685,7 +685,7 @@ class RiskView:
                     rows[key]=None
                     total[key]=None
             ui.rich_table(columns, rows.to_dict("records"), total=total)
-            st.caption("Bono: sin desglose temporal disponible." if not self.response.bonus_period_available else f"Bono de Contingencia en articulación para el pago: actualización {self.response.cut_text('bonos')}.")
+            st.caption("Bono: sin desglose temporal disponible." if not self.response.bonus_period_available else f"Bono de Contingencia · {self.response.data.get('bonos_presentacion', {}).get('estado', 'En articulación para el pago')}: actualización {self.response.cut_text('bonos')}.")
         rows = self.action_rows()
         # A stage of the bonus without a period of its own inside the one consulted has no figure (never a zero).
         if not self.response.available["gestionados"]:

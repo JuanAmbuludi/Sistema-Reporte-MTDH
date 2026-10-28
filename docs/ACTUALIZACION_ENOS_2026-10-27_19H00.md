@@ -7,3 +7,9 @@
 - Bonos: se conservan personas y montos. Las publicaciones del 26/10 permanecen intactas.
 
 El script `scripts/actualizar_enos_27_octubre.py` procesa los cuatro archivos con validación de identificadores y controles. `scripts/generar_pdf_enos.py` genera el PDF desde el contexto compartido por el dashboard.
+
+## Conciliación con la matriz global recibida posteriormente
+
+La matriz exportada el 28/10 a las 00:14 (zona horaria no indicada) contiene 117 entregas y 14.581 kits. Incorpora el ID 902026998: Bolívar, Las Naves, 09/10, 240 kits y 80 familias. Los restantes 116 registros no cambian. Para el período 28/09–27/10 corresponden 11.207 kits; los 3.374 anteriores permanecen fuera del indicador. Se conserva la publicación histórica del 26/10.
+
+Por confirmación del responsable, el KPI de bono se presenta como «Familias · Bono de Contingencia», 1.171, «Habilitadas al pago». Se mantienen las cifras y los nombres técnicos de la base para preservar compatibilidad.

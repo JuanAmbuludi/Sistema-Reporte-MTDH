@@ -3,7 +3,7 @@
   "criterio_alertas": "codigo_ua_y_reportes_sectoriales",
   "corte": "2026-10-27",
   "desde": "2026-09-28",
-  "generado_utc": "2026-10-28T00:53:09.174010+00:00",
+  "generado_utc": "2026-10-28T01:08:30.215627+00:00",
   "alertas": [
     {
       "codigo": "ALT-2026-000325",
@@ -1439,6 +1439,14 @@
       "familias": 40
     },
     {
+      "id_kobo": "902026998",
+      "fecha": "2026-10-09",
+      "provincia": "Bolívar",
+      "canton": "Las Naves",
+      "kits": 240,
+      "familias": 80
+    },
+    {
       "id_kobo": "901555799",
       "fecha": "2026-10-09",
       "provincia": "Carchi",
@@ -1970,7 +1978,7 @@
   "notas": {
     "alertas": "Seguimiento desde el 28/09/2026. Se cuentan registros de alerta del aplicativo y reportes sectoriales, no eventos ni unidades únicas. Las nuevas alertas se incorporan por su código oficial; las coincidencias con reportes sectoriales se conservan vinculadas, sin eliminar antecedentes. El archivo recibido anuncia 7 alertas, pero contiene 5 filas de detalle.",
     "kits": "El registro de Cañar declara 1 kit, pero su observación indica una solicitud no recibida; pendiente de validación territorial.",
-    "bono": "Bono en articulación: 1.171 personas y USD 354.987,39 correspondientes al período 28/09–27/10/2026. Los bonos gestionados no cuentan con desglose temporal para este período. Las proyecciones son una referencia de planificación."
+    "bono": "Bono de contingencia: 1.171 familias habilitadas al pago, USD 354.987,39, para el período 28/09–27/10/2026. Unidad y estado confirmados por el responsable. Los bonos gestionados no cuentan con desglose temporal para este período. Las proyecciones son una referencia de planificación."
   },
   "control": {
     "alertas_detalle_original": 31,
@@ -2060,16 +2068,20 @@
     {
       "nombre": "01-Resumen_kits_MTDH_26-27_octubre_2026.xlsx",
       "sha256": "7dfedca1398d8868826639166de5946cea2cf93acb1ec1ad5f609e2f4321c572"
+    },
+    {
+      "nombre": "01-Resumen_kits_MTDH_28_octubre_2026-1-.xlsx",
+      "sha256": "7a6d75d869181d2425f257e5a9f9bf4feda2630abf07cf8b4c3cd7728e913037"
     }
   ],
   "kits_metadatos": {
-    "fuente": "01-Resumen_kits_MTDH_26-27_octubre_2026.xlsx",
+    "fuente": "01-Resumen_kits_MTDH_28_octubre_2026-1-.xlsx",
     "corte": "27/10/2026 (sin hora indicada)",
     "desde": "2026-08-31",
     "hasta": "2026-10-27",
-    "registros": 116,
-    "kits": 14341,
-    "familias_reportadas": 13293,
+    "registros": 117,
+    "kits": 14581,
+    "familias_reportadas": 13373,
     "reemplaza_corte_anterior": false,
     "unidad_publicada": "Núcleos familiares",
     "validacion": "Total reportado en Kobo, conciliado con el resumen provincial; no es verificación independiente de entrega.",
@@ -2079,8 +2091,10 @@
         "observacion": "Cañar: la columna de kits reporta 1; la observación menciona una solicitud aún no recibida. Se conserva el total reportado, pendiente de validación territorial."
       }
     ],
-    "registros_actualizacion": 12,
-    "modo_actualizacion": "Actualización por ID de registro; conserva entregas anteriores"
+    "registros_actualizacion": 117,
+    "modo_actualizacion": "Matriz global conciliada por ID. Se incorpora 902026998: 240 kits entregados el 09/10 en Las Naves. El período publicado permanece 28/09–27/10.",
+    "exportacion_fuente": "2026-10-28T00:14:00",
+    "zona_horaria_exportacion": "No indicada en la fuente"
   },
   "filtro_temporal_estricto": true,
   "bonos_con_fecha_individual": false,
@@ -2101,5 +2115,10 @@
       "canton": "Balao",
       "tipo": "Emergencia"
     }
-  ]
+  ],
+  "bonos_presentacion": {
+    "unidad": "Familias",
+    "estado": "Habilitadas al pago",
+    "confirmacion": "Rótulo y estado confirmados por el responsable mediante captura; se conservan 1.171 y USD 354.987,39. El campo técnico personas conserva su nombre por compatibilidad."
+  }
 }

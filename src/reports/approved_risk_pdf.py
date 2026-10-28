@@ -50,7 +50,7 @@ def render(c,ctx,pages):
     # Use the dashboard KPI unchanged: alerts and identified UA are different measures.
     cards[0]['short'] = cards[0]['label']
     cards[1].update(short='Kits entregados',note=f"{r['kit_provinces']} provincias")
-    cards[2].update(short='Personas · Bono de Contingencia',value=r['articulation_people'],note='En articulación para el pago' if r['bonus_period_available'] else 'Sin desglose temporal')
+    cards[2].update(short=cards[2]['label'],value=r['articulation_people'])
     cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],
                     display_value=f"USD {number(r['articulation_amount'],2)}" if r['articulation_amount'] is not None else '—',
                     note=f"En gestión · corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
@@ -138,7 +138,7 @@ def render(c,ctx,pages):
     heading(c,'Respuesta por provincia',M,top,full);top-=28
     rows=[[a['name'],number(a['kits']) if a['kits'] else '—',number(a['articulation']) if a['articulation'] else '—',number(a['articulation_amount'],2) if a['articulation_amount'] else '—'] for a in r['actions']]
     rows.append(['Total',number(r['kits_total']),number(r['articulation_people']),number(r['articulation_amount'],2)])
-    top=_pdf_table(c,top,['Provincia','Kits entregados',Markup('Personas<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
+    top=_pdf_table(c,top,['Provincia','Kits entregados',Markup(escape(ctx['kpis'][2]['label'].split(' · ')[0])+'<br/><font size="6.6">Bono de Contingencia</font>'),Markup('Monto (USD)<br/><font size="6.6">Bono de Contingencia</font>')],rows,[full*.44,full*.17,full*.18,full*.21],size=8.2,padding=2.6,align=['L','L','L','L'],total=True)-16
     if not r['bonus_period_available']:
         top=_paragraph(c,'Bono de contingencia: sin desglose temporal disponible para el período reportado.',M,top,full,size=7)
     assert top>=62,top

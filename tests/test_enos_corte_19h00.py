@@ -14,13 +14,13 @@ def view(**selection):
 
 def test_totals_and_source_identity():
     v=view();r=v.response
-    assert [k['value'] for k in v.kpi_cards()]==[44,10967,1171,354987.39,124,1]
+    assert [k['value'] for k in v.kpi_cards()]==[44,11207,1171,354987.39,124,1]
     assert r.alerts.codigo.nunique()==44
     assert r.alerts.codigo.str.startswith('ALT-').sum()==15
     assert r.data['control']['alertas_detalle_recibido']==5
-    assert r.data['kits_metadatos']['registros']==116
-    assert r.data['kits_metadatos']['kits']==14341
-    assert len({k['id_kobo'] for k in r.data['kits']})==116
+    assert r.data['kits_metadatos']['registros']==117
+    assert r.data['kits_metadatos']['kits']==14581
+    assert len({k['id_kobo'] for k in r.data['kits']})==117
     assert r.continuity.groupby('provincia').unidades.sum().to_dict()=={'El Oro':119,'Guayas':5}
     assert len(r.continuity_detail)==124
 
@@ -39,7 +39,8 @@ def test_pdf_uses_dashboard_context_and_contains_every_alert():
     pdf=pymupdf.open(stream=generate_pdf(ctx),filetype='pdf')
     text=' '.join(p.get_text() for p in pdf)
     assert len(pdf)==ctx['pdf_pages']
-    assert 'Brigadas de emergencia' in text and 'Balao' in text and '10.967' in text and '124' in text
+    assert 'Familias' in text and 'Habilitadas al pago' in text
+    assert 'Brigadas de emergencia' in text and 'Balao' in text and '11.207' in text and '124' in text
     assert all(a['codigo'] in text for a in v.response.data['alertas'])
     for page in pdf:
         for block in page.get_text('dict')['blocks']:
