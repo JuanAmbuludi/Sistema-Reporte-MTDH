@@ -450,7 +450,8 @@ def generate(ctx: dict) -> bytes:
         blank()
         if number_ == 1:
             y = _band(c, ctx, H, emblem_png(), kind_label="Ministerio de Trabajo y Desarrollo Humano") - 26
-            _heading(c, f"Lo entregado de {ctx['period_label'].lower()}", M, y, width, "Cada entrega con su cantidad y su monto")
+            since = ctx["period_label"].lower().replace(" a ", " hasta ", 1)
+            _heading(c, f"Gestión realizada desde {since}", M, y, width, "Cada entrega con su cantidad y su monto")
             _deliveries(c, ctx["deliveries"], M, y - 22, width)
         else:
             y = _slim_band(c, ctx, ctx["title"], ctx["period_label"]) - 20
