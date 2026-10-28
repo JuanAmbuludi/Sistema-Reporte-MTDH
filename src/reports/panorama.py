@@ -97,8 +97,10 @@ def _visual(key: str, ctx: dict) -> dict | None:
                 "rows": [{"name": p["short"], "value": p["people"], "text": f"{_number(p['people'])} · {_number(p['units'])} UA"}
                          for p in programs[:5]]}
     if key == "riesgos":
-        return {"kind": "bars", "title": "Alertas por provincia", "rows": [dict(r, text=str(r["value"])) for r in ctx["response"]["by_province"]],
-                "note": "Alertas y reportes registrados"}
+        rows = [dict(r, text=_number(r["value"])) for r in ctx["response"]["by_province"]]
+        # Two columns of five rows fit the block; with more provinces, the ten with most alerts.
+        note = "Diez principales · alertas registradas" if len(rows) > 10 else "Alertas y reportes registrados"
+        return {"kind": "bars", "title": "Alertas por provincia", "rows": rows[:10], "note": note}
     if key == "contingencias":
         months = [m for m in ctx["months"] if m.get("amount")]
         return {"kind": "columns", "title": "Monto entregado por mes (USD)", "labels": [m["short"] for m in months],
@@ -306,6 +308,7 @@ def build_panorama(bases: dict, title: str) -> dict:
 
 # ------------------------------------------------------------------------------------------------- drawing
 BODY_H = 112    # the key figures at the left and the chart of the section at the right
+SHORT_PLACES = {"Santo Domingo de los Tsáchilas": "Santo Domingo"}
 KPI_W = 172
 
 
@@ -343,6 +346,10 @@ def _bar_rows(c, rows: list[dict], x: float, top: float, width: float, height: f
         peak = max([r.get("value") or 0 for r in rows] or [1]) or 1
         rows = [{**r, "fraction": (r.get("value") or 0) / peak} for r in rows]
     columns = 2 if len(rows) > 5 else 1
+    # A name over its bar needs 17 points: never more rows than fit, so no name lands on the bar above it.
+    fits = max(1, int((height - 10) // 17))
+    # Names read whole: the province keeps its usual short name.
+    rows = [{**r, "name": SHORT_PLACES.get(r["name"], r["name"])} for r in rows[:fits * columns]]
     per = (len(rows) + columns - 1) // columns
     gap = 16
     w = (width - gap * (columns - 1)) / columns
@@ -357,9 +364,11 @@ def _draw_visual(c, visual: dict, x: float, top: float, width: float, height: fl
     from .charts import execution_png, map_png
     from .pdf import MUTED, NIGHT, _clip, _picture
     from .pdf_areas import _columns, _legend
+    from reportlab.pdfbase import pdfmetrics
     c.setFillColor(NIGHT)
     c.setFont("Display-Bold", 8.2)
-    c.drawString(x, top - 7, _clip(visual["title"], "Display-Bold", 8.2, width * 0.62))
+    title = _clip(visual["title"], "Display-Bold", 8.2, width * 0.62)
+    c.drawString(x, top - 7, title)
     legend = visual.get("legend")
     if visual["kind"] == "levels":
         from .risks import PALETTE
@@ -370,7 +379,9 @@ def _draw_visual(c, visual: dict, x: float, top: float, width: float, height: fl
     elif visual.get("note"):
         c.setFillColor(MUTED)
         c.setFont("Text", 6.6)
-        c.drawRightString(x + width, top - 7, _clip(visual["note"], "Text", 6.6, width * 0.4))
+        # The note takes the room the title leaves, so it reads whole.
+        room = width - pdfmetrics.stringWidth(title, "Display-Bold", 8.2) - 14
+        c.drawRightString(x + width, top - 7, _clip(visual["note"], "Text", 6.6, max(width * 0.4, room)))
     body_top, body_h = top - 16, height - 16
     kind = visual["kind"]
     if kind in ("bars", "rates"):
