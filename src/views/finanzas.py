@@ -388,9 +388,6 @@ class FinanceView:
             download_table(frame, layout, title=self.label, subtitle=f"{self.context_label} · {name.lower()}",
                            period_label=self.period["label"], file_name=f"MTDH_cuadro_{self.file_id}_{self.period['id']}.xlsx",
                            key=self.file_id + "_xlsx", share_fields=("participacion", "ejecucion"))
-        url = (self.metadata.get("procedencia") or {}).get("url")
-        if url and not self.government:
-            st.link_button("Consultar la publicación de SGDE", url, icon=":material/open_in_new:", type="tertiary")
 
     # ----------------------------------------------------------------------------------------------- reports
     def columns(self):

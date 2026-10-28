@@ -33,7 +33,7 @@ def context(view, title):
             "columns": view.columns(), "detail": view.filtered.to_dict("records"), "insights": insights,
             "scope": view.scope_note, "scope_items": view.scope_items(), "pdf_pages": 2,
             "source": "Fuente: " + source,
-            "source_url": "" if view.government else view.metadata["procedencia"]["url"],
+            "source_url": "",
             "definitions": [("Alcance", view.scope_note),
                             (f"Acumulado {view.span}", f"Presupuesto acumulado de {view.span.replace('–', ' a ')} de cada programa y provincia."),
                             (f"Ejecutado {view.period['year']}", f"Presupuesto ejecutado en {view.period['year']} al corte; forma parte del acumulado."),
@@ -106,7 +106,7 @@ def render_book(book):
     ws, row = _sheet(book, "Detalle", theme.ORO, ctx["title"], [2.4]+[22 if k in numeric else 42 for k in keys]+[2.4])
     _block(book, ws, row+1, "Registros de la selección", columns, raw, last=len(keys), autofilter=True)
     contents.append(("Detalle", "Registros originales del universo seleccionado"))
-    book.facts_sheet(_facts(book, [*ctx["scope_items"], ("Fuente", ctx["source"]), ("URL", ctx["source_url"])]),
+    book.facts_sheet(_facts(book, [*ctx["scope_items"], ("Fuente", ctx["source"])]),
                      ctx["definitions"], contents)
 
 

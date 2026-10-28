@@ -378,8 +378,6 @@ class SocialBudgetView:
 
     def dashboard(self) -> None:
         stats, period, series = self.stats, self.period, self.series
-        st.caption("La fuente incluye mecanismos de transporte, migrantes retornados y compensación diésel, "
-                   "que identifica como no administrados por el MTDH.")
         ui.section_heading("Ejecución presupuestaria", f"{self.context_label} · devengado acumulado sobre presupuesto aprobado", "target")
         rows = self.month.rename(columns={"devengado_acumulado": "presupuesto_ejecutado", "presupuesto_aprobado": "presupuesto_codificado"})
         rows = rows.sort_values("presupuesto_codificado", ascending=False)

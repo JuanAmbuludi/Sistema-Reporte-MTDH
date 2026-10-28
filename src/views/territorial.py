@@ -423,9 +423,6 @@ class TerritorialView:
     # ------------------------------------------------------------------------------------------- dashboard
     def dashboard(self) -> None:
         module, people, money = self.module, self.people, self.money
-        if self.budget_shown:
-            st.caption(f"Presupuesto territorial: devengado y codificado de cada {module.item}, con su distribución por provincia. "
-                       "El presupuesto fiscal (SGDE) y el social aprobado (MDH–MTDH) se consultan en Presupuesto.")
         ui.section_heading(f"Resultados por {module.item}", self.context_label, "chart")
         cards = [("card_people", f"{people.label} por {module.item}", "Número de personas",
                   lambda: charts.category_bars(self.filtered, people, self.short_programs), "category_people")]
