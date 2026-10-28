@@ -173,8 +173,7 @@ class FinanceView:
             lead = (f"Presupuesto de transferencias y servicios en la gestión de gobierno: el acumulado de {FIRST_YEAR} a {year - 1} "
                     f"más el ejecutado en {year} al corte de {self.cut_text}. Incluye programas históricos sin cobertura actual.")
         else:
-            lead = (f"Presupuesto codificado, comprometido y devengado del Ministerio, publicado por SGDE con corte al {self.cut_text}. "
-                    "Es un universo distinto del presupuesto social y no se suma con él.")
+            lead = f"Presupuesto codificado, comprometido y devengado del Ministerio, publicado por SGDE con corte al {self.cut_text}."
         return f"Año fiscal {year} · corte {self.period['label'].lower()}", self.label, lead
 
     def update_stamp(self):

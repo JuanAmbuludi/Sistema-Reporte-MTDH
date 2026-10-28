@@ -345,8 +345,7 @@ class SocialBudgetView:
 
     def hero_copy(self) -> tuple[str, str, str]:
         return (f"Año fiscal {self.period['year']} · corte {self.period['label'].lower()}", self.label,
-                f"Presupuesto aprobado y devengado acumulado de {self.span}, grupos 58, 57 y 78. "
-                "La base integra MDH (enero–julio) y MTDH (desde agosto); su alcance difiere del presupuesto fiscal SGDE.")
+                f"Presupuesto aprobado y devengado acumulado de {self.span}, grupos 58, 57 y 78.")
 
     def update_stamp(self) -> dict:
         from src import corte
