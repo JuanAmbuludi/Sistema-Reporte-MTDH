@@ -114,7 +114,7 @@ def test_context_follows_module_and_period(periods, parishes):
     current = _context(data, parishes, "bonos_pensiones")
     assert current["module_label"] == "Transferencias monetarias no contributivas" and current["period_label"] == "Septiembre 2026"
     assert current["totals"]["people"] == 1578019
-    assert [k["label"] for k in current["kpis"]] == ["Beneficiarios", "Ejecución VIS–VIE", "Presupuesto ejecutado 2026",
+    assert [k["label"] for k in current["kpis"]] == ["Beneficiarios", "Ejecución presupuestaria", "Presupuesto ejecutado 2026",
                                                      "Presupuesto acumulado 2023–2026"]
     assert round(current["totals"]["execution"], 2) == 71.02
     assert current["map_layer"] == "parroquia" and current["parish"]["count"] > 1000
@@ -186,7 +186,7 @@ def test_levels_follow_the_reader_choice(periods, parishes):
 def test_executive_summary_keeps_to_two_pages(periods, parishes):
     data, _ = periods
     text = _pdf_text(generate_pdf(_context(data, parishes, "bonos_pensiones")))
-    for expected in ["Transferencias monetarias no contributivas", "Beneficiarios por programa", "Ejecución VIS–VIE por programa",
+    for expected in ["Transferencias monetarias no contributivas", "Beneficiarios por programa", "Ejecución presupuestaria por programa",
                      "Aspectos destacados", "1.578.019", "71,0 %", "Beneficiarios por parroquia", "Detalle territorial",
                      "Provincias con más beneficiarios", "Cantones con más beneficiarios", "Parroquias con más beneficiarios",
                      "reúnen la mitad de los beneficiarios", "Página 2 de 2"]:
@@ -203,7 +203,7 @@ def test_presentation_has_a_slide_per_level_with_icons_and_native_charts(periods
     deck, texts = _deck_texts(generate_pptx(_context(data, parishes, "proteccion_integral", provinces=["17"])))
     assert len(deck.slides) == 6
     for title in ["Cifras clave", "Resultados por provincia", "Resultados por cantón", "Resultados por parroquia",
-                  "Ejecución VIS–VIE", "Resultados por servicio", "6 / 6"]:
+                  "Ejecución presupuestaria", "Resultados por servicio", "6 / 6"]:
         assert title in texts, title
     pictures = [shape for slide in deck.slides for shape in slide.shapes if shape.shape_type == 13]
     assert len(pictures) >= 14, "Iconos, logo y mapas"

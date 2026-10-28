@@ -516,7 +516,7 @@ def _territorial(c, ctx: dict, pages: int) -> None:
     monthly = ctx.get("monthly")
     if ctx.get("executed_available") and funded:
         span = ctx.get("month_span")
-        _heading(c, f"Ejecución VIS–VIE por {labels['item']}", x, top - 12, column, span.capitalize() if span else "")
+        _heading(c, f"Ejecución presupuestaria por {labels['item']}", x, top - 12, column, span.capitalize() if span else "")
         _bars(c, _rate_rows(funded), x, top - 36, column, 29.5)
     elif ctx.get("reference_budget") and funded:
         _heading(c, f"{labels['fiscal']} por {labels['item']}", x, top - 12, column)
@@ -621,7 +621,7 @@ def _monthly_block(c, ctx: dict, top: float, width: float, height: float = 120) 
     _picture(c, picture, M - 4, top - 10, column + 8, ratio)
     x = M + column + 22
     if monthly.get("budget"):
-        _heading(c, "Ejecución VIS–VIE acumulado", x, top, column, "Total nacional")
+        _heading(c, "Ejecución presupuestaria acumulada", x, top, column, "Total nacional")
         picture = execution_png(shorts, [m["execution"] for m in months], [m["month"] for m in months], highlight=selected_index,
                                 width=4.6, height=4.6 * ratio)
         _picture(c, picture, x - 4, top - 10, column + 8, ratio)

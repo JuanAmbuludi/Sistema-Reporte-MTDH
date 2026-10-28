@@ -863,7 +863,7 @@ class Workbook:
             col += 1
         if budget:
             layout += [("Devengado del mes", "accrued_month", "usd", col, 1), ("Devengado acumulado", "accrued", "usd", col + 1, 1),
-                       ("Ejecución VIS–VIE acumulado", "execution_f", "pct", col + 2, 1)]
+                       ("Ejecución acumulada", "execution_f", "pct", col + 2, 1)]
             col += 3
         first, last, nxt = self.table(ws, row, layout, rows, header_height=36)
         for index, month in enumerate(rows):
@@ -937,7 +937,7 @@ class Workbook:
         if ctx.get("monthly"):
             definitions = definitions + [("Variación mensual", f"Diferencia de los {labels['people'].lower()} de un mes frente al mes anterior.")]
             if ctx["monthly"].get("budget"):
-                definitions.append(("Ejecución VIS–VIE acumulado", "Presupuesto devengado de enero al mes, sobre el codificado VIS–VIE del "
+                definitions.append(("Ejecución acumulada", "Presupuesto devengado de enero al mes, sobre el presupuesto codificado del "
                                                            "año; el ritmo uniforme supone una doceava parte del presupuesto por mes."))
         self.facts_sheet(facts, definitions, contents)
 

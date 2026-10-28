@@ -54,7 +54,7 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert len(app.selectbox) == 0, "Los selectores se muestran como controles visibles"
     html = _markdown(app)
     for title in ["Transferencias monetarias no contributivas", "Resultados por programa", "Resultados por territorio", "Cuadro de resultados",
-                  "Ejecución VIS–VIE", "Beneficiarios por provincia", "Distribución por programa", "InfoReport"]:
+                  "Ejecución presupuestaria", "Beneficiarios por provincia", "Distribución por programa", "InfoReport"]:
         assert title in html, title
     assert html.count("<svg") >= 1 and "ec-map" in html and 'class="ec-mosaic"' in html, "El encabezado incluye el mapa parroquial"
     assert "Beneficiarios por parroquia" in html
@@ -81,7 +81,7 @@ def test_every_territorial_chart_switches_between_province_canton_and_parish():
     app.segmented_control(key="lvl_matrix").set_value("parroquia").run()
     assert not app.exception
     html = _markdown(app)
-    for title in ["Beneficiarios por cantón", "Los 25 primeros cantones del país", "Ejecución VIS–VIE por parroquia",
+    for title in ["Beneficiarios por cantón", "Los 25 primeros cantones del país", "Ejecución por parroquia",
                   "Las 25 primeras parroquias del país"]:
         assert title in html, title
 
@@ -145,7 +145,7 @@ def test_institutional_budget_is_an_area_of_its_own():
     app.segmented_control(key="module").set_value("presupuesto").run()
     assert not app.exception
     html = _markdown(app)
-    for expected in ["Presupuesto fiscal", "342,2", "993,6", "34,44", "Saldo disponible", "Año fiscal 2026",
+    for expected in ["Presupuesto fiscal", "342,2", "993,6", "34,4", "Saldo disponible", "Año fiscal 2026",
                      "Por programa"]:
         assert expected in html, expected
     for banned in BANNED:

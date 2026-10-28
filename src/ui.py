@@ -9,6 +9,7 @@ import base64
 from functools import lru_cache
 import html
 from pathlib import Path
+import re
 
 import pandas as pd
 import streamlit as st
@@ -279,6 +280,10 @@ def hero_series(svg: str, label: str, average_label: str = "", *, narrow: str = 
                 f'</figcaption></figure>', unsafe_allow_html=True)
 
 
+# A span of years («2023–2026») never breaks at its dash: the label wraps before it instead.
+_YEARS = re.compile(r"(\d{4}–\d{4})")
+
+
 def _kpi_card(card: dict, i: int) -> str:
     share = card.get("bar", card.get("share"))
     share_html = ""
@@ -290,8 +295,9 @@ def _kpi_card(card: dict, i: int) -> str:
     prefix = f'<small class="pre">{_esc(card["prefix"])}</small>' if card.get("prefix") else ""
     suffix = f'<small class="suf">{_esc(card["suffix"])}</small>' if card.get("suffix") else ""
     note = f'<p class="kpi-note">{_esc(card["note"])}</p>' if card.get("note") else ""
+    label = _YEARS.sub(r'<span class="nw">\1</span>', _esc(card["label"]))
     return (f'<article class="kpi tone-{card.get("tone", "morado")}" style="--i:{i}"><header><span class="kpi-icon">{icon(card.get("icon", "chart"), 22)}</span>'
-            f'<h3>{_esc(card["label"])}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
+            f'<h3>{label}</h3></header><div class="kpi-value">{prefix}{animated(card["value"], card.get("decimals", 0))}{suffix}</div>'
             f'{note}{share_html}</article>')
 
 

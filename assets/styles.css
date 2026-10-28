@@ -192,6 +192,7 @@ html{scroll-behavior:smooth}
 .kpi-value{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin:16px 0 8px;font-family:var(--font-display);font-weight:800;font-size:clamp(28px,2.55vw,40px);line-height:1;letter-spacing:-.02em;color:var(--morado-900)}
 .kpi-value .pre,.kpi-value .suf{font-family:var(--font-text);font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--pizarra)}
 .stApp .kpi-note{font-size:12.5px;line-height:1.45;color:#6E6880;margin:0}
+.kpi h3 .nw{white-space:nowrap}
 .kpi-share{margin-top:12px}
 .kpi-share .bar{height:6px;border-radius:999px;background:var(--lavanda);overflow:hidden}
 .kpi-share .bar span{display:block;height:100%;width:var(--w);border-radius:999px;background:var(--accent,var(--morado));animation:grow 1.2s .35s var(--ease) both}

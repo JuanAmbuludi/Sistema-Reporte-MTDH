@@ -105,7 +105,7 @@ def _visual(key: str, ctx: dict) -> dict | None:
                           "text": f"{_number(r['contracts'])} · {_number(r['share'], 1)} %"} for r in rows]}
     if key == "presupuesto":
         if ctx.get("kind") == "presupuesto_conciliado":
-            return {"kind": "rates", "title": "Ejecución fiscal por programa", "note": "Devengado sobre codificado",
+            return {"kind": "rates", "title": "Ejecución presupuestaria por programa", "note": "Devengado sobre codificado · SGDE",
                     "rows": [{"name": r["name"], "fraction": (r.get("ejecucion") or 0)/100,
                               "text": f"{_number(r.get('ejecucion'), 1)} %"} for r in ctx["tables"][0]["rows"]]}
         zones = ctx["zones"]

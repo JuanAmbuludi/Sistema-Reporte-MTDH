@@ -110,26 +110,42 @@ def resources_stack(data: pd.DataFrame, money: dict[str, Indicator], names: dict
     """Previous accumulation plus the period's budget; the bar end is the government accumulation."""
     names = names or {}
     keys = [money["previous"].key, money["fiscal"].key, money["government"].key]
-    group = _by_category(data, keys).sort_values(money["government"].key, ascending=True)
-    labels = [names.get(p, p) for p in group.programa]
+    group = _by_category(data, keys)
+    return accumulation_bars([names.get(p, p) for p in group.programa], list(group[keys[0]]), list(group[keys[1]]), list(group[keys[2]]),
+                             names=(money["previous"].compact, money["fiscal"].compact), hover=list(group.programa),
+                             total_label=money["government"].compact, per=40)
+
+
+def accumulation_bars(labels: list[str], previous: list[float], current: list[float], totals: list[float] | None = None, *,
+                      names: tuple[str, str] = ("Acumulado previo", "Periodo"), hover: list[str] | None = None,
+                      total_label: str = "Acumulado", per: int = 34, height: int | None = None, wrap_at: int = 0) -> go.Figure:
+    """An accumulation as one stacked bar per row, largest on top: the previous years in lilac, the period in the series
+    purple and a thin white gap between them.  The total is written at the end of each bar, so the chart needs no axis."""
+    totals = list(totals) if totals is not None else [(p or 0) + (c or 0) for p, c in zip(previous, current)]
+    totals = [0.0 if t is None or pd.isna(t) else float(t) for t in totals]
+    order = sorted(range(len(labels)), key=lambda i: totals[i])  # Plotly draws the first category at the bottom.
+    pick = lambda values: [values[i] for i in order]  # noqa: E731
+    labels, previous, current, totals = pick(list(labels)), pick(list(previous)), pick(list(current)), pick(totals)
+    hover = pick(list(hover)) if hover else labels
+    axis = ["<br>".join(wrap(str(t), wrap_at, break_long_words=False)) if wrap_at else str(t) for t in labels]
     fig = go.Figure()
-    for role, color in [("previous", PREVIOUS), ("fiscal", BAR)]:
-        indicator = money[role]
+    for name, values, color in ((names[0], previous, PREVIOUS), (names[1], current, BAR)):
+        shares = [pct((v or 0) / t * 100) if t else "—" for v, t in zip(values, totals)]
         fig.add_trace(go.Bar(
-            x=group[indicator.key] / 1e6, y=labels, name=indicator.label, orientation="h",
+            x=[(v or 0) / 1e6 for v in values], y=axis, name=name, orientation="h",
             marker=dict(color=color, cornerradius=4, line=dict(color="#FFFFFF", width=1.5)),
-            customdata=np.stack([group.programa.to_numpy(), [fmt_value(v, indicator) for v in group[indicator.key]],
-                                 [fmt_value(v, money["government"]) for v in group[money["government"].key]]], axis=1),
-            hovertemplate=("<b>%{customdata[0]}</b><br>" + indicator.label + ": %{customdata[1]}<br>"
-                           + money["government"].label + ": %{customdata[2]}<extra></extra>"),
+            customdata=np.stack([hover, [fmt_money(v) for v in values], shares, [fmt_money(t) for t in totals]], axis=1),
+            hovertemplate=("<b>%{customdata[0]}</b><br>" + name + ": %{customdata[1]} (%{customdata[2]})<br>"
+                           + total_label + ": %{customdata[3]}<extra></extra>"),
         ))
-    totals = group[money["government"].key] / 1e6
-    fig.add_trace(go.Scatter(x=totals, y=labels, mode="text", text=[f"USD {number(v, 1)} M" for v in totals], textposition="middle right",
-                             textfont=dict(size=12, color=theme.TINTA), hoverinfo="skip", showlegend=False, cliponaxis=False))
-    base(fig, _bar_height(len(group)), dict(l=8, r=96, t=34, b=36))
-    fig.update_layout(barmode="stack", bargap=0.36, legend=dict(traceorder="normal"))
-    fig.update_xaxes(title="Millones de USD", tickformat=",.0f", rangemode="tozero")
-    fig.update_yaxes(categoryorder="array", categoryarray=labels)
+    fig.add_trace(go.Scatter(x=[t / 1e6 for t in totals], y=axis, mode="text", text=[f" USD {number(t / 1e6, 1)} M" for t in totals],
+                             textposition="middle right", textfont=dict(size=11.5, color=theme.TINTA), hoverinfo="skip",
+                             showlegend=False, cliponaxis=False))
+    base(fig, height or max(150, len(axis) * per + 64), dict(l=8, r=98, t=36, b=8))
+    # Placed a hair left of the plot, Plotly lets the legend use the width of the row names too: it keeps one line.
+    fig.update_layout(barmode="stack", bargap=0.34, legend=dict(traceorder="normal", x=-0.001, xanchor="left"))
+    fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
+    fig.update_yaxes(categoryorder="array", categoryarray=axis, tickfont=dict(size=11.5))
     return fig
 
 
@@ -501,19 +517,25 @@ def grouped_bars(categories: list[str], series: list[tuple[str, list, str]], *, 
     return fig
 
 
-def funnel_bars(steps: list[tuple[str, float, str]], *, height: int | None = None) -> go.Figure:
-    """Successive stages of a process (registered, enabled, paid) as bars sharing the first stage as reference."""
+def funnel_bars(steps: list[tuple[str, float, str]], *, height: int | None = None, money: bool = False,
+                right: int = 230) -> go.Figure:
+    """Successive stages of a process (registered, enabled, paid) as bars sharing the first stage as reference.
+
+    With ``money`` the stages are amounts in USD, drawn and written in millions (``USD 342,2 M``)."""
     labels = [label for label, _v, _n in steps]
-    values = [v for _l, v, _n in steps]
+    values = [(v or 0) / 1e6 if money else v for _l, v, _n in steps]
     # Each stage reads against the previous one, with words: «150.000 · 23,5 % de los registrados».
-    text = [f"<b>{number(v)}</b>" + (f" · {note}" if i else "") for i, (_l, v, note) in enumerate(steps)]
+    text = [f"<b>{f'USD {number(v, 1)} M' if money else number(v)}</b>" + (f" · {note}" if i else "")
+            for i, (v, (_l, _v, note)) in enumerate(zip(values, steps))]
     colors = [theme.LILA_200, theme.SERIE_BONOS, theme.ORO][:len(steps)]
+    # The hover of an amount carries the exact figure; a count reads in the bar already.
+    custom = [[fmt_money(v) + "<br>" if money else "", note] for _l, v, note in steps]
     fig = go.Figure(go.Bar(
         y=labels, x=values, orientation="h", marker=dict(color=colors, cornerradius=5), text=text, textposition="outside",
         cliponaxis=False, textfont=dict(size=12, color=theme.TINTA),
-        customdata=[[note] for _l, _v, note in steps], hovertemplate="<b>%{y}</b><br>%{customdata[0]}<extra></extra>",
+        customdata=custom, hovertemplate="<b>%{y}</b><br>%{customdata[0]}%{customdata[1]}<extra></extra>",
     ))
-    base(fig, height or max(240, len(steps) * 74 + 40), dict(l=8, r=230, t=10, b=10))
+    base(fig, height or max(240, len(steps) * 74 + 40), dict(l=8, r=right, t=10, b=10))
     fig.update_xaxes(showticklabels=False, showgrid=False, rangemode="tozero")
     fig.update_yaxes(autorange="reversed", tickfont=dict(size=12.5))
     fig.update_layout(bargap=0.38, showlegend=False)
@@ -569,8 +591,8 @@ def change_bars(labels: list[str], changes: list[float], *, unit: str = "", full
     return fig
 
 
-def part_of_whole(parts: list[tuple[str, float]], *, unit: str = "contratos") -> go.Figure:
-    """One 100 % bar split in its parts, each with its share written inside."""
+def part_of_whole(parts: list[tuple[str, float]], *, unit: str = "contratos", money: bool = False) -> go.Figure:
+    """One 100 % bar split in its parts, each with its share written inside (``money`` reads amounts in USD)."""
     total = sum(v for _l, v in parts) or 1
     colors = [BAR, theme.LILA_200, theme.LILA_100]
     fig = go.Figure()
@@ -580,7 +602,7 @@ def part_of_whole(parts: list[tuple[str, float]], *, unit: str = "contratos") ->
             x=[share], y=[""], orientation="h", name=label, marker=dict(color=colors[index % len(colors)], line=dict(color="#FFFFFF", width=2)),
             text=[f"<b>{pct(share)}</b>"], textposition="inside", insidetextanchor="middle",
             textfont=dict(size=13, color="#FFFFFF" if index == 0 else theme.MORADO_900),
-            customdata=[[label, f"{number(value)} {unit}", pct(share)]],
+            customdata=[[label, fmt_money(value) if money else f"{number(value)} {unit}", pct(share)]],
             hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]} del total<extra></extra>",
         ))
     base(fig, 150, dict(l=8, r=8, t=36, b=8))

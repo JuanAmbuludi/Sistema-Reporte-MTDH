@@ -20,25 +20,26 @@ def context(view, title):
                 {"icon": "award", "text": f"{leader['name']}: USD {number(leader[measure], 2)} "
                                             f"{'acumulados de gobierno' if view.government else 'devengados'}."}]
     if view.government:
-        insights.append({"icon": "wallet", "text": f"USD {number(stats['anterior'], 2)} de 2023–2025 + "
-                         f"USD {number(stats['fiscal'], 2)} del componente {view.period['year']} = "
+        insights.append({"icon": "wallet", "text": f"USD {number(stats['anterior'], 2)} acumulados de {view.span} + "
+                         f"USD {number(stats['fiscal'], 2)} ejecutados en {view.period['year']} = "
                          f"USD {number(stats['acumulado'], 2)} acumulados de gobierno."})
     else:
         insights.append({"icon": "wallet", "text": f"Saldo por devengar: USD {number(stats['saldo_por_devengar'], 2)}. "
                          f"Saldo disponible publicado por SGDE: USD {number(stats['saldo_disponible'], 2)}."})
-    source = "Acumulado VIS VIE, hoja provincial" if view.government else "SGDE, ejecución presupuestaria fiscal"
+    source = ("presupuesto acumulado de gobierno de transferencias y servicios, por programa y provincia" if view.government
+              else "SGDE, ejecución presupuestaria fiscal del Ministerio")
     cards = kpis_from_cards(view.kpi_cards())
-    for card in cards:
-        if card["kind"] == "rate":
-            card["display_value"] = f"{number(card['value'], 2)} %"
     return {**ctx, "government": view.government, "stats": stats, "kpis": cards, "tables": tables,
             "columns": view.columns(), "detail": view.filtered.to_dict("records"), "insights": insights,
             "scope": view.scope_note, "scope_items": view.scope_items(), "pdf_pages": 2,
             "source": "Fuente: " + source,
             "source_url": "" if view.government else view.metadata["procedencia"]["url"],
             "definitions": [("Alcance", view.scope_note),
-                            ("Acumulado de gobierno", "Saldo reportado 2023–2025 más componente 2026 del mismo archivo; no se suma de nuevo el componente fiscal.")]
-                           if view.government else [("Ejecución fiscal", "Devengado dividido para codificado, calculado después de sumar los importes de la selección."),
+                            (f"Acumulado {view.span}", f"Presupuesto acumulado de {view.span.replace('–', ' a ')} de cada programa y provincia."),
+                            (f"Ejecutado {view.period['year']}", f"Presupuesto ejecutado en {view.period['year']} al corte; forma parte del acumulado."),
+                            ("Acumulado de gobierno", f"Acumulado de {view.span} más el ejecutado en {view.period['year']}, tal como lo reporta la fuente; "
+                                                      "no se suma de nuevo el componente del año.")]
+                           if view.government else [("Ejecución presupuestaria", "Devengado dividido para codificado, calculado después de sumar los importes de la selección."),
                                                    ("Saldo disponible", "Valor publicado por SGDE; se conserva sin reemplazarlo por codificado menos devengado."),
                                                    ("Saldo por devengar", "Codificado menos devengado."), ("Alcance", view.scope_note)]}
 
