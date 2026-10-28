@@ -184,8 +184,6 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                     _kpi("Familias · bono de contingencia", float(r.articulation.personas.sum()), note="Habilitadas al pago · acumulado confirmado"),
                     _kpi("Monto · bono de contingencia", float(r.articulation.monto.sum()), "money", note=bonus_scope(r), decimals=2),
                     _kpi("Alertas registradas", float(len(alert_rows)) if alerts_available else None, note=alert_note),
-                    _kpi("UA con alertas registradas", units if alerts_available else None,
-                         note=(f"Al {alert_dates.max():%d/%m/%Y}" if outside else "Con código de UA") if alerts_available else ""),
                     _kpi("Unidades suspendidas", float(continuity.closed_units) if continuity is not None else None,
                          note=f"Corte {closed_cut:%d/%m/%Y}" if closed_cut is not None else "Sin corte territorial")]
             continuity_text = (f"{'Al ' + format(closed_cut, '%d/%m/%Y') + ', ' if closed_cut is not None else ''}"
