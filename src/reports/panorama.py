@@ -30,12 +30,12 @@ SECTIONS = [
     ("transferencias", "Transferencias monetarias no contributivas", "hand-coins"),
     ("servicios", "Servicios de protección social", "users"),
     ("riesgos", "Plan ENOS: respuesta del Ministerio", "storm"),
-    ("contingencias", "Contingencias y compensaciones", "shield"),
+    ("brigadas", "Brigadas sociales", "users"),
+    ("cdh", "Crédito de Desarrollo Humano", "coins"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
     ("laboral", "Empleo", "briefcase"),
-    ("cdh", "Crédito de Desarrollo Humano", "coins"),
-    ("brigadas", "Brigadas sociales", "users"),
-    # One block for the three budgets: each section already carries its own amounts.
+    # Contingencies and the budget close the report.
+    ("contingencias", "Contingencias y compensaciones", "shield"),
     ("presupuesto", "Presupuesto", "landmark"),
 ]
 MAX_PAGES = 4
@@ -410,6 +410,8 @@ def _block_height(block: dict, width: float) -> float:
 
 def _cut_text(block: dict) -> str:
     update = block["update"]
+    if update.get("label"):
+        return update["label"]
     cut = update.get("cut") or block["period"]
     text = update.get("short") if len(cut) > 34 and update.get("short") else f"Corte: {cut}"
     frequency = update.get("frequency_short") or update.get("frequency")

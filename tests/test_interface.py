@@ -328,7 +328,9 @@ def test_period_bulletins_cover_the_year_and_the_government_period():
     for mode, expected in (("anual", "Enero a septiembre de 2026"), ("gobierno", "Noviembre de 2023 a septiembre de 2026")):
         pdf = pymupdf.open(stream=periodo.generate(periodo.build(bases, mode)), filetype="pdf")
         text = " ".join(page.get_text() for page in pdf)
-        assert 4 <= len(pdf) <= 5 and expected in text and "Información disponible en cada sección" in text
-        for section in ["Transferencias y servicios", "Crédito de Desarrollo Humano", "Brigadas sociales", "Fenómeno El Niño",
-                        "Contingencias y compensaciones", "Jóvenes en Acción", "Presupuesto social", "1.578.019"]:
+        assert 4 <= len(pdf) <= 5 and expected in text and "Lo entregado de " in text and "Aspectos destacados del periodo" in text
+        for section in ["Transferencias monetarias no contributivas", "Servicios de protección social", "Fenómeno El Niño",
+                        "Kits y bono de contingencia por provincia", "Brigadas sociales", "Crédito de Desarrollo Humano",
+                        "Contingencias y compensaciones", "Jóvenes en Acción", "Empleo", "Presupuesto institucional", "1.578.019",
+                        "Cobertura y presupuesto por bono y pensión"]:
             assert section in text, (mode, section)

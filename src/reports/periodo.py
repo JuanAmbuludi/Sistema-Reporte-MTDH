@@ -460,3 +460,11 @@ def build(bases: dict, mode: str, title: str = "") -> dict:  # noqa: F811 - the 
 
 
 generate = _bulletin  # noqa: F811
+
+
+# The period reports follow the structure of the monthly executive report (src/reports/gestion.py).
+from . import gestion as _gestion  # noqa: E402
+
+MODES = {"anual": _gestion.TITLES["anual"], "gobierno": _gestion.TITLES["gobierno"]}  # noqa: F811
+build = _gestion.build  # noqa: F811
+generate = _gestion.generate  # noqa: F811
