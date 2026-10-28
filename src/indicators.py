@@ -115,13 +115,13 @@ EXTRA_DEFINITIONS = {"unidades": "Unidades de atención que prestan cada servici
 MODULES: dict[str, Module] = {
     "transferencias": Module(
         id="transferencias", label="Transferencias monetarias no contributivas", short_label="Transferencias", sections=("bonos_pensiones",),
-        description="Beneficiarios y presupuesto de los bonos y pensiones, por programa, provincia y parroquia.",
+        description="Beneficiarios y presupuesto de los bonos y pensiones, por programa, provincia, cantón y parroquia.",
         item="programa", items="programas", people="Beneficiarios", people_icon="hand-coins",
     ),
     "servicios": Module(
         id="servicios", label="Servicios de protección social", short_label="Servicios sociales", sections=("proteccion_integral",),
         description="Usuarios, unidades de atención y presupuesto de los servicios de protección social, por servicio, "
-                    "provincia y parroquia.",
+                    "provincia, cantón y parroquia.",
         item="servicio", items="servicios", people="Usuarios", people_icon="users",
         extra=(Indicator("unidades", "Unidades de atención", "count", "building", "unidades"),),
     ),
