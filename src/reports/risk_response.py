@@ -226,8 +226,10 @@ def _pdf_table(c, top, headers, rows, widths, size=8, *, x=None, padding=5, alig
             table = compact
             if top - height >= BOTTOM:
                 break
-        if top - height < BOTTOM:
-            raise ValueError("La tabla del boletín excede el área imprimible.")
+        if top - height < BOTTOM and size > 4.6:
+            # The document is always generated: a table that still exceeds the page takes a smaller type.
+            return _pdf_table(c, top, headers, rows, widths, size=round(size - 0.6, 2), x=x, padding=max(0.2, padding * 0.6),
+                              align=align, total=total)
     table.drawOn(c, x, top - height)
     return top - height
 

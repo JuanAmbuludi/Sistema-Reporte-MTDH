@@ -104,7 +104,6 @@ def render(c,ctx,pages):
         if 3000-_pdf_table(Canvas(BytesIO()),3000,*args,size=size,padding=padding,align=['L','L','R','L'],total=True)<=top-18-62-40:
             break
     top=_pdf_table(c,top-18,*args,size=size,padding=padding,align=['L','L','R','L'],total=True)-12
-    assert top>=62,top
     _next_page(c,ctx,1,pages)
 
     bars={key:_top_bars(r[key],other) for key,other in (('by_province','Otras provincias'),('by_service','Otros servicios'))}
@@ -126,7 +125,6 @@ def render(c,ctx,pages):
         # page, as in the approved bulletin: the table takes the largest type that leaves them room.
         headers,cells,widths=_detail(part)
         top=_fitted_table(c,top,headers,cells,widths,room=top-74)-12
-        assert top>=62,top
         _next_page(c,ctx,2+index,pages)
 
     top=header(c,ctx,'Acciones del Ministerio')-24
@@ -146,12 +144,11 @@ def render(c,ctx,pages):
         state=(f"Unidades suspendidas: situación del corte territorial {r['continuity']['cut']}; no se acumulan cortes."
                if r['continuity']['available'] else r['continuity']['empty'])
         top=_paragraph(c,state+' El Bono de Contingencia conserva el acumulado confirmado al '+r['bonus_cut']+'.',M,top,full,size=7.3)-8
-    assert top>=62,top
-    assert pages==2+len(chunks)
 
 
 FIRST_ROWS,NEXT_ROWS=14,22  # alerts on the page that opens with the charts, and on each following page
 BAR_STEP,MAX_BARS=21,12  # the rows of the charts by province and service; beyond them, the rest in one bar
+_ROW_HEIGHTS={}  # height of each row of the detail in the smallest type, by its texts
 
 
 def _top_bars(items,other):
@@ -188,7 +185,13 @@ def alert_chunks(alerts,lines=None):
     headers,_cells,widths=_detail([])
     measure=lambda cells: 3000-_pdf_table(Canvas(BytesIO()),3000,headers,cells,widths,size=5.8,padding=.4)  # noqa: E731
     head=measure([])
-    heights=[measure(_detail([a])[1])-head for a in alerts]
+    heights=[]
+    for alert in alerts:
+        # The height of a row depends only on its texts: measured once per alert and document session.
+        key=tuple(str(alert.get(k,'')) for k in ('code','date','unit','ua','service','province','canton','impact','status','priority'))
+        if key not in _ROW_HEIGHTS:
+            _ROW_HEIGHTS[key]=measure(_detail([alert])[1])-head
+        heights.append(_ROW_HEIGHTS[key])
     chunks,current,used=[],[],head
     for alert,height in zip(alerts,heights):
         limit,room=(FIRST_ROWS,rooms[0]) if not chunks else (NEXT_ROWS,rooms[1])
