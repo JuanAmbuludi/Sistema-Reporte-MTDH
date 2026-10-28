@@ -4,6 +4,10 @@
     "2026-10-26": {
       "seguimiento_enos_2026-10-26.json": "b5e577ecdb43ffd1741a2e53249e446e2f9311fc6e0b33feae7ad2b0743b4bb6",
       "continuidad_servicios_2026-10-26.json": "9dba39afb212ee2c05b859d01fa56878a1924a6fe05fa557ad70529f7274d28f"
+    },
+    "2026-10-27": {
+      "seguimiento_enos_2026-10-27.json": "594fd56ba86a37f1f99c1c007b622eaf62d91fe9b07ebdeda421303aea28e57a",
+      "continuidad_servicios_2026-10-27.json": "f477c2081707c1472f7fb3f73df7910f37462d7a212f3cb93ac11daa864124e0"
     }
   }
 }

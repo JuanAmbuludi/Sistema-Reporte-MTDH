@@ -32,7 +32,12 @@ START = "2026-09-28"   # start of the reporting period: alerts, kits and territo
 REFERENCE = "Ámbito: alertas y reportes sectoriales y acciones institucionales de respuesta."
 
 ALERT_COLUMNS = ['codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad',
-                 'afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio','origen','fecha_texto','mes_reporte']
+                 'afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio','origen','fecha_texto','mes_reporte',
+                 'tipo_alerta']
+# Every alert published before the type of alert was recorded is an emergency alert (Fenómeno El Niño).
+DEFAULT_ALERT_TYPE = "Emergencia"
+# Origins whose alerts are included by their source and service (application, sectoral reports and the Excel matrix).
+LISTED_ORIGINS = ("reporte_sectorial", "aplicativo", "matriz_alertas")
 
 
 # ------------------------------------------------------------------------------------------------ publications
@@ -202,8 +207,9 @@ def history() -> dict:
                 publicacion_fuente=found[-1][0].strftime("%Y-%m-%d"))
     data.pop("pdf_publicado", None)
     data.setdefault("notas", {}).update(
-        alertas="Registros de alerta del aplicativo y reportes sectoriales según sus criterios de inclusión. "
-                "Cada identificador se cuenta una vez con su versión más reciente; no equivale a eventos ni unidades únicas.",
+        alertas="Alertas del aplicativo, de la matriz Excel y de los reportes sectoriales, de todo tipo (el filtro «Tipo de "
+                "alerta» permite consultar solo las de emergencia). Cada código se cuenta una vez con su estado más reciente; "
+                "no equivale a eventos ni unidades únicas.",
         bono="El Bono de Contingencia conserva su acumulado confirmado al cambiar el período consultado. "
              f"Corte de la fuente: {cut_text(data['cortes']['bonos'])}.")
     return data
@@ -288,7 +294,7 @@ def continuity_cuts(data: dict) -> str:
 
 # ------------------------------------------------------------------------------------------------ records
 def included(row, data):
-    if row.get("origen") in ("reporte_sectorial", "aplicativo") and data.get("criterio_alertas") == "codigo_ua_y_reportes_sectoriales":
+    if row.get("origen") in LISTED_ORIGINS and data.get("criterio_alertas") == "codigo_ua_y_reportes_sectoriales":
         return bool(row.get("fuente")) and bool(row.get("servicio"))
     if data.get("criterio_alertas") in ("codigo_ua", "codigo_ua_y_reportes_sectoriales"):
         return (str(row.get("codigo_ua", "")).strip() not in ("", "—", "-", "nan", "None")
@@ -329,6 +335,8 @@ def frames(data, provinces=()):
             rows = [r for r in rows if included(r, data)]
         columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits','familias','id_kobo'] if name == 'kits' else ['provincia','evento','personas','monto']
         frame = pd.DataFrame(rows, columns=columns)
+        if name == 'alertas':
+            frame['tipo_alerta'] = frame.tipo_alerta.fillna(DEFAULT_ALERT_TYPE).replace('', DEFAULT_ALERT_TYPE)
         if name in ('alertas', 'kits'):
             recorded = dates(frame.fecha)
             frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]

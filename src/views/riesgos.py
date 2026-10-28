@@ -320,10 +320,14 @@ class RiskView:
             keys = ("risk_period_since", "risk_period_until")
             saved = st.session_state.get("risk_period_selection", (None, None))
             previous = tuple(st.session_state.get(key, saved[i]) for i, key in enumerate(keys))
+            start = self._default_since(first, last)
             if old_bounds is not None and previous == tuple(old_bounds):
                 self._all_history(first, last)
+            elif old_bounds is not None and previous == (self._default_since(*old_bounds), old_bounds[1]):
+                # The default window follows the new cut: from 28/09/2026 to the latest record.
+                self._period(start, last)
             st.session_state["risk_history_bounds"] = (first, last)
-            for i, (key, default) in enumerate(zip(keys, (first, last))):
+            for i, (key, default) in enumerate(zip(keys, (start, last))):
                 value = st.session_state.get(key, saved[i])
                 if not isinstance(value, date):
                     st.session_state[key] = default
@@ -362,9 +366,25 @@ class RiskView:
 
     @staticmethod
     def _all_history(first: date, last: date) -> None:
-        st.session_state["risk_period_since"] = first
-        st.session_state["risk_period_until"] = last
-        st.session_state["risk_period_selection"] = (first, last)
+        RiskView._period(first, last)
+
+    @staticmethod
+    def _period(since: date, until: date) -> None:
+        st.session_state["risk_period_since"] = since
+        st.session_state["risk_period_until"] = until
+        st.session_state["risk_period_selection"] = (since, until)
+
+    @staticmethod
+    def _default_since(first: date, last: date) -> date:
+        """The dashboard opens on the reporting period of the Plan (28/09/2026) up to the latest record; the filter widens it."""
+        return max(first, min(enos.day(enos.START).date(), last))
+
+    def _alert_types(self) -> list[str]:
+        """Types of alert in the records consulted: emergency first, then the most frequent."""
+        path = getattr(self, "response_path", None)
+        rows = self._history()["alertas"] if self.query_mode == "periodo" else enos.load(path)["alertas"] if path else []
+        counts = pd.Series([r.get("tipo_alerta") or enos.DEFAULT_ALERT_TYPE for r in rows], dtype=object).value_counts()
+        return sorted(counts.index, key=lambda kind: (kind != enos.DEFAULT_ALERT_TYPE, -counts[kind], kind))
 
     def catalog(self) -> list[dict]:
         from src.corte import MONTHS
@@ -376,10 +396,10 @@ class RiskView:
 
     # ----------------------------------------------------------------------------------------- consultation
     def select(self, period: dict, provinces=(), programs=(), threat=None, levels=riesgos.LEVELS, *, since=None, until=None,
-               mode=None) -> None:
+               mode=None, types=()) -> None:
         """A cut and a selection without widgets (scripts, tests and the summary of every section).  Without ``since`` and
         ``until`` (nor in ``period``), the whole follow-up up to the last day reported."""
-        self.provinces, self.programs = list(provinces), list(programs)
+        self.provinces, self.programs, self.types = list(provinces), list(programs), list(types)
         self.threat, self.levels = threat, tuple(levels)
         self.query_mode = mode or period.get("mode", "publicacion")
         if self.query_mode not in ("periodo", "publicacion"):
@@ -409,23 +429,27 @@ class RiskView:
         self.query_mode = period.get("mode", "publicacion")
         self.since, self.until = period.get("since", self.first), period.get("until", self.last)
         province_names, service_names = self._names(period["id"])
+        alert_types = self._alert_types()
         for key, options in [("risk_provinces", province_names), ("risk_programs", service_names),
-                             ("risk_threats", riesgos.THREATS)]:
+                             ("risk_threats", riesgos.THREATS), ("risk_alert_types", alert_types)]:
             if key in st.session_state:
                 st.session_state[key] = [value for value in st.session_state[key] if value in options]
         if "risk_levels" not in st.session_state:
             st.session_state["risk_levels"] = list(riesgos.LEVELS)
-        left, right = st.columns(2, gap="small")
+        left, middle, right = st.columns(3, gap="small")
         with left:
             self.provinces = st.multiselect("Territorio", sorted(province_names, key=province_names.get),
                                             format_func=province_names.get, placeholder="Todo el país", key="risk_provinces")
-        with right:
+        with middle:
             self.programs = st.multiselect("Servicio", list(service_names), format_func=service_names.get,
                                            placeholder="Todos los servicios", key="risk_programs")
+        with right:
+            self.types = st.multiselect("Tipo de alerta", alert_types, placeholder="Todos los tipos", key="risk_alert_types")
         self.threat, self.levels = None, riesgos.LEVELS
         first, last = enos.history_window(self._history()) if self.query_mode == "periodo" else (self.first, self.last)
-        whole = (pd.Timestamp(self.since), pd.Timestamp(self.until)) == (first, last)
-        if self.provinces or self.programs or not whole:
+        opening = (pd.Timestamp(self._default_since(first.date(), last.date())) if self.query_mode == "periodo" else first, last)
+        whole = (pd.Timestamp(self.since), pd.Timestamp(self.until)) == opening
+        if self.provinces or self.programs or self.types or not whole:
             st.button("Restablecer filtros", icon=":material/restart_alt:", on_click=self._clear, args=(first.date(), last.date(), self.query_mode),
                       type="tertiary", key="risk_reset_filters")
 
@@ -433,11 +457,12 @@ class RiskView:
     def _clear(first: date | None = None, last: date | None = None, mode="publicacion") -> None:
         st.session_state["risk_provinces"] = []
         st.session_state["risk_programs"] = []
+        st.session_state["risk_alert_types"] = []
         st.session_state["risk_threats"] = []
         st.session_state["risk_levels"] = list(riesgos.LEVELS)
         if first and last:
             if mode == "periodo":
-                RiskView._all_history(first, last)
+                RiskView._period(RiskView._default_since(first, last), last)
             else:
                 st.session_state["risk_since"], st.session_state["risk_until"] = first, last
 
@@ -503,7 +528,8 @@ class RiskView:
                           enos.continuity(self.continuity_path) if self.continuity_path else {"registros": [], "detalle": []})
             self.response = respuesta.Response(data, self.provinces, self.programs, unit_programs,
                 since=self.since, until=self.until, continuity=continuity,
-                publication={"dia": enos.publication_day(self.response_path), "exacta": exact and self.query_mode == "publicacion"})
+                publication={"dia": enos.publication_day(self.response_path), "exacta": exact and self.query_mode == "publicacion"},
+                types=getattr(self, "types", []))
         return True
 
     # ----------------------------------------------------------------------------------------------- band
@@ -962,7 +988,8 @@ class RiskView:
         # The period and the content of the publications in force: a new publication or another period is another document.
         paths = enos.history_paths() if self.query_mode == "periodo" else [p for p in (self.response_path, self.continuity_path) if p]
         published = [enos.fingerprint(path) for path in paths]
-        return fingerprint("response-history-v8", self.query_mode, self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+        return fingerprint("response-history-v9", self.query_mode, self.selected, self.detail_selected, self.multihazard, self.period, self.provinces, self.programs,
+                           getattr(self, "types", []),
                            self.threat, self.levels, METHODOLOGY, str(self.since), str(self.until), str(self.response_path),
                            str(self.continuity_path), published, self.update_stamp())
 

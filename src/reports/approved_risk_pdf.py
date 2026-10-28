@@ -107,30 +107,25 @@ def render(c,ctx,pages):
     assert top>=62,top
     _next_page(c,ctx,1,pages)
 
-    chunks=alert_chunks(r['alerts'])
+    bars={key:_top_bars(r[key],other) for key,other in (('by_province','Otras provincias'),('by_service','Otros servicios'))}
+    lines=max(len(bars['by_province']),len(bars['by_service']))
+    chunks=alert_chunks(r['alerts'],lines)
     for index,part in enumerate(chunks):
         top=header(c,ctx,'Unidades de atención con alerta')-16
-        lines=max(len(r['by_province']),len(r['by_service']))
-        step=21  # a name over its bar, as in the approved bulletin
+        step=BAR_STEP  # a name over its bar, as in the approved bulletin
         if index==0:
             c.setFillColor(C(theme.ORO_100));c.roundRect(M,top-30,full,30,4,fill=1,stroke=0)
             c.setFillColor(C(theme.ORO));c.rect(M,top-30,3,30,fill=1,stroke=0)
             _paragraph(c,f"{number(r['alert_count'])} alertas reportadas.",M+12,top-10,full-24,size=8.5);top-=46
             for i,(key,title) in enumerate([('by_province','Alertas por provincia'),('by_service','Alertas por servicio')]):
                 x=M+i*(half+22);heading(c,title,x,top,half)
-                _risk_bars(c,[{**a,'name':a['name'].replace('AHC','Atención en el Hogar y Comunidad')} for a in r[key]],x,top-22,half,step)
+                _risk_bars(c,[{**a,'name':a['name'].replace('AHC','Atención en el Hogar y Comunidad')} for a in bars[key]],x,top-22,half,step)
             top-=24+lines*step+10
             heading(c,'Detalle de las unidades de atención con alertas',M,top,full);top-=18
         # Every alert, with or without a UA code; the alerts by province and service and their evolution follow on the same
         # page, as in the approved bulletin: the table takes the largest type that leaves them room.
-        from .risk_response import _alert_cells
-        # Labels in full: «Unidad de Atención» for UA and «Atención en el Hogar y Comunidad» for AHC.
-        rows=[{k:(Markup(v.replace('UA ','Unidad de Atención ').replace('AHC','Atención en el Hogar y Comunidad')) if isinstance(v,Markup) else v)
-               for k,v in a.items()} for a in _alert_cells(part)]
-        headers=['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado']
-        cells=[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows]
-        widths=[80,160,70,full-392,82]
-        top=_fitted_table(c,top,headers,cells,widths,room=top-62)-12
+        headers,cells,widths=_detail(part)
+        top=_fitted_table(c,top,headers,cells,widths,room=top-74)-12
         assert top>=62,top
         _next_page(c,ctx,2+index,pages)
 
@@ -156,14 +151,52 @@ def render(c,ctx,pages):
 
 
 FIRST_ROWS,NEXT_ROWS=14,22  # alerts on the page that opens with the charts, and on each following page
+BAR_STEP,MAX_BARS=21,12  # the rows of the charts by province and service; beyond them, the rest in one bar
 
 
-def alert_chunks(alerts):
-    """The alerts of each page of the detail: fewer on the first (it opens with the charts by province and service)."""
+def _top_bars(items,other):
+    """The bars of a chart of the detail page: the largest ones and, when there are more, the rest added in one bar."""
+    items=list(items)
+    if len(items)<=MAX_BARS:
+        return items
+    rest=items[MAX_BARS-1:]
+    return items[:MAX_BARS-1]+[{'name':f"{other} ({len(rest)})",'value':sum(a['value'] for a in rest)}]
+
+
+def _detail(part):
+    """Headers, cells and widths of the table of alerts of one page."""
+    from .risk_response import _alert_cells
+    # Labels in full: «Unidad de Atención» for UA and «Atención en el Hogar y Comunidad» for AHC.
+    rows=[{k:(Markup(v.replace('UA ','Unidad de Atención ').replace('AHC','Atención en el Hogar y Comunidad')) if isinstance(v,Markup) else v)
+           for k,v in a.items()} for a in _alert_cells(part)]
+    headers=['Alerta / registro','Unidad de atención y servicio','Territorio','Afectación al servicio','Estado']
+    cells=[[a['identity'],a['unit_full'],a['place_full'],a['impact'],a['state']] for a in rows]
+    return headers,cells,[80,160,70,W-2*M-392,82]
+
+
+def alert_chunks(alerts,lines=None):
+    """The alerts of each page of the detail: fewer on the first (it opens with the charts by province and service), and
+    never more than fit in the page in the smallest type of the table."""
     alerts=list(alerts)
     if not alerts:
         return [[]]
-    return [alerts[:FIRST_ROWS]]+[alerts[i:i+NEXT_ROWS] for i in range(FIRST_ROWS,len(alerts),NEXT_ROWS)]
+    from reportlab.pdfgen.canvas import Canvas
+    lines=MAX_BARS if lines is None else min(lines,MAX_BARS)
+    top=header(Canvas(BytesIO()),{},'Unidades de atención con alerta')-16
+    # The table ends 12 points above the margin of the page (62).
+    rooms=(top-46-(24+lines*BAR_STEP+10)-18-74,top-74)
+    headers,_cells,widths=_detail([])
+    measure=lambda cells: 3000-_pdf_table(Canvas(BytesIO()),3000,headers,cells,widths,size=5.8,padding=.4)  # noqa: E731
+    head=measure([])
+    heights=[measure(_detail([a])[1])-head for a in alerts]
+    chunks,current,used=[],[],head
+    for alert,height in zip(alerts,heights):
+        limit,room=(FIRST_ROWS,rooms[0]) if not chunks else (NEXT_ROWS,rooms[1])
+        if current and (len(current)>=limit or used+height>room):
+            chunks.append(current);current,used=[],head
+        current.append(alert);used+=height
+    chunks.append(current)
+    return chunks
 
 
 def _fitted_table(c,top,headers,rows,widths,room):

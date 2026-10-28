@@ -64,11 +64,14 @@ def test_closed_days_are_never_edited():
 def test_the_whole_reporting_period_is_the_default():
     v = view()
     r = v.response
-    assert (v.since, v.until) == (pd.Timestamp("2026-09-28"), pd.Timestamp("2026-10-27"))
-    assert r.whole and r.publication == {"dia": pd.Timestamp("2026-10-27"), "exacta": True}
-    assert v.period["label"] == r.scope_text() == "Del 28/09/2026 al 27/10/2026"
-    assert v.period["stamp"] == "2026-09-28_al_2026-10-27"
-    assert values(v) == [44, 11207, 1171, 354987.39, 124, 1]
+    assert (v.since, v.until) == (pd.Timestamp("2026-09-28"), pd.Timestamp("2026-10-28"))
+    assert r.whole and r.publication == {"dia": pd.Timestamp("2026-10-28"), "exacta": True}
+    assert v.period["label"] == r.scope_text() == "Del 28/09/2026 al 28/10/2026"
+    assert v.period["stamp"] == "2026-09-28_al_2026-10-28"
+    # 28/10: every alert of the application and the Excel matrix in the period, of every type (65 of them emergencies).
+    assert values(v) == [103, 11207, 1171, 354987.39, 124, 1]
+    emergency = view(types=["Emergencia"])
+    assert values(emergency)[0] == 65 and set(emergency.response.alerts.tipo_alerta) == {"Emergencia"}
     assert r.notes()["kits"].startswith("Kits en provincias priorizadas: entregas desde el 28/09/2026 hasta el corte Kobo del 27/10/2026.")
 
 
@@ -77,7 +80,7 @@ def test_a_period_cuts_alerts_kits_and_territorial_reports_by_their_own_dates():
     v = view(since="2026-10-20")
     part = v.response
     alert_days, kit_days = pd.to_datetime(full.alerts.fecha), pd.to_datetime(full.kits.fecha)
-    assert len(part.alerts) == int(alert_days.ge("2026-10-20").sum()) == 39
+    assert len(part.alerts) == int(alert_days.ge("2026-10-20").sum()) == 80
     assert part.kits_total == int(full.kits.loc[kit_days.ge("2026-10-20"), "kits"].sum())
     assert pd.to_datetime(part.alerts.fecha).ge("2026-10-20").all() and pd.to_datetime(part.kits.fecha).ge("2026-10-20").all()
     # The confirmed bonus is an accumulated reference, independent of the selected dates.
@@ -107,45 +110,45 @@ def test_the_end_of_a_period_reproduces_what_was_reported_that_day(tmp_path, mon
     monkeypatch.setattr(enos, "LEDGER", tmp_path / "cortes_riesgos.json")
     reported = values(view())
     # The next day: the script copies the latest publication and closes the day reported.
-    created = open_day("2026-10-28")
-    assert {path.name for path in created.values()} == {"seguimiento_enos_2026-10-28.json", "continuidad_servicios_2026-10-28.json"}
-    closed = json.loads((tmp_path / "cortes_riesgos.json").read_text(encoding="utf-8"))["cerrados"]["2026-10-27"]
-    assert closed == {name: enos.fingerprint(tmp_path / name) for name in ("seguimiento_enos_2026-10-27.json",
-                                                                         "continuidad_servicios_2026-10-27.json")}
+    created = open_day("2026-10-29")
+    assert {path.name for path in created.values()} == {"seguimiento_enos_2026-10-29.json", "continuidad_servicios_2026-10-29.json"}
+    closed = json.loads((tmp_path / "cortes_riesgos.json").read_text(encoding="utf-8"))["cerrados"]["2026-10-28"]
+    assert closed == {name: enos.fingerprint(tmp_path / name) for name in ("seguimiento_enos_2026-10-28.json",
+                                                                         "continuidad_servicios_2026-10-28.json")}
     # New data reach the new day only: one more alert, one more delivery and a new total of the bonus.
     path = created["seguimiento_enos"]
     data = json.loads(path.read_text(encoding="utf-8"))
-    alert = dict(data["alertas"][0], codigo="ALT-2026-000999", fecha="2026-10-28")
+    alert = dict(data["alertas"][-1], codigo="ALT-2026-000999", fecha="2026-10-29")
     data["alertas"].append(alert)
-    data["kits"].append(dict(data["kits"][-1], id_kobo="999999999", fecha="2026-10-28", kits=50, familias=50))
+    data["kits"].append(dict(data["kits"][-1], id_kobo="999999999", fecha="2026-10-29", kits=50, familias=50))
     data["bonos"]["articulacion"].append({"provincia": "Manabí", "evento": "Inundación", "personas": 10, "monto": 3039.9})
-    data["bonos_periodos_confirmados"]["articulacion"].update(hasta="2026-10-28", personas=1181, monto=358027.29)
+    data["bonos_periodos_confirmados"]["articulacion"].update(hasta="2026-10-29", personas=1181, monto=358027.29)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     latest = view()
-    assert latest.until == pd.Timestamp("2026-10-28") and latest.response.publication["dia"] == pd.Timestamp("2026-10-28")
+    assert latest.until == pd.Timestamp("2026-10-29") and latest.response.publication["dia"] == pd.Timestamp("2026-10-29")
     assert values(latest)[:3] == [reported[0] + 1, reported[1] + 50, 1181]
-    # Ending the period on 27/10 gives back exactly the report of that day, from its own publication.
-    again = view(until="2026-10-27")
-    assert again.response.publication == {"dia": pd.Timestamp("2026-10-27"), "exacta": True}
+    # Ending the period on 28/10 gives back exactly the report of that day, from its own publication.
+    again = view(until="2026-10-28")
+    assert again.response.publication == {"dia": pd.Timestamp("2026-10-28"), "exacta": True}
     assert values(again) == reported
     pdf = pymupdf.open(stream=generate_pdf(again.report_context("Riesgos")), filetype="pdf")
-    assert "Del 28/09/2026 al 27/10/2026" in pdf[0].get_text() and "ALT-2026-000999" not in " ".join(p.get_text() for p in pdf)
+    assert "Del 28/09/2026 al 28/10/2026" in pdf[0].get_text() and "ALT-2026-000999" not in " ".join(p.get_text() for p in pdf)
 
 
 def test_documents_carry_the_period_and_the_publication():
     v = view(since="2026-10-20")
     ctx = v.report_context("Riesgos")
-    assert ctx["period_label"] == "Del 20/10/2026 al 27/10/2026"
+    assert ctx["period_label"] == "Del 20/10/2026 al 28/10/2026"
     pdf = pymupdf.open(stream=generate_pdf(ctx), filetype="pdf")
     cover = pdf[0].get_text()
-    assert "Resumen ejecutivo · Del 20/10/2026 al 27/10/2026" in cover
+    assert "Resumen ejecutivo · Del 20/10/2026 al 28/10/2026" in cover
     # The bonus keeps the approved accumulated balance when the dates change.
     headline = cover.split("Unidades de atención cerradas")[0]
     assert "1.171" in headline and "354.987,39" in headline and "Sin desglose temporal" not in headline
     wb = openpyxl.load_workbook(BytesIO(generate_xlsx(ctx)), data_only=True)
     cells = [str(c.value) for row in wb["Ficha técnica"].iter_rows() for c in row if c.value is not None]
-    assert "Del 20/10/2026 al 27/10/2026" in cells and "27/10/2026" in cells
-    assert any(c.startswith("Periodo del 20/10/2026 al 27/10/2026") for c in cells)
+    assert "Del 20/10/2026 al 28/10/2026" in cells and "28/10/2026" in cells
+    assert any(c.startswith("Periodo del 20/10/2026 al 28/10/2026") for c in cells)
 
 
 def test_the_dashboard_selects_the_reported_day_and_can_return_to_today():
@@ -154,8 +157,8 @@ def test_the_dashboard_selects_the_reported_day_and_can_return_to_today():
     app.segmented_control(key="module").set_value("riesgos").run()
     app.segmented_control(key="risk_mode").set_value("Reportes publicados").run()
     assert not app.exception
-    assert [(d.label, d.value) for d in app.date_input] == [("Fecha del reporte", date(2026, 10, 27))]
-    assert "Del 28/09/2026 al 27/10/2026" in _markdown(app)
+    assert [(d.label, d.value) for d in app.date_input] == [("Fecha del reporte", date(2026, 10, 28))]
+    assert "Del 28/09/2026 al 28/10/2026" in _markdown(app)
     app.date_input(key="risk_until").set_value(date(2026, 10, 26)).run()
     assert not app.exception
     html = _markdown(app)
@@ -163,7 +166,7 @@ def test_the_dashboard_selects_the_reported_day_and_can_return_to_today():
     assert "13.390" in html and "1.171" in html and "354.987,39" in html
     assert "Sin desglose temporal disponible" not in html
     next(b for b in app.button if b.label == "Restablecer filtros").click().run()
-    assert [d.value for d in app.date_input] == [date(2026, 10, 27)]
+    assert [d.value for d in app.date_input] == [date(2026, 10, 28)]
     assert "11.207" in _markdown(app) and "1.171" in _markdown(app)
 
 

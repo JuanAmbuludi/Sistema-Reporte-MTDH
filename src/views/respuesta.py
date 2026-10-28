@@ -25,7 +25,7 @@ _MISSING = {"sin cantón en la base", "sin nombre", "sin nombre en la base", "si
 FILTERS_NOTE =("El territorio se aplica a todas las acciones; el servicio, a las alertas y al seguimiento de continuidad de atención. "
                 "Kits y bono no se asocian a un servicio. La planificación del bono es nacional.")
 STATUS_TONES = {"Pendiente": "oro", "En seguimiento": "lila", "Resuelto": "ok"}
-PRIORITY_TONES = {"Alta": "fucsia", "Media": "lila", "Baja": "gris"}
+PRIORITY_TONES = {"Crítica": "fucsia", "Alta": "fucsia", "Media": "lila", "Baja": "gris"}
 
 
 @lru_cache(maxsize=64)
@@ -92,7 +92,7 @@ class Response:
     """
 
     def __init__(self, data: dict, provinces=(), programs=(), unit_programs: dict | None = None, *, since=None, until=None,
-                 continuity: dict | None = None, publication: dict | None = None):
+                 continuity: dict | None = None, publication: dict | None = None, types=()):
         self.data = data
         self.by_period = data.get("consulta") == "periodo"
         self.first, self.last = enos.window(data)
@@ -127,6 +127,10 @@ class Response:
                 dates = enos.dates(pd.Series([r.get("fecha") for r in data["bonos"][key]]).reindex(national[key].index))
                 national[key] = national[key].loc[dates.between(self.start, self.end)].copy()
         self.bonus_period_available = self.available["articulacion"]
+        # The type of alert (emergency, agreements, staff…) applies to the alerts only.
+        self.types = list(types)
+        if self.types:
+            national["alertas"] = national["alertas"].loc[national["alertas"].tipo_alerta.isin(set(self.types))].copy()
         if programs:
             alerts = national["alertas"]
             known = alerts.codigo_ua.astype(str).map(unit_programs or {})
@@ -297,7 +301,11 @@ class Response:
     def count_note(self) -> str:
         parts = [f"{count} {service}" for service, count in self.alerts.groupby("servicio").size().sort_values(ascending=False).items()]
         sectorial = int(self.alerts.origen.eq('reporte_sectorial').sum())
-        return f"{len(self.alerts)} registros: {len(self.alerts)-sectorial} alertas del aplicativo y {sectorial} reportes sectoriales. No equivalen a eventos únicos."
+        matrix = int(self.alerts.origen.eq('matriz_alertas').sum())
+        if not matrix:
+            return f"{len(self.alerts)} registros: {len(self.alerts)-sectorial} alertas del aplicativo y {sectorial} reportes sectoriales. No equivalen a eventos únicos."
+        return (f"{len(self.alerts)} registros: {len(self.alerts)-sectorial-matrix} alertas del aplicativo, {matrix} de la matriz Excel "
+                f"y {sectorial} reportes sectoriales. No equivalen a eventos únicos.")
 
     # ------------------------------------------------------------------------------------------- figures
     @property

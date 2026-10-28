@@ -68,7 +68,7 @@ def build_context(view, *, title: str) -> dict:
             k["display_value"] = f"USD {number(k['value'], 2)}"
             k["exact_money"] = True
     ctx.update(response=response, kpis=kpis, period_label=r.scope_text(), response_only=True, query_mode="periodo" if r.by_period else "publicacion",
-               pdf_pages=2 + len(alert_chunks(response["alerts"])), approved_risk_template=True, selected_codes=list(view.provinces),
+               pdf_pages=2 + len(alert_chunks(response["alerts"], max(len(response["by_province"]), len(response["by_service"])))), approved_risk_template=True, selected_codes=list(view.provinces),
                map_values=view.map_values("alertas")[0], kits_map_values=view.map_values("kits")[0],
                suspended_map_values=view.map_values("suspendidas")[0],
                scope=view.scope_items(), selection=view.programs_label, geoportal=ui.GEOPORTAL_URL,
