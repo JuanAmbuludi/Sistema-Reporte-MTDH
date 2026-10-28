@@ -304,3 +304,159 @@ def generate(ctx: dict) -> bytes:
 
 
 from reportlab.lib.pagesizes import A4 as A4_SIZE  # noqa: E402
+
+
+# ------------------------------------------------------------------------------------------- bulletin figures
+def extras(bases: dict, figures: dict) -> dict:
+    """What the bulletin draws beyond the key figures: rings, mosaics, months, El Niño, brigades, credit and budget."""
+    from src.views.area import PROCESSED
+    start, end, mode = figures["start"], figures["end"], figures["mode"]
+    yearly = mode == "gobierno"
+    data = bases["data"]
+    last = data.loc[data.periodo_id.eq(end)]
+    out = {"end_label": _month(end), "end_month": MONTHS[int(end[5:]) - 1], "highlights": list(figures["insights"]), "timeline": []}
+    programs = last.groupby(["seccion", "programa"], as_index=False)[["usuarios", "presupuesto_ejecutado"]].sum()
+    bonos = programs.loc[programs.seccion.eq("bonos_pensiones") & programs.usuarios.gt(0)].sort_values("usuarios", ascending=False)
+    total = bonos.usuarios.sum()
+    out["bonos"] = [{"label": r.programa, "people": float(r.usuarios), "share": r.usuarios / total * 100 if total else 0} for r in bonos.itertuples()]
+    services = programs.loc[programs.seccion.eq("proteccion_integral") & programs.usuarios.gt(0)].sort_values("usuarios", ascending=False)
+    out["servicios"] = [{"label": r.programa, "people": float(r.usuarios)} for r in services.itertuples()]
+    out["accrued_items"] = [(r.programa, float(r.presupuesto_ejecutado or 0)) for r in programs.itertuples() if (r.presupuesto_ejecutado or 0) > 0]
+    out["accrued_total"] = sum(v for _l, v in out["accrued_items"])
+    out["series"] = {}
+    for key, section in (("bonos", "bonos_pensiones"), ("servicios", "proteccion_integral")):
+        points = data.loc[data.seccion.eq(section)].groupby("periodo_id").usuarios.sum()
+        keep = [p for p in sorted(points.index) if (len(p) == 7 and start <= p <= end) or (yearly and len(p) == 4)]
+        out["series"][key] = ([p if len(p) == 4 else _short(p, yearly) for p in keep], [float(points[p]) for p in keep])
+    monthly_ids = sorted(p for p in data.periodo_id.astype(str).unique() if len(p) == 7)
+    out["timeline"].append(("Transferencias y servicios", "2024-01" if yearly else monthly_ids[0], end))
+    # El Niño (Plan ENOS): the latest report of the response.
+    try:
+        from src.views.riesgos import RiskView
+        risk = RiskView()
+        risk.select(risk.catalog()[0])
+        if risk.prepare():
+            r = risk.response
+            kits = r.kits.groupby(["provincia_codigo", "provincia"]).kits.sum().sort_values(ascending=False)
+            bono = r.articulation.groupby("provincia").personas.sum().sort_values(ascending=False)
+            units = int(r.alerts.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
+            out["enos"] = {"units": units, "alerts": int(len(r.alerts)), "kits": int(r.kits_total),
+                           "kit_provinces": int(kits.index.get_level_values(0).nunique()), "families": int(r.articulation.personas.sum()),
+                           "amount": float(r.articulation.monto.sum()), "closed": int(r.closed_units or 0), "closed_note": r.suspension_short(),
+                           "kits_map": {code: float(v) for (code, _n), v in kits.items()},
+                           "alerts_rank": [(n, float(v)) for n, v in r.alerts.groupby("provincia").size().sort_values(ascending=False).head(6).items()],
+                           "closed_rank": [(part.split(" ", 1)[1].replace("en otros servicios", "Otros servicios"), float(part.split(" ", 1)[0]))
+                                           for part in r.suspension_short().split(" · ") if part.split(" ", 1)[0].isdigit()],
+                           "kits_rank": [(n, float(v)) for (_c, n), v in kits.head(6).items()],
+                           "bono_rank": [(n, float(v)) for n, v in bono.head(5).items()],
+                           "cut": r.cut_text("alertas"),
+                           "findings": [{"icon": "life-buoy", "text": f"{number(r.kits_total)} kits llegaron a {kits.index.get_level_values(0).nunique()} "
+                                                                      f"provincias; Guayas y Esmeraldas reciben la mayor parte."},
+                                        {"icon": "shield", "text": f"{number(r.closed_units or 0)} unidades de atención con atención suspendida "
+                                                                   f"({r.suspension_short()})."},
+                                        {"icon": "hand-coins", "text": f"{number(r.articulation.personas.sum())} familias habilitadas al pago del "
+                                                                       f"bono de contingencia, por USD {number(r.articulation.monto.sum(), 2)}."}]}
+            out["timeline"].append(("Plan ENOS (El Niño)", "2026-09", end))
+            out["highlights"].insert(1, {"icon": "life-buoy", "text": f"Fenómeno El Niño: {number(r.kits_total)} kits entregados, "
+                                                                      f"{number(r.articulation.personas.sum())} familias con bono de contingencia "
+                                                                      f"y {units} unidades de atención con alertas."})
+    except Exception:  # noqa: BLE001 - the bulletin keeps the other stories
+        LOG.exception("ENOS sin datos para el boletín")
+    brigades_path = PROCESSED / "brigadas.parquet"
+    if brigades_path.exists():
+        brig = _within(pd.read_parquet(brigades_path), start, end, "periodo")
+        if not brig.empty:
+            key = brig.periodo.str[:4] if yearly else brig.periodo
+            months = brig.groupby(key).atendida.sum()
+            out["brigadas"] = {"count": int(len(brig)), "attended": int(brig.atendida.sum()), "reached": int(brig.alcanzada.sum()),
+                               "rate": brig.atendida.sum() / brig.alcanzada.sum() * 100 if brig.alcanzada.sum() else 0,
+                               "average": brig.atendida.sum() / len(brig), "provinces": int(brig.provincia.nunique()),
+                               "months": ([p if yearly else _short(p) for p in months.index], [float(v) for v in months]),
+                               "map": brig.groupby("provincia_codigo").size().astype(float).to_dict()}
+            out["timeline"].append(("Brigadas sociales", brig.periodo.min(), brig.periodo.max()))
+    cdh_path = PROCESSED / "cdh_territorio.parquet"
+    if cdh_path.exists():
+        cdh = pd.read_parquet(cdh_path)
+        disbursed = _within(cdh.loc[cdh.fuente.eq("desembolso")], start, end, "periodo")
+        profile_path = PROCESSED / "cdh_perfil.parquet"
+        profile = pd.read_parquet(profile_path) if profile_path.exists() else pd.DataFrame()
+        if not disbursed.empty:
+            months = disbursed.groupby("periodo").creditos.sum()
+            prof = _within(profile.loc[profile.fuente.eq("desembolso")], start, end, "periodo") if not profile.empty else profile
+            women = prof.loc[prof.sexo.eq("Mujeres"), "creditos"].sum() / prof.creditos.sum() * 100 if not prof.empty else 0
+            portfolio = cdh.loc[cdh.fuente.eq("vigente")]
+            bonus = disbursed.groupby("bono").creditos.sum().sort_values(ascending=False)
+            out["cdh"] = {"credits": int(disbursed.creditos.sum()), "amount": float(disbursed.monto.sum()),
+                          "average": disbursed.monto.sum() / disbursed.creditos.sum(), "portfolio": int(portfolio.creditos.sum()),
+                          "portfolio_amount": float(portfolio.monto.sum()), "women": float(women),
+                          "months": ([_short(p, yearly) for p in months.index], [float(v) for v in months]),
+                          "bonus": [(b, float(v)) for b, v in bonus.items()]}
+            out["timeline"].append(("Crédito de Desarrollo Humano", months.index.min(), months.index.max()))
+    contingencies = bases.get("contingencies")
+    if contingencies is not None and not contingencies.empty:
+        rows = _within(contingencies, start, end)
+        items = rows.groupby("programa").monto.sum().sort_values(ascending=False)
+        out["contingencias"] = {"total": float(rows.monto.sum()), "items": [(p, float(v)) for p, v in items.items() if v > 0]}
+        out["timeline"].append(("Contingencias y compensaciones", rows.periodo_id.min(), rows.periodo_id.max()))
+    try:
+        from src import jovenes
+        payments = _within(jovenes.payments(), start, end)
+        if not payments.empty:
+            key = payments.periodo_id.str[:4] if yearly else payments.periodo_id
+            months = payments.groupby(key).transferencias.sum()
+            out["jovenes"] = {"transfers": float(payments.transferencias.sum()), "amount": float(payments.monto.sum()),
+                              "months": ([p if yearly else _short(p) for p in months.index], [float(v) for v in months])}
+            out["timeline"].append(("Jóvenes en Acción", payments.periodo_id.min(), payments.periodo_id.max()))
+    except Exception:  # noqa: BLE001
+        LOG.exception("Jóvenes en Acción sin datos para el boletín")
+    budget = {"gauges": []}
+    pace = int(end[5:]) / 12 * 100
+    groups = bases.get("social_groups")
+    if groups is not None and not groups.empty:
+        year_rows = _within(groups, f"{end[:4]}-01", end)
+        approved = float(groups.loc[groups.periodo_id.eq(end), "presupuesto_aprobado"].sum())
+        accrued = float(year_rows.groupby("periodo_id").devengado_acumulado.sum().iloc[-1]) if not year_rows.empty else 0.0
+        budget["gauges"].append({"value": accrued / approved * 100 if approved else 0, "pace": pace, "label": "Presupuesto social",
+                                 "sub": f"USD {millions(accrued, 1)} M de USD {millions(approved, 1)} M"})
+        out["timeline"].append(("Presupuesto social", f"{end[:4]}-01", end))
+    fiscal = bases.get("budget")
+    if fiscal is not None and not fiscal.empty:
+        coded, accrued = float(fiscal.codificado.sum()), float(fiscal.devengado.sum())
+        budget["gauges"].append({"value": accrued / coded * 100 if coded else 0, "pace": pace, "label": "Presupuesto fiscal (SGDE)",
+                                 "sub": f"USD {millions(accrued, 1)} M de USD {millions(coded, 1)} M"})
+        budget["note"] = (f"Presupuesto fiscal SGDE al 30 de septiembre: USD {millions(accrued, 1)} millones devengados de USD "
+                          f"{millions(coded, 1)} millones codificados.")
+    gov = bases.get("government_budget")
+    if gov is not None and not gov.empty:
+        budget["government"] = {"total": float(gov.acumulado.sum()), "previous": float(gov.anterior.sum()), "current": float(gov.fiscal.sum())}
+    out["presupuesto"] = budget
+    try:
+        from src.views.laboral import LabourView
+        labour = LabourView(bases["labour"])
+        labour.select(labour.catalog()[0])
+        if labour.prepare():
+            cards = labour.kpi_cards()[:4]
+            out["empleo_cut"] = f"Contratos vigentes al {labour.cut['contracts_label'].split(',')[0]}; jubilación del año"
+            out["empleo_cards"] = [(f"USD {millions(k['value'] * 1e6, 1)} M" if k.get("prefix") == "USD" else number(k["value"]), k["label"],
+                                    k.get("note") or "") for k in cards]
+    except Exception:  # noqa: BLE001
+        LOG.exception("Empleo sin datos para el boletín")
+    out["highlights"] = out["highlights"][:5]
+    return out
+
+
+def _bulletin(ctx: dict) -> bytes:
+    from .boletin import generate as draw
+    return draw(ctx)
+
+
+_build_plain = build
+
+
+def build(bases: dict, mode: str, title: str = "") -> dict:  # noqa: F811 - the bulletin adds its drawings to the figures
+    ctx = _build_plain(bases, mode, title)
+    ctx["extras"] = extras(bases, ctx["figures"])
+    return ctx
+
+
+generate = _bulletin  # noqa: F811

@@ -132,6 +132,16 @@ def _visual(key: str, ctx: dict) -> dict | None:
         return {"kind": "bars", "title": "Acumulado de gobierno por programa", "note": "Seis principales · millones de USD",
                 "rows": [{"name": r["name"], "fraction": (r.get("acumulado") or 0) / peak,
                           "text": f"USD {_number((r.get('acumulado') or 0) / 1e6, 1)} M"} for r in rows]}
+    if key == "cdh":
+        months = ctx["charts"][0]["rows"]
+        return {"kind": "columns", "title": "Créditos desembolsados por mes", "note": "Créditos de Desarrollo Humano",
+                "labels": [m["name"][:3] for m in months], "values": [m["value"] for m in months],
+                "value_text": lambda v: f"{_number(v / 1000, 1)} mil" if v >= 1000 else _number(v)}
+    if key == "brigadas":
+        rows = ctx["tables"][0]["rows"][:5]
+        return {"kind": "bars", "title": "Personas atendidas por provincia", "note": "Cinco principales · % del total",
+                "rows": [{"name": r["provincia"], "value": r["atendida"], "text": f"{_number(r['atendida'])} · {_number(r['participacion'], 1)} %"}
+                         for r in rows]}
     if key == "presupuesto_social":
         months = ctx["months"]
         return {"kind": "execution", "title": "Ejecución acumulada frente al ritmo uniforme", "labels": [m["short"] for m in months],
@@ -488,7 +498,7 @@ def generate_panorama_pdf(ctx: dict) -> bytes:
         current.append(block)
         room -= height
     pages.append(current)
-    cuts_h = 24 + 22 + 13.4 * len(ctx["blocks"]) + 10
+    cuts_h = 0  # The cut and frequency of each section already head its block: no closing table.
     total = len(pages) + (1 if room < cuts_h and len(pages) < MAX_PAGES else 0)
     total = min(total, MAX_PAGES)
     for number, blocks in enumerate(pages, start=1):
@@ -500,7 +510,7 @@ def generate_panorama_pdf(ctx: dict) -> bytes:
             y = _slim_band(c, ctx, ctx["title"], "Cada sección con su último corte, sus cifras clave, su gráfico y sus hallazgos") - 20
         for block in blocks:
             y = _draw_block(c, block, M, y, width)
-        if number == len(pages) and y - cuts_h > BOTTOM:
+        if False:  # noqa: SIM108 - kept for a closing table if it is ever needed again
             _cuts_table(c, ctx, y + 4)
         elif number == len(pages) and total > len(pages):
             _footer(c, ctx, number, total)
