@@ -53,7 +53,7 @@ def render(c,ctx,pages):
     cards[2].update(short=cards[2]['label'],value=r['articulation_people'])
     cards[3].update(short='Monto · Bono de Contingencia',value=r['articulation_amount'],
                     display_value=f"USD {number(r['articulation_amount'],2)}" if r['articulation_amount'] is not None else '—',
-                    note=f"En gestión · corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
+                    note=f"Corte {r['bonus_cut']}" if r['bonus_period_available'] else 'Sin desglose temporal')
     top=_kpis(c,{**ctx,'kpis':cards,'share_word':''},top)-8
     brigade = next((k for k in ctx['kpis'] if k['label']=='Brigadas de emergencia'), None)
     if brigade is not None:

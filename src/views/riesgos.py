@@ -538,7 +538,7 @@ class RiskView:
     def kpi_cards(self) -> list[dict]:
         cards = self._response_kpis() if self.response else []
         if self.response and "brigadas" in self.response.data:
-            rows = self.response.brigadas
+            rows = getattr(self.response, "brigadas", self.response.data.get("brigadas", []))
             places = "; ".join(dict.fromkeys(f"{r['provincia']} · {r['canton']}" for r in rows))
             cards.append({"label": "Brigadas de emergencia", "value": len(rows), "icon": "users", "tone": "oro",
                           "note": places or "Sin brigadas en la selección"})
