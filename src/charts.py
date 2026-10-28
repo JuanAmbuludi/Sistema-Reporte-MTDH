@@ -234,7 +234,8 @@ def composition_matrix(data: pd.DataFrame, indicator: Indicator, names: dict[str
 
 def execution_bullets(rows: pd.DataFrame, label: str, *, highlight=None, reference: float | None = None,
                       reference_label: str = "Total", hover_label: str | None = None, wrap_at: int = 0,
-                      per: int = 36, height: int | None = None) -> go.Figure:
+                      per: int = 36, height: int | None = None, denominator_label: str = "Codificado",
+                      rate_label: str = "Ejecución") -> go.Figure:
     """Budget execution of each row as a bar on a 0–100 % track, largest coded budget on top.
 
     ``rows`` carries ``presupuesto_codificado``, ``presupuesto_ejecutado`` and ``porcentaje_ejecucion``; ``label``
@@ -256,8 +257,8 @@ def execution_bullets(rows: pd.DataFrame, label: str, *, highlight=None, referen
                          hoverinfo="skip", showlegend=False))
     fig.add_trace(go.Bar(x=rates.clip(upper=100), y=labels, orientation="h", marker=dict(color=colors, cornerradius=5),
                          customdata=custom, showlegend=False,
-                         hovertemplate="<b>%{customdata[0]}</b><br>Ejecución: %{customdata[1]}<br>Devengado: %{customdata[2]}"
-                                       "<br>Codificado: %{customdata[3]}<extra></extra>"))
+                         hovertemplate="<b>%{customdata[0]}</b><br>" + rate_label + ": %{customdata[1]}<br>Devengado: %{customdata[2]}"
+                                       "<br>" + denominator_label + ": %{customdata[3]}<extra></extra>"))
     # The figures sit in a fixed right margin, so they never clip however narrow the plot becomes on a phone.
     fig.add_trace(go.Scatter(x=[101] * len(group), y=labels, mode="text", text=[f" <b>{pct(v)}</b>" if c else f" {pct(v)}"
                                                                                for v, c in zip(group.porcentaje_ejecucion, chosen)],

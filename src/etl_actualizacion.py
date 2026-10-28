@@ -219,7 +219,7 @@ def refresh_vis_vie(output: Path, users_path: Path, budget_path: Path, period: s
         counts, cash = coverage[key], totals[key]
         row.update(usuarios=counts["usuarios"], unidades=counts["unidades"] if old["seccion"] == "proteccion_integral" else None,
                    unidades_origen=counts["unidades"], monto_fiscal=cash["ejecutado"], presupuesto_ejecutado=cash["ejecutado"],
-                   presupuesto_codificado=cash["codificado"], monto_gobierno=old["monto_anterior"] + cash["ejecutado"])
+                   presupuesto_codificado=cash["codificado"], monto_gobierno=old["monto_gobierno"])
         row["estado_registro"] = "solo_acumulado_anterior" if old["programa_id"] in {"PAM", "PCD"} else "vigente"
         row.update(fuente_cobertura=users_path.name, fuente_presupuesto=budget_path.name,
                    fuente_acumulado=manifest["fuente"]["archivo"])
@@ -241,7 +241,7 @@ def refresh_vis_vie(output: Path, users_path: Path, budget_path: Path, period: s
     manifest["fuentes"] = {"acumulado_anterior": manifest["fuente"], "cobertura": source_metadata(users_path), "presupuesto": source_metadata(budget_path)}
     # Retain the legacy primary source reference for consumers of this field.
     # Per-metric provenance is explicit in fuentes, rather than a synthetic file hash.
-    manifest["fuente"]["uso"] = "Referencia histórica del acumulado; cobertura y ejecución actuales en fuentes."
+    manifest["fuente"]["uso"] = "Fuente principal del acumulado de gobierno; cobertura y devengado territorial en fuentes."
     manifest["totales"] = summarize(load_data(output))
     manifest["ejecucion_complementaria"] = {"archivo": budget_path.name, "fase": "devengado", "cobertura_pct": 100,
                                              "filas": len(rows), "periodo_origen": "Corte del operador; conciliación con la cobertura por programa y parroquia."}
@@ -256,7 +256,7 @@ def refresh_vis_vie(output: Path, users_path: Path, budget_path: Path, period: s
         "Servicios: fecha explícita en la cobertura. Bonos y presupuesto: corte asignado por el operador y conciliado por programa/parroquia; no contienen una serie mensual.",
         "El presupuesto ejecutado corresponde a total_devengado; no es pago efectivo ni monto exclusivamente del mes.",
         "Codificado VIS: suma de componentes corriente e inversión distribuidos. total_codificado repite el total distrital en cada parroquia y no se suma.",
-        "Se preserva el acumulado anterior 2023–2025; el acumulado de gobierno suma ese valor y el devengado fiscal actual. No implica una fase presupuestaria homogénea en años anteriores.",
+        "El acumulado de gobierno se conserva directamente de Acumulado VIS VIE. Su componente 2026 y el devengado territorial tienen diferencias de precisión de origen; no se fuerza su igualdad.",
         "Las pensiones PAM y PCD solo aportan acumulados anteriores; no tienen registros vigentes en las nuevas fuentes.",
         "Unidades: se utilizan las de Usuarios_vis_vie, no las de la base presupuestaria, cuyos conteos difieren.",
         "Las referencias 2024 y 2025 no documentan mes; no se convierten en cierres mensuales.",
@@ -267,10 +267,10 @@ def refresh_vis_vie(output: Path, users_path: Path, budget_path: Path, period: s
         "monto_fiscal": "Alias compatible del presupuesto ejecutado fiscal (total_devengado) para conservar los nombres del dashboard.",
         "presupuesto_ejecutado": "Total devengado fiscal informado en Presupuesto_vis_vie; agregado territorialmente sin repetir modalidades.",
         "presupuesto_codificado": "VIE: total_codificado. VIS: presupuesto_codificado_corriente + presupuesto_codificado_inversion, ya distribuidos.",
-        "monto_gobierno": "Acumulado anterior 2023–2025 más devengado fiscal del corte actual; no sumar otra vez sus componentes.",
+        "monto_gobierno": "Columna acumulado de Acumulado VIS VIE, fuente principal de gobierno; no se recalcula con el devengado territorial de otra base.",
         "fuente_hoja / fuente_fila": "Fila del Excel anterior que respalda el acumulado previo. La procedencia del detalle nuevo está en los Parquet territoriales.",
     })
-    manifest["decision_versiones"] = "Usar Usuarios_vis_vie.parquet y Presupuesto_vis_vie.parquet para el detalle territorial. Conservar Acumulado_VIS_VIE/ como fuente histórica del acumulado 2023–2025. El presupuesto social aprobado nacional se consulta por separado en data/series."
+    manifest["decision_versiones"] = "Usar Usuarios_vis_vie.parquet y Presupuesto_vis_vie.parquet para el detalle territorial. Acumulado_VIS_VIE/ es la fuente principal del acumulado de gobierno. El presupuesto social aprobado nacional y el fiscal SGDE son universos separados."
     manifest["comparacion"] = {"usuarios_servicios_antes": sum(r["usuarios"] for r in old_rows if r["seccion"] == "proteccion_integral"),
                                "usuarios_servicios_ahora": manifest["totales"]["usuarios_servicios"],
                                "unidades_antes": sum(r["unidades"] or 0 for r in old_rows), "unidades_ahora": manifest["totales"]["unidades"],

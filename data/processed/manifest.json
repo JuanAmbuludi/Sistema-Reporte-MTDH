@@ -7,7 +7,7 @@
   "fuente": {
     "archivo": "Acumulado_VIS_VIE",
     "sha256": "bee81c1f4196b90855cf721f54e0229e03563f5a6be42bfb507dad4c76e6ab12",
-    "uso": "Referencia histórica del acumulado; cobertura y ejecución actuales en fuentes."
+    "uso": "Fuente principal del acumulado de gobierno; cobertura y devengado territorial se conservan."
   },
   "granularidad": "Una fila por corte, programa y provincia; fuente agregada.",
   "moneda": "USD",
@@ -18,7 +18,7 @@
     "usuarios_servicios": 456356,
     "unidades": 11215,
     "monto_fiscal": 1180002197.252246,
-    "monto_gobierno": 4512402557.949846,
+    "monto_gobierno": 4512402557.131901,
     "monto_anterior": 3332400360.6976013,
     "presupuesto_ejecutado": 1180002197.252246,
     "presupuesto_ejecutado_parcial": 1180002197.252246,
@@ -36,11 +36,11 @@
     "Servicios: fecha explícita en la cobertura. Bonos y presupuesto: corte asignado por el operador y conciliado por programa/parroquia; no contienen una serie mensual.",
     "El presupuesto ejecutado corresponde a total_devengado; no es pago efectivo ni monto exclusivamente del mes.",
     "Codificado VIS: suma de componentes corriente e inversión distribuidos. total_codificado repite el total distrital en cada parroquia y no se suma.",
-    "Se preserva el acumulado anterior 2023–2025; el acumulado de gobierno suma ese valor y el devengado fiscal actual. No implica una fase presupuestaria homogénea en años anteriores.",
     "Las pensiones PAM y PCD solo aportan acumulados anteriores; no tienen registros vigentes en las nuevas fuentes.",
     "Unidades: se utilizan las de Usuarios_vis_vie, no las de la base presupuestaria, cuyos conteos difieren.",
     "Las referencias 2024 y 2025 no documentan mes; no se convierten en cierres mensuales.",
-    "La base financiera institucional tiene su propio universo y no se suma ni se distribuye sobre VIS/VIE."
+    "La base financiera institucional tiene su propio universo y no se suma ni se distribuye sobre VIS/VIE.",
+    "Acumulado VIS VIE es la fuente principal de gobierno. Su componente 2026 difiere del devengado territorial por la precisión de las bases; no se fuerza su igualdad."
   ],
   "definiciones": {
     "periodo": "Primer día del mes de corte indicado por el operador; no representa fecha de transacción.",
@@ -48,7 +48,7 @@
     "unidades": "Suma de sumunidad de cobertura para servicios; sin identificadores de unidad para verificar unicidad. No aplica a bonos.",
     "monto_fiscal": "Alias compatible del presupuesto ejecutado fiscal (total_devengado) para conservar los nombres del dashboard.",
     "monto_anterior": "Acumulado 2023–2025 reportado, en USD.",
-    "monto_gobierno": "Acumulado anterior 2023–2025 más devengado fiscal del corte actual; no sumar otra vez sus componentes.",
+    "monto_gobierno": "Columna acumulado de Acumulado VIS VIE, conservada sin recalcularla con el devengado territorial de otra base.",
     "presupuesto_ejecutado": "Total devengado fiscal informado en Presupuesto_vis_vie; agregado territorialmente sin repetir modalidades.",
     "provincia_codigo": "Código provincial ecuatoriano de dos dígitos; 90 es una clave interna para Zona en estudio.",
     "fuente_hoja / fuente_fila": "Fila del Excel anterior que respalda el acumulado previo. La procedencia del detalle nuevo está en los Parquet territoriales.",
@@ -118,8 +118,8 @@
   ],
   "archivos": {
     "indicadores.parquet": {
-      "sha256": "4764b9a909661995480c64d954f020eaa3eb8a049d2c52f5059ba8a14d12d3ad",
-      "bytes": 20353,
+      "sha256": "fe2b04bf8fb6d995340786c690f12e307c886c322d30021928b18c9ca2295661",
+      "bytes": 20343,
       "filas": 296
     },
     "historico_referencia.parquet": {
@@ -158,7 +158,7 @@
       "sha256": "d5c6b8a67692931bb554d1832a13934c9b6bff6d9d9e33b8a583ff1dc581d1ae"
     }
   },
-  "decision_versiones": "Usar Usuarios_vis_vie.parquet y Presupuesto_vis_vie.parquet para el detalle territorial. Conservar Acumulado_VIS_VIE/ como fuente histórica del acumulado 2023–2025. El presupuesto social aprobado nacional se consulta por separado en data/series.",
+  "decision_versiones": "Acumulado VIS VIE respalda el acumulado de gobierno. La cobertura validada y el devengado territorial se mantienen. El presupuesto fiscal SGDE y el social aprobado MDH–MTDH se presentan como universos separados.",
   "comparacion": {
     "usuarios_servicios_antes": 456239,
     "usuarios_servicios_ahora": 456356,

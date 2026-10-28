@@ -29,12 +29,12 @@ from src.auth import logout, require_login  # noqa: E402
 from src.data import DEFAULT_DATA_DIR, load_periods, load_territory  # noqa: E402
 from src.gestion_laboral import load_labour  # noqa: E402
 from src.indicators import AREAS, MODULES  # noqa: E402
-from src.institutional import load_budget  # noqa: E402
 from src.views.common import period_controls  # noqa: E402
 from src.views.contingencias import ContingencyView  # noqa: E402
 from src.views.jovenes import YouthView  # noqa: E402
 from src.views.laboral import LabourView  # noqa: E402
-from src.views.presupuesto import BudgetArea, BudgetView, SocialBudgetView  # noqa: E402
+from src.views.presupuesto import BudgetArea, SocialBudgetView  # noqa: E402
+from src.views.finanzas import FinanceView  # noqa: E402
 from src.views.territorial import TerritorialView  # noqa: E402
 from src.views.riesgos import RiskView  # noqa: E402
 
@@ -56,20 +56,21 @@ def _clear_module_caches() -> None:
 @st.cache_data(show_spinner=False)
 def read_bases(version: int) -> dict:
     """Every base of the dashboard; invalidated when any of them changes."""
-    from src import contingencias, mensual, presupuesto_social
+    from src import contingencias, mensual, presupuesto_social, finanzas
     _clear_module_caches()
     data, catalog = load_periods()
-    budget, manifest = load_budget()
+    budget, manifest = finanzas.load_fiscal()
     groups, programs = presupuesto_social.load_social_budget()
     return {"data": data, "catalog": catalog, "territory": load_territory(), "budget": budget, "budget_manifest": manifest,
             "labour": load_labour(), "program_budget": mensual.program_budget(), "contingencies": contingencias.monthly(),
             "contingency_places": contingencias.territorial(), "contingency_catalog": contingencias.catalog(),
-            "social_groups": groups, "social_programs": programs}
+            "social_groups": groups, "social_programs": programs, "government_budget": finanzas.load_government()}
 
 
 def bases_version() -> int:
     """Latest change of any base (processed bases and monthly series)."""
-    folders = [DEFAULT_DATA_DIR, DEFAULT_DATA_DIR.parent / "series", DEFAULT_DATA_DIR.parent / "series" / "laboral"]
+    folders = [DEFAULT_DATA_DIR, DEFAULT_DATA_DIR.parent / "series", DEFAULT_DATA_DIR.parent / "series" / "laboral",
+               DEFAULT_DATA_DIR.parent / "source" / "Acumulado_VIS_VIE"]
     return max(path.stat().st_mtime_ns for folder in folders if folder.exists() for path in folder.glob("*") if path.is_file())
 
 
@@ -94,9 +95,10 @@ if youth.catalog():
 labour = LabourView(bases["labour"])
 if labour.catalog():
     views["laboral"] = labour
-institutional = BudgetView(bases["budget"], bases["budget_manifest"]) if not bases["budget"].empty else None
+institutional = FinanceView(bases["budget"], metadata=bases["budget_manifest"]) if not bases["budget"].empty else None
 social = SocialBudgetView(bases["social_groups"], bases["social_programs"]) if not bases["social_groups"].empty else None
-budget_area = BudgetArea(institutional, social)
+government = FinanceView(bases["government_budget"], government=True)
+budget_area = BudgetArea(institutional, social, government)
 if budget_area.views:
     views["presupuesto"] = budget_area
 st.session_state.setdefault("workspace", "Tablero")

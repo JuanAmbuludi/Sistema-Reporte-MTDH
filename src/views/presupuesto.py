@@ -344,9 +344,9 @@ class SocialBudgetView:
         return True
 
     def hero_copy(self) -> tuple[str, str, str]:
-        return (f"Corte {self.period['label'].lower()}", self.label,
-                "Presupuesto aprobado, devengado de cada mes y ejecución de los bonos, pensiones, contingencias, compensaciones "
-                "y Jóvenes en Acción (grupos de gasto 58, 57 y 78).")
+        return (f"Año fiscal {self.period['year']} · corte {self.period['label'].lower()}", self.label,
+                f"Presupuesto aprobado y devengado acumulado de {self.span}, grupos 58, 57 y 78. "
+                "La base integra MDH (enero–julio) y MTDH (desde agosto); su alcance difiere del presupuesto fiscal SGDE.")
 
     def update_stamp(self) -> dict:
         from src import corte
@@ -378,6 +378,8 @@ class SocialBudgetView:
 
     def dashboard(self) -> None:
         stats, period, series = self.stats, self.period, self.series
+        st.caption("La fuente incluye mecanismos de transporte, migrantes retornados y compensación diésel, "
+                   "que identifica como no administrados por el MTDH.")
         ui.section_heading("Ejecución presupuestaria", f"{self.context_label} · devengado acumulado sobre presupuesto aprobado", "target")
         rows = self.month.rename(columns={"devengado_acumulado": "presupuesto_ejecutado", "presupuesto_aprobado": "presupuesto_codificado"})
         rows = rows.sort_values("presupuesto_codificado", ascending=False)
@@ -386,7 +388,8 @@ class SocialBudgetView:
         left, right = st.columns(2, gap="medium")
         with left, st.container(border=True, key="card_social_programs"):
             ui.chart_title("Por programa presupuestario", f"Devengado de {self.span} sobre aprobado · la línea dorada marca el total")
-            show_chart(charts.execution_bullets(rows, "nombre", reference=stats["execution"], wrap_at=30 if compact() else 0), "social_programs")
+            show_chart(charts.execution_bullets(rows, "nombre", reference=stats["execution"], wrap_at=30 if compact() else 0,
+                                                denominator_label="Aprobado"), "social_programs")
         with right, st.container(border=True, key="card_social_pace"):
             ui.chart_title("Ejecución acumulada por mes", "Frente a un ritmo uniforme de una doceava parte del presupuesto por mes")
             show_chart(charts.cumulative_execution(labels, list(series.porcentaje_ejecucion), selected=selected,
@@ -471,7 +474,8 @@ class SocialBudgetView:
 
     # --------------------------------------------------------------------------------------------- reports
     def scope_items(self) -> list[tuple[str, str]]:
-        return [("Periodo", self.period["label"]), ("Ámbito", self.label), ("Programas", self.programs_label), ("Universo", "Grupos 58, 57 y 78")]
+        return [("Año fiscal", str(self.period["year"])), ("Periodo", self.period["label"]), ("Ámbito", self.label),
+                ("Programas", self.programs_label), ("Universo", "MDH–MTDH · grupos 58, 57 y 78")]
 
     def products_notes(self) -> dict[str, str]:
         return {
@@ -511,7 +515,7 @@ class SocialBudgetView:
         return social_budget_context(self, title=title)
 
 
-UNIVERSES = {"institucional": "Institucional", "social": "Social"}
+UNIVERSES = {"institucional": "Fiscal", "social": "Social", "gobierno": "Gobierno"}
 
 
 class BudgetArea:
@@ -520,8 +524,9 @@ class BudgetArea:
     kind = "presupuesto"
     id = "presupuesto"
 
-    def __init__(self, institutional: BudgetView | None, social: SocialBudgetView | None):
-        self.views = {k: v for k, v in (("institucional", institutional), ("social", social)) if v is not None and v.catalog()}
+    def __init__(self, institutional, social, government=None):
+        self.views = {k: v for k, v in (("institucional", institutional), ("social", social), ("gobierno", government))
+                      if v is not None and v.catalog()}
 
     @property
     def active(self):

@@ -1,5 +1,7 @@
 # Actualización territorial de cobertura y presupuesto — septiembre de 2026
 
+**Revisión posterior del 27/10/2026:** [la conciliación presupuestaria](CONCILIACION_PRESUPUESTO_2026-10-27.md) establece Acumulado VIS VIE como fuente principal del acumulado de gobierno y SGDE como fuente de la consulta Fiscal. Las cifras institucionales y el recálculo del acumulado que se describen abajo documentan la versión previa; no son la consulta presupuestaria vigente.
+
 **Series nacionales y presupuesto aprobado:** consultar [REVISION_BASES_2026.md](REVISION_BASES_2026.md). Este documento describe el detalle territorial previo, conservado en Parquet; no sustituye el nuevo presupuesto social aprobado.
 
 ## Decisión sobre las versiones

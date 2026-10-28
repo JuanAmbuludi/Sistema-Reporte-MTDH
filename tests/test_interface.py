@@ -54,7 +54,7 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert len(app.selectbox) == 0, "Los selectores se muestran como controles visibles"
     html = _markdown(app)
     for title in ["Transferencias monetarias no contributivas", "Resultados por programa", "Resultados por territorio", "Cuadro de resultados",
-                  "Ejecución presupuestaria", "Beneficiarios por provincia", "Distribución por programa", "InfoReport"]:
+                  "Ejecución VIS–VIE", "Beneficiarios por provincia", "Distribución por programa", "InfoReport"]:
         assert title in html, title
     assert html.count("<svg") >= 1 and "ec-map" in html and 'class="ec-mosaic"' in html, "El encabezado incluye el mapa parroquial"
     assert "Beneficiarios por parroquia" in html
@@ -81,7 +81,7 @@ def test_every_territorial_chart_switches_between_province_canton_and_parish():
     app.segmented_control(key="lvl_matrix").set_value("parroquia").run()
     assert not app.exception
     html = _markdown(app)
-    for title in ["Beneficiarios por cantón", "Los 25 primeros cantones del país", "Ejecución presupuestaria por parroquia",
+    for title in ["Beneficiarios por cantón", "Los 25 primeros cantones del país", "Ejecución VIS–VIE por parroquia",
                   "Las 25 primeras parroquias del país"]:
         assert title in html, title
 
@@ -145,14 +145,15 @@ def test_institutional_budget_is_an_area_of_its_own():
     app.segmented_control(key="module").set_value("presupuesto").run()
     assert not app.exception
     html = _markdown(app)
-    for expected in ["Presupuesto institucional", "978,1", "2.137,2", "45,8", "Saldo por devengar", "Ejecución presupuestaria por zona",
-                     "Por programa presupuestario"]:
+    for expected in ["Presupuesto fiscal", "342,2", "993,6", "34,44", "Saldo disponible", "Año fiscal 2026",
+                     "Por programa"]:
         assert expected in html, expected
     for banned in BANNED:
         assert banned not in html, banned
     assert app.segmented_control(key="period_year").options == ["2026"]
-    app.multiselect(key="budget_zones").set_value(["Z5"]).run()
-    assert not app.exception and "Presupuesto institucional en la Zona 5" in _markdown(app)
+    assert not any(m.key == "budget_zones" for m in app.multiselect)
+    app.multiselect(key="presupuesto_fiscal_programa").set_value(["Desarrollo Infantil"]).run()
+    assert not app.exception and "24,5" in _markdown(app)
     _generate_every_product(app)
 
 
@@ -222,7 +223,7 @@ def test_budget_offers_the_institutional_and_the_social_budget():
     app = _logged_in_app()
     app.segmented_control(key="module").set_value("presupuesto").run()
     assert not app.exception
-    assert app.segmented_control(key="budget_universe").options == ["Institucional", "Social"]
+    assert app.segmented_control(key="budget_universe").options == ["Fiscal", "Social", "Gobierno"]
     app.segmented_control(key="budget_universe").set_value("social").run()
     assert not app.exception
     assert len(app.segmented_control(key="period_month").options) == 9

@@ -36,7 +36,7 @@ def test_compatible_names_and_prior_accumulation_are_preserved(legacy):
     merged = before.merge(after, on=keys, validate="one_to_one", suffixes=("_old", "_new"))
     assert len(merged) == 296
     assert merged.monto_anterior_old.equals(merged.monto_anterior_new)
-    assert all(after.monto_gobierno == after.monto_anterior + after.presupuesto_ejecutado)
+    assert merged.monto_gobierno_old.equals(merged.monto_gobierno_new)
     assert new.schema.field("presupuesto_codificado").type.scale == 6
     assert new.schema.metadata[b"mtdh.schema_version"] == b"1.1.0"
     assert (legacy / "historico_referencia.parquet").read_bytes() == (DATA / "historico_referencia.parquet").read_bytes()

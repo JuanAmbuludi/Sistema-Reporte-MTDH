@@ -56,9 +56,9 @@ class Module:
         return {
             "fiscal": Indicator("monto_fiscal", f"Presupuesto ejecutado {year}" if executed else f"Presupuesto {year}", "money",
                                 "banknote", short=f"Ejecutado {year}" if executed else f"Presupuesto {year}"),
-            "coded": Indicator("presupuesto_codificado", f"Presupuesto codificado {year}", "money", "wallet",
-                               short=f"Codificado {year}"),
-            "execution": Indicator("porcentaje_ejecucion", "Ejecución presupuestaria", "rate", "target", short="Ejecución"),
+            "coded": Indicator("presupuesto_codificado", f"Codificado VIS–VIE {year}", "money", "wallet",
+                               short=f"Codificado VIS–VIE {year}"),
+            "execution": Indicator("porcentaje_ejecucion", "Ejecución VIS–VIE", "rate", "target", short="Ejecución VIS–VIE"),
             "previous": Indicator("monto_anterior", f"Presupuesto acumulado {span}", "money", "landmark",
                                   short=f"Acumulado {span}"),
             "government": Indicator("monto_gobierno", f"Presupuesto acumulado 2023–{year}", "money", "landmark",
@@ -90,14 +90,14 @@ class Module:
         if executed:
             rows += [
                 (money["fiscal"].label, f"Presupuesto devengado de {year} registrado al corte, en dólares de los Estados Unidos."),
-                (money["coded"].label, f"Presupuesto codificado de {year}: la asignación vigente al corte."),
-                (money["execution"].label, "Presupuesto devengado sobre presupuesto codificado, en porcentaje."),
+                (money["coded"].label, f"Monto de la base Presupuesto VIS VIE para {year}: total_codificado en transferencias y componentes corriente e inversión distribuidos en servicios. No equivale al presupuesto aprobado del archivo de ejecución MDH–MTDH."),
+                (money["execution"].label, "Devengado dividido para el codificado de la misma base VIS–VIE. La ejecución fiscal SGDE se consulta en Presupuesto > Fiscal."),
             ]
         else:
             rows.append((money["fiscal"].label, f"Presupuesto reportado para {year}, en dólares de los Estados Unidos."))
         rows += [
             (money["previous"].label, f"Presupuesto acumulado de {span.replace('–', ' a ')}, en dólares de los Estados Unidos."),
-            (money["government"].label, f"Presupuesto acumulado de 2023 a {year - 1} más el presupuesto de {year}."),
+            (money["government"].label, f"Acumulado de gobierno de los programas seleccionados, según Acumulado VIS VIE: 2023–{year - 1} más su componente {year}."),
         ]
         return rows
 

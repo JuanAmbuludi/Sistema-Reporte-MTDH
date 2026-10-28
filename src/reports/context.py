@@ -298,15 +298,15 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         kpis.append({"key": "units", "label": labels["units"], "value": totals["units"], "kind": "count", "icon": "building",
                      "share": _share(totals["units"], nation["units"]) if selected else None})
     elif with_budget:
-        kpis.append({"key": "execution", "label": "Ejecución presupuestaria", "short": "Ejecución presupuestaria",
+        kpis.append({"key": "execution", "label": "Ejecución VIS–VIE", "short": "Ejecución VIS–VIE",
                      "value": totals["execution"], "kind": "rate", "icon": "target", "share": None,
-                     "note": f"Codificado: USD {millions(totals['coded'])} M"})
+                     "note": f"Codificado VIS–VIE: USD {millions(totals['coded'])} M"})
     else:
         kpis.append({"key": "programs", "label": f"{module.items.capitalize()} con {people_lower}", "value": active_programs,
                      "kind": "count", "icon": "layers", "share": None, "note": f"De {len(programs)} {module.items}"})
     if with_budget or mode == "reference":
         short_span = span.rsplit(" de ", 1)[0] if span else ""
-        fiscal_note = (f"Ejecución: {number(totals['execution'], 1)} % del codificado" if with_budget and has_units else
+        fiscal_note = (f"Ejecución: {number(totals['execution'], 1)} % del codificado VIS–VIE" if with_budget and has_units else
                        (f"De {short_span}" if with_budget and short_span else ""))
         share_ok = selected and mode != "national"
         kpis.append({"key": "fiscal", "label": labels["fiscal"], "short": labels["fiscal_short"], "value": totals["fiscal"], "kind": "money",
@@ -350,7 +350,7 @@ def build_report_context(frame: pd.DataFrame, *, national: pd.DataFrame | None =
         when = f" de {span}" if span else ""
         insights.append({"icon": "trending-up", "text": f"{unit_text}El {money['fiscal'].label.lower()}{when} asciende a USD "
                                                         f"{millions(totals['fiscal'])} millones, el {number(totals['execution'], 1)} % "
-                                                        f"del presupuesto codificado."})
+                                                        f"del codificado de la base VIS–VIE."})
     elif mode == "reference" and has_units:
         insights.append({"icon": "trending-up", "text": f"Los servicios operan con {number(totals['units'])} unidades de atención y un "
                                                         f"{money['fiscal'].label.lower()} de USD {millions(totals['fiscal'])} millones."})

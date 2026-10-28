@@ -45,8 +45,11 @@ class DeliveredSourceTests(unittest.TestCase):
             self.assertEqual(totals.loc[key, "unidades"], units)
 
     def test_money_reconciles_without_readding_components(self):
-        errors = (self.df.monto_anterior + self.df.monto_fiscal - self.df.monto_gobierno).abs()
+        from src.finanzas import load_government
+        primary = load_government()
+        errors = (primary.anterior + primary.fiscal - primary.acumulado).abs()
         self.assertLess(errors.max(), 0.00001)
+        self.assertAlmostEqual(self.df.monto_gobierno.sum(), primary.acumulado.sum(), places=4)
         totals = aggregate(self.df, "seccion")
         self.assertAlmostEqual(totals.monto_gobierno.sum(), self.df.monto_gobierno.sum(), places=4)
 

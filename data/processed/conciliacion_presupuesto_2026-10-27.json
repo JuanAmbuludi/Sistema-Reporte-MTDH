@@ -1,0 +1,155 @@
+{
+  "periodo": "2026-09",
+  "archivos": [
+    {
+      "archivo": "02-Acumulado-VIS-VIE.xlsx",
+      "sha256": "e3f627a1ad8f00b1d7081348a49bc66f79561d058b0a7198b08c177318aeb77e"
+    },
+    {
+      "archivo": "01-Presupuesto_vis_vie.xlsx",
+      "sha256": "8692ef8406a0556ee10458b1db001a5d558868a196e7bbdb5c2b8854fb97d955"
+    },
+    {
+      "archivo": "03-09-Ejecuci-n-Presupuestaria-SEPTIEMBRE-2026.xlsx",
+      "sha256": "7bf0297c9d9a71d0c0a30ee783c0ff03170d8e3dddb8764487675f3c821fb15c"
+    }
+  ],
+  "controles": {
+    "acumulado_identico_al_parquet": true,
+    "territorial_importes_usuarios_y_claves_identicos": true,
+    "ejecucion_social_identica_al_parquet": true,
+    "filas_acumulado": 296,
+    "filas_territorial": 9299,
+    "filas_fiscal_sgde": 83
+  },
+  "gobierno": {
+    "anterior": "3332400360.70",
+    "fiscal": "1180002196.43",
+    "acumulado": "4512402557.13"
+  },
+  "social": {
+    "archivo": "03-09-Ejecuci-n-Presupuestaria-SEPTIEMBRE-2026.xlsx",
+    "sha256": "7bf0297c9d9a71d0c0a30ee783c0ff03170d8e3dddb8764487675f3c821fb15c",
+    "periodo_corte": "2026-09",
+    "devengado_acumulado": "1261791379.87",
+    "presupuesto_aprobado": "1715698112.49",
+    "planificado_anual": "1767164544.76",
+    "totales_conciliados": true,
+    "planificado_total_hoja": "1767164544.77",
+    "diferencia_redondeo_planificado": "-0.01",
+    "asignaciones_compartidas": [
+      "BDH_BDHV"
+    ],
+    "universo": "Grupos de gasto 58, 57 y 78 del presupuesto social; no es todo el presupuesto institucional."
+  },
+  "fiscal_sgde": {
+    "totales": {
+      "codificado": "993606130.45",
+      "certificado": "46556969.04",
+      "comprometido": "390954520.12",
+      "devengado": "342231701.21",
+      "saldo_disponible": "554031624.67"
+    },
+    "fuente": {
+      "url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/MDTDH/presupuesto.html#/presupuesto-fiscal",
+      "datos_url": "https://sgde-indicadores.github.io/Ministerio-de-Trabajo-y-Desarrollo-Humano/datos/presupuesto/ejecucion_presupuestaria.json",
+      "consulta": "2026-10-27",
+      "alcance": "Presupuesto fiscal institucional publicado por SGDE; corte 30/09/2026. El portal no identifica mes inicial de ejecución ni desagregación territorial. No se suma al acumulado de gobierno ni a la ejecución social MDH–MTDH."
+    },
+    "porcentaje_ejecucion": 34.44339670639962,
+    "diferencia_codificado_menos_certificado_comprometido_y_disponible": "2063016.62",
+    "tratamiento_saldo": "Se conserva el saldo disponible publicado. La fuente no permite explicar la diferencia contable con las otras etapas."
+  },
+  "usuarios_por_programa": [
+    {
+      "programa_id": "BDH",
+      "acumulado_vis_vie": 619073,
+      "base_territorial": 619073,
+      "dashboard_validado": 619073,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "BDHV",
+      "acumulado_vis_vie": 367289,
+      "base_territorial": 367289,
+      "dashboard_validado": 367289,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "BJGL",
+      "acumulado_vis_vie": 50129,
+      "base_territorial": 50129,
+      "dashboard_validado": 50129,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "BMD",
+      "acumulado_vis_vie": 164983,
+      "base_territorial": 164983,
+      "dashboard_validado": 164983,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "DII",
+      "acumulado_vis_vie": 274975,
+      "base_territorial": 274884,
+      "dashboard_validado": 274877,
+      "diferencia_dashboard_menos_acumulado": -98
+    },
+    {
+      "programa_id": "MMA",
+      "acumulado_vis_vie": 303845,
+      "base_territorial": 303845,
+      "dashboard_validado": 303845,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "PAM",
+      "acumulado_vis_vie": 0,
+      "base_territorial": 0,
+      "dashboard_validado": 0,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "PAM_SERV",
+      "acumulado_vis_vie": 114697,
+      "base_territorial": 114771,
+      "dashboard_validado": 114771,
+      "diferencia_dashboard_menos_acumulado": 74
+    },
+    {
+      "programa_id": "PCD",
+      "acumulado_vis_vie": 0,
+      "base_territorial": 0,
+      "dashboard_validado": 0,
+      "diferencia_dashboard_menos_acumulado": 0
+    },
+    {
+      "programa_id": "PCD_SERV",
+      "acumulado_vis_vie": 37039,
+      "base_territorial": 37076,
+      "dashboard_validado": 37076,
+      "diferencia_dashboard_menos_acumulado": 37
+    },
+    {
+      "programa_id": "PE",
+      "acumulado_vis_vie": 29528,
+      "base_territorial": 29625,
+      "dashboard_validado": 27270,
+      "diferencia_dashboard_menos_acumulado": -2258
+    },
+    {
+      "programa_id": "PTV",
+      "acumulado_vis_vie": 72700,
+      "base_territorial": 72700,
+      "dashboard_validado": 72700,
+      "diferencia_dashboard_menos_acumulado": 0
+    }
+  ],
+  "cobertura": {
+    "beneficiarios_dashboard": 1578019,
+    "usuarios_servicios_dashboard": 453994,
+    "unidades_dashboard": 11215,
+    "modificada": false
+  }
+}

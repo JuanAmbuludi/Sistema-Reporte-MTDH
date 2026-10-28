@@ -354,10 +354,10 @@ def _monthly_slide(prs, ctx: dict, page: int, total: int) -> None:
     _line_chart(slide, [m["short"] for m in months], [(labels["people"], people, theme.SERIE_BONOS)], x=0.45, y=1.95, w=6.55, h=4.15,
                 highlight=selected, minimum=bottom, maximum=top, step=step)
     if monthly.get("budget"):
-        _text(slide, 7.35, 1.45, 5.5, 0.4, "Ejecución presupuestaria acumulada", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
+        _text(slide, 7.35, 1.45, 5.5, 0.4, "Ejecución VIS–VIE acumulada", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
         rates = [(m["execution"] or 0) / 100 if m["execution"] is not None else None for m in months]
         pace = [m["month"] / 12 for m in months]
-        _line_chart(slide, [m["short"] for m in months], [("Ejecución acumulada", rates, theme.SERIE_BONOS),
+        _line_chart(slide, [m["short"] for m in months], [("Ejecución VIS–VIE acumulado", rates, theme.SERIE_BONOS),
                                                         ("Ritmo uniforme del año", pace, theme.LILA_300)],
                     x=7.25, y=1.95, w=5.65, h=4.15, number_format="0%", highlight=selected, minimum=0, maximum=1.0, legend=True,
                     label_format="0.0%", step=0.25)
@@ -452,11 +452,11 @@ def _territorial(prs, ctx: dict):
         page += 1
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         span = ctx.get("month_span")
-        _header(slide, "Ejecución presupuestaria", f"Devengado{' de ' + span if span else ''} sobre codificado · {ctx['period_label']} · "
+        _header(slide, "Ejecución VIS–VIE", f"Devengado{' de ' + span if span else ''} sobre codificado VIS–VIE · {ctx['period_label']} · "
                                                    f"{ctx['territory_label']}")
         funded = sorted([p for p in ctx["programs"] if p.get("coded")], key=lambda p: -(p["coded"] or 0))
         rows = list(reversed(funded))
-        chart = _bar_chart(slide, [r["short"] for r in rows], [(r["execution"] or 0) / 100 for r in rows], "Ejecución presupuestaria",
+        chart = _bar_chart(slide, [r["short"] for r in rows], [(r["execution"] or 0) / 100 for r in rows], "Ejecución VIS–VIE",
                            number_format="0.0%", maximum=1.0, y=1.95, h=4.95)
         chart.plots[0].gap_width = 70
         _text(slide, 0.55, 1.45, 6.8, 0.4, f"Por {labels['item']}", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
@@ -473,7 +473,7 @@ def _territorial(prs, ctx: dict):
             _text(slide, 7.75, 1.45, 5.0, 0.4, "Total nacional", size=18, color=theme.MORADO_900, font=DISPLAY, bold=True)
             tiles = [("banknote", labels["fiscal"], f"USD {millions(totals.get('fiscal'))} M"),
                      ("wallet", labels["coded"], f"USD {millions(totals.get('coded'))} M"),
-                     ("target", "Ejecución presupuestaria", f"{number(totals.get('execution'), 1)} %")]
+                     ("target", "Ejecución VIS–VIE", f"{number(totals.get('execution'), 1)} %")]
             for index, (icon, label, value) in enumerate(tiles):
                 y = 2.0 + index * 1.18
                 _box(slide, 7.75, y, 5.0, 1.02, "#FFFFFF", shape=MSO_SHAPE.ROUNDED_RECTANGLE, line="#E4DEEE", radius=0.1)
@@ -563,7 +563,8 @@ def generate_pptx(context: dict) -> bytes:
     props.subject = f"{context['module_label']} · {context['territory_label']}"
     props.keywords = f"MTDH, {PRODUCT}, indicadores"
     from .pptx_areas import RENDERERS
-    {"presupuesto": _budget, **RENDERERS}.get(context.get("kind"), _territorial)(prs, context)
+    from .finanzas import render_slides
+    {"presupuesto": _budget, "presupuesto_conciliado": render_slides, **RENDERERS}.get(context.get("kind"), _territorial)(prs, context)
     out = BytesIO()
     prs.save(out)
     return out.getvalue()

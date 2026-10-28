@@ -45,6 +45,7 @@ def section_views(bases: dict) -> dict:
     from src.views.jovenes import YouthView
     from src.views.laboral import LabourView
     from src.views.presupuesto import BudgetView, SocialBudgetView
+    from src.views.finanzas import FinanceView
     from src.views.riesgos import RiskView
     from src.views.territorial import TerritorialView
     views = {module_id: TerritorialView(module_id, bases["data"], bases["catalog"], bases["territory"], bases["program_budget"])
@@ -55,7 +56,8 @@ def section_views(bases: dict) -> dict:
     views["jovenes"] = YouthView()
     views["laboral"] = LabourView(bases["labour"])
     if not bases["budget"].empty:
-        views["presupuesto"] = BudgetView(bases["budget"], bases["budget_manifest"])
+        views["presupuesto"] = (FinanceView(bases["budget"], metadata=bases["budget_manifest"])
+                                 if "codificado" in bases["budget"] else BudgetView(bases["budget"], bases["budget_manifest"]))
     if not bases["social_groups"].empty:
         views["presupuesto_social"] = SocialBudgetView(bases["social_groups"], bases["social_programs"])
     return views
@@ -102,6 +104,10 @@ def _visual(key: str, ctx: dict) -> dict | None:
                 "rows": [{"name": r["name"], "fraction": (r.get("share") or 0) / peak,
                           "text": f"{_number(r['contracts'])} · {_number(r['share'], 1)} %"} for r in rows]}
     if key == "presupuesto":
+        if ctx.get("kind") == "presupuesto_conciliado":
+            return {"kind": "rates", "title": "Ejecución fiscal por programa", "note": "Devengado sobre codificado",
+                    "rows": [{"name": r["name"], "fraction": (r.get("ejecucion") or 0)/100,
+                              "text": f"{_number(r.get('ejecucion'), 1)} %"} for r in ctx["tables"][0]["rows"]]}
         zones = ctx["zones"]
         return {"kind": "rates", "title": "Ejecución presupuestaria por zona", "note": "Devengado sobre codificado",
                 "rows": [{"name": z["short"], "fraction": (z.get("execution") or 0) / 100, "text": f"{_number(z['execution'], 1)} %"}

@@ -375,9 +375,9 @@ class TerritorialView:
             cards.append({"label": fiscal.label, "value": (budget["ejecutado"] or 0) / 1e6, "decimals": 1, "prefix": "USD",
                           "suffix": "millones", "icon": "banknote", "tone": "oro", "share": share("presupuesto_ejecutado") if self.executed else None,
                           "share_label": share_label, "note": f"Devengado de {span}" if span else ""})
-            cards.append({"label": "Ejecución presupuestaria", "value": budget["ejecucion"], "decimals": 1, "suffix": "%",
+            cards.append({"label": "Ejecución VIS–VIE", "value": budget["ejecucion"], "decimals": 1, "suffix": "%",
                           "icon": "target", "tone": "lila", "bar": budget["ejecucion"],
-                          "bar_label": f"Codificado: USD {ui.millions(budget['codificado'])} millones"})
+                          "bar_label": f"Codificado VIS–VIE: USD {ui.millions(budget['codificado'])} millones"})
             cards.append({"label": government.label, "value": (budget["gobierno"] or 0) / 1e6, "decimals": 1, "prefix": "USD",
                           "suffix": "millones", "icon": "landmark", "tone": "fucsia", "share": share("monto_gobierno") if self.executed else None,
                           "share_label": share_label})
@@ -423,6 +423,9 @@ class TerritorialView:
     # ------------------------------------------------------------------------------------------- dashboard
     def dashboard(self) -> None:
         module, people, money = self.module, self.people, self.money
+        if self.budget_shown:
+            st.caption("Presupuesto territorial: devengado y codificado de VIS–VIE. "
+                       "El presupuesto aprobado y la ejecución fiscal oficial se consultan en Presupuesto.")
         ui.section_heading(f"Resultados por {module.item}", self.context_label, "chart")
         cards = [("card_people", f"{people.label} por {module.item}", "Número de personas",
                   lambda: charts.category_bars(self.filtered, people, self.short_programs), "category_people")]
@@ -435,10 +438,11 @@ class TerritorialView:
             rows = money_rows.sort_values("presupuesto_codificado", ascending=False)
             rows["nombre"] = rows.programa.map(lambda p: self.short_programs.get(p, p))
             span = self.month_span()
-            cards.append(("card_execution", f"Ejecución presupuestaria por {module.item}",
-                          f"Devengado de {span} sobre codificado · la línea dorada marca el total" if span else
-                          "Presupuesto devengado sobre codificado · la línea dorada marca el total",
-                          lambda: charts.execution_bullets(rows, "nombre", hover_label="programa", reference=self.budget["ejecucion"]),
+            cards.append(("card_execution", f"Ejecución VIS–VIE por {module.item}",
+                          f"Devengado de {span} sobre codificado VIS–VIE · la línea dorada marca el total" if span else
+                          "Presupuesto devengado sobre codificado VIS–VIE · la línea dorada marca el total",
+                          lambda: charts.execution_bullets(rows, "nombre", hover_label="programa", reference=self.budget["ejecucion"],
+                                                           denominator_label="Codificado VIS–VIE", rate_label="Ejecución VIS–VIE"),
                           "category_execution"))
         if self.budget_shown and not money_rows.empty:
             budget_subtitle = f"Millones de USD · {money['previous'].label} y {money['fiscal'].label.lower()}"
@@ -506,7 +510,7 @@ class TerritorialView:
                 show_chart(charts.month_columns(labels, list(monthly.devengado_mes.fillna(0)), selected=selected, money=True, full=full),
                            "month_accrued")
             with right, st.container(border=True, key="card_month_execution"):
-                ui.chart_title("Ejecución presupuestaria acumulada", "Devengado acumulado sobre codificado, frente a un ritmo uniforme")
+                ui.chart_title("Ejecución VIS–VIE acumulada", "Devengado acumulado sobre codificado VIS–VIE, frente a un ritmo uniforme")
                 show_chart(charts.cumulative_execution(labels, list(monthly.porcentaje_ejecucion), selected=selected,
                                                        months=list(monthly.periodo_mes), full=full), "month_execution")
         elif self.module.extra:
@@ -604,8 +608,9 @@ class TerritorialView:
             rows = rows.loc[rows.provincia_codigo.ne(geo.NO_POLYGON)].sort_values("presupuesto_codificado", ascending=False)
             highlight = {self.province_names[c] for c in self.selected if c in self.province_names}
             figure = charts.execution_bullets(rows, "provincia", highlight=highlight, per=30,
-                                              reference=self.national_stats["porcentaje_ejecucion"], reference_label="Nacional")
-            subtitle = "Devengado sobre codificado · la línea dorada marca el total nacional"
+                                              reference=self.national_stats["porcentaje_ejecucion"], reference_label="Nacional",
+                                              denominator_label="Codificado VIS–VIE", rate_label="Ejecución VIS–VIE")
+            subtitle = "Devengado sobre codificado VIS–VIE · la línea dorada marca el total nacional"
             if highlight:
                 subtitle += " · selección en dorado"
         else:
@@ -613,10 +618,11 @@ class TerritorialView:
             top = table.head(TOP)
             reference_label = "Nacional" if not self.provinces else (self.territory_label if len(self.provinces) == 1 else "Selección")
             figure = charts.execution_bullets(top, "etiqueta", hover_label="detalle", per=30, reference=self.stats["porcentaje_ejecucion"],
-                                              reference_label=reference_label)
-            subtitle = f"{phrase(level, len(top), len(table), self._where())} por presupuesto codificado · la línea dorada marca el total"
+                                              reference_label=reference_label, denominator_label="Codificado VIS–VIE",
+                                              rate_label="Ejecución VIS–VIE")
+            subtitle = f"{phrase(level, len(top), len(table), self._where())} por codificado VIS–VIE · la línea dorada marca el total"
         with head:
-            ui.chart_title(f"Ejecución presupuestaria por {LEVEL_LABELS[level].lower()}", subtitle)
+            ui.chart_title(f"Ejecución VIS–VIE por {LEVEL_LABELS[level].lower()}", subtitle)
         show_chart(figure, "territory_execution")
 
     def _matrix_card(self, wide: bool = False) -> None:
@@ -666,9 +672,9 @@ class TerritorialView:
         if "porcentaje_ejecucion" in frame and frame.porcentaje_ejecucion.notna().any():
             columns.update({"devengado_mes": ("Devengado del mes (USD)", "money", None, None, "Devengado"),
                             "devengado_acumulado": ("Devengado acumulado (USD)", "money", None, None, "Acumulado"),
-                            "porcentaje_ejecucion": ("Ejecución acumulada", "pct", None, None, "Ejecución")})
+                            "porcentaje_ejecucion": ("Ejecución VIS–VIE acumulado", "pct", None, None, "Ejecución")})
             layout += [("Devengado del mes (USD)", "devengado_mes", "usd", 20.0), ("Devengado acumulado (USD)", "devengado_acumulado", "usd", 21.0),
-                       ("Ejecución acumulada", "porcentaje_ejecucion", "pct", 14.0)]
+                       ("Ejecución VIS–VIE acumulado", "porcentaje_ejecucion", "pct", 14.0)]
         return frame, columns, layout
 
     def detail(self, level: str) -> tuple[pd.DataFrame, dict, list[tuple]]:
@@ -701,10 +707,10 @@ class TerritorialView:
             if self.executed:
                 columns["presupuesto_ejecutado"] = (f"{money['fiscal'].label} (USD)", "money")
                 columns["presupuesto_codificado"] = (f"{money['coded'].label} (USD)", "money")
-                columns["porcentaje_ejecucion"] = ("Ejecución (%)", "pct")
+                columns["porcentaje_ejecucion"] = ("Ejecución VIS–VIE (%)", "pct")
                 layout += [(f"{money['fiscal'].label} (USD)", "presupuesto_ejecutado", "usd", 20.0),
                            (f"{money['coded'].label} (USD)", "presupuesto_codificado", "usd", 19.0),
-                           ("Ejecución", "porcentaje_ejecucion", "pct", 12.0)]
+                           ("Ejecución VIS–VIE", "porcentaje_ejecucion", "pct", 12.0)]
             return frame.sort_values("usuarios", ascending=False), columns, layout
         groups = {"programa": ["programa"], "provincia": ["provincia"], "provincia_programa": ["provincia", "programa"]}[level]
         frame = aggregate(self.filtered, groups)
@@ -732,9 +738,9 @@ class TerritorialView:
             layout.append((f"{money['fiscal'].label} (USD)", money["fiscal"].key, "usd", 19.0))
             if self.budget_mode in ("territorial", "national"):
                 columns["presupuesto_codificado"] = (f"{money['coded'].label} (USD)", "money")
-                columns["porcentaje_ejecucion"] = ("Ejecución (%)", "pct")
+                columns["porcentaje_ejecucion"] = ("Ejecución VIS–VIE (%)", "pct")
                 layout += [(f"{money['coded'].label} (USD)", "presupuesto_codificado", "usd", 19.0),
-                           ("Ejecución", "porcentaje_ejecucion", "pct", 12.0)]
+                           ("Ejecución VIS–VIE", "porcentaje_ejecucion", "pct", 12.0)]
             columns[money["previous"].key] = (f"{money['previous'].compact} (USD)", "money")
             columns[money["government"].key] = (f"{money['government'].compact} (USD)", "money")
             layout += [(f"{money['previous'].label} (USD)", money["previous"].key, "usd", 21.0),
@@ -786,7 +792,7 @@ class TerritorialView:
         return {
             "resumen": f"Dos páginas en PDF: cifras clave, mapa, resultados por {item} y aspectos destacados; detalle de {word}.",
             "presentacion": f"{slides} diapositivas editables en PowerPoint: cifras clave, resultados de {word}"
-                            f"{', ejecución presupuestaria' if self.executed else ''} y resultados por {item}.",
+                            f"{', ejecución VIS–VIE' if self.executed else ''} y resultados por {item}.",
             "datos": f"Libro de Excel con resumen, resultados por {item}, {word}, detalle con filtros y ficha técnica.",
         }
 
@@ -811,7 +817,7 @@ class TerritorialView:
             items += [(LEVEL_ICONS[level], f"Resultados por {LEVEL_LABELS[level].lower()}", "Mapa y territorios con mayor cobertura")
                       for level in levels]
             if self.executed:
-                items.append(("target", "Ejecución presupuestaria", f"Por {module.item} y por territorio"))
+                items.append(("target", "Ejecución VIS–VIE", f"Por {module.item} y por territorio"))
             return items + [("chart", f"Resultados por {module.item}", "Gráfico editable y aspectos destacados")]
         return [("grid", "Cifras clave", "Indicadores principales del periodo"),
                 ("map", "Territorio", f"Mapa y principales {self._report_word()}"),

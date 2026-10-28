@@ -6,6 +6,8 @@ Sistema de indicadores estratégicos y reportes institucionales del Ministerio d
 
 ## Bases históricas y presupuesto aprobado
 
+**Presupuesto conciliado al 27/10/2026:** la consulta separa **Fiscal** (publicación SGDE del año fiscal 2026), **Social** (aprobado y devengado MDH–MTDH) y **Gobierno** (Acumulado VIS VIE como fuente principal). Los importes, diferencias y comparación de usuarios están en [la conciliación presupuestaria](docs/CONCILIACION_PRESUPUESTO_2026-10-27.md). Se conservan usuarios, beneficiarios y ENOS.
+
 Las bases están organizadas en Parquet. [El catálogo](data/README.md) explica qué tabla usar y cómo incorporar meses anteriores o posteriores sin duplicar registros. [La revisión de octubre](docs/REVISION_BASES_2026.md) documenta las conciliaciones, faltantes y la validación de Jóvenes en Acción. VIS, VIE y el presupuesto social aprobado cubren enero a septiembre de 2026, y el tablero ofrece **cada uno de esos meses** con su detalle de provincia, cantón y parroquia. Los nombres y códigos territoriales se depuran al leer las series (sin alterar los totales) y los meses que todavía no se cierran en una fuente no se publican.
 
 El scraping diario de las páginas SGDE incorpora contratos por provincia y cantón y actualiza el stock del tablero. Las fuentes no publican parroquias.
@@ -147,7 +149,7 @@ Si cambia la división político-administrativa de las bases (por ejemplo, un ca
 - **Presupuesto acumulado.** Suma el presupuesto de 2023 a 2025 y el del año del corte; existe por provincia, no por cantón ni parroquia.
 - **Parroquias.** Las parroquias urbanas que la cartografía 2015 dibuja dentro de su cabecera cantonal se muestran con su nombre en tablas y rankings, y en el mapa dentro de esa cabecera. La zona en estudio (código 90) se incluye en los totales, no entre provincias, cantones o parroquias.
 - **Gestión laboral.** El país registra 2.789.748 contratos vigentes en 325.877 empresas al 23 de octubre de 2026. Los contratos registrados cada mes son los que siguen vigentes a la fecha de consulta, no el total de contratos firmados en ese mes. La fuente SGDE informa 4.686 expedientes y USD 229.841.799,89 de compensación jubilar al 18 de septiembre de 2026. Cada fuente conserva su fecha de corte.
-- **Presupuesto institucional y social.** Son universos distintos: el institucional es el presupuesto del Ministerio por programa y zona; el social es el aprobado de bonos, pensiones, contingencias, compensaciones y Jóvenes en Acción. No se suman entre sí ni con los presupuestos territoriales.
+- **Presupuesto fiscal, social y de gobierno.** Fiscal reproduce SGDE por programa, tipo, grupo y fuente; su publicación no desagrega por zona ni unidad ejecutora. Social presenta la ejecución enero–septiembre MDH–MTDH. Gobierno reproduce el acumulado provincial VIS–VIE, incluido su componente 2026. Los universos no se suman. En transferencias y servicios, el codificado se identifica como VIS–VIE para conservar el campo y alcance de su fuente.
 
 El boletín original se conserva en `docs/reference/` como referencia de conciliación y marca, y su logo institucional se utiliza sin recrearlo. La propuesta visual toma sus colores y marca; no sustituye la aprobación de Comunicación.
 

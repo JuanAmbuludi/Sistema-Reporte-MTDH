@@ -628,6 +628,8 @@ def social_budget_context(view, *, title: str) -> dict:
         "matrix": {"months": matrix_months, "rows": matrix_rows}, "span": view.span, "insights": insights,
         "definitions": [
             ("Presupuesto aprobado", "Asignación aprobada del año para cada programa del presupuesto social (grupos de gasto 58, 57 y 78)."),
+            ("Perímetro institucional", "La fuente integra ejecución MDH de enero a julio de 2026 y MTDH desde agosto. Es distinta de la publicación fiscal SGDE."),
+            ("Mecanismos de compensación", "La fuente indica que transporte, migrantes retornados y compensación diésel no son administrados por el MTDH."),
             ("Presupuesto devengado del mes", "Obligaciones de pago reconocidas en el mes."),
             ("Devengado acumulado", "Presupuesto devengado de enero al mes de la consulta."),
             ("Ejecución presupuestaria", "Devengado acumulado sobre presupuesto aprobado, en porcentaje."),
