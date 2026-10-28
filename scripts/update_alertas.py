@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import difflib
 import hashlib
 import json
+import numbers
 from pathlib import Path
 import re
 import sys
@@ -31,7 +33,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src import depuracion, enos  # noqa: E402
+from src import depuracion, enos, names  # noqa: E402
 
 EMERGENCY = "Emergencia"
 MATRIX_TYPE = "Prestación de servicios"
@@ -52,6 +54,11 @@ SERVICES = {"desarrollo infantil integral": "Desarrollo Infantil", "desarrollo i
             "todos los servicios": "Todos los servicios", "bonos y pensiones": "Bonos y pensiones",
             "vulneracion de derechos": "Vulneración de derechos", "proteccion especial": "Protección Especial"}
 WITHOUT_SERVICE = "Sin servicio identificado"
+ALL_CANTONS = "Todos los cantones"
+# An alert of the application and a row of the matrix describe the same case when they share province, canton and day
+# (±1) and their texts coincide at least this much; both records are kept and linked (reportes_relacionados).
+SAME_CASE = 0.5
+STOP = set("de la el los las en y a por que se del con para al un una su sus es lo como no ha han fue mas o".split())
 # The matrix states whether the alert affects the service; its free narrative is not copied.
 AFFECTS = {True: "Afecta la prestación del servicio", False: "No afecta la prestación del servicio"}
 
@@ -87,13 +94,18 @@ def _place(province, canton) -> tuple[str, str]:
     if not name:
         name = ("Varias provincias" if len(parts) > 1 and all(parts) else
                 "Nacional" if "nacional" in _plain(province) or not province else province.title())
-    found = GAZ.canton(code, canton) if code and canton else None
+    # «Todos los cantones» or «Todos los de la jurisdicción del distrito …»: the alert is not assigned to one canton.
+    if not canton or _plain(canton).startswith(("todos", "todas")):
+        return name, ALL_CANTONS
+    # Several cantons in one cell («Ambato, Pelileo, Píllaro»): all of them, never only the first.
+    pieces = [piece for piece in re.split(r",|\s+y\s+", canton) if piece.strip()]
+    several = [GAZ.canton(code, piece) for piece in pieces] if code and len(pieces) > 1 else []
+    if several and all(several):
+        return name, ", ".join(names.place(GAZ.canton_name.get(found) or piece) for found, piece in zip(several, pieces))
+    found = GAZ.canton(code, canton) if code else None
     if found:
-        named = GAZ.canton_name.get(found) if isinstance(GAZ.canton_name, dict) else GAZ.canton_name(found)
-        canton = named or canton
-    if _plain(canton).startswith("todos") or not canton:
-        canton = "Todos los cantones"
-    return name, canton if canton.isupper() is False else canton.title()
+        canton = GAZ.canton_name.get(found) or canton
+    return name, names.place(canton)
 
 
 def _date(value, month, year: int) -> tuple[pd.Timestamp, str | None]:
@@ -120,10 +132,25 @@ def _date(value, month, year: int) -> tuple[pd.Timestamp, str | None]:
 
 
 def _people(value) -> int | None:
-    if isinstance(value, (int, float)) and not pd.isna(value):
-        return int(value)
-    found = re.search(r"\d[\d.]*", _text(value))
-    return int(found[0].replace(".", "")) if found else None
+    """People affected only when the source gives a number: a text with units («15 familias (70 personas)») or a decimal
+    («68.756») is not turned into a figure."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, numbers.Number):
+        return None if pd.isna(value) or not float(value).is_integer() else int(value)
+    text = _text(value)
+    return int(text.replace(".", "")) if re.fullmatch(r"\d{1,3}(\.\d{3})+|\d+", text) else None
+
+
+def _words(value) -> set[str]:
+    return {w for w in re.sub(r"[^a-z0-9 ]", " ", _plain(value)).split() if len(w) > 2 and w not in STOP}
+
+
+def _alike(first, second) -> float:
+    """How much two narratives coincide (used in memory only; narratives are not copied)."""
+    a, b = _words(first), _words(second)
+    shared = len(a & b) / max(1, len(a | b))
+    return max(shared, difflib.SequenceMatcher(None, _plain(first)[:600], _plain(second)[:600]).ratio())
 
 
 def _affects(value) -> bool | None:
@@ -155,10 +182,11 @@ def _record(code, moment, approximate, province, canton, **fields) -> dict:
             "fecha_texto": approximate or f"{moment:%Y-%m-%d}", "mes_reporte": f"{moment:%Y-%m}"}
 
 
-def system_rows(path: Path, sheet: str, source: str) -> list[dict]:
+def system_rows(path: Path, sheet: str, source: str, texts: dict) -> list[dict]:
     frame = pd.read_excel(path, sheet_name=sheet)
     rows = []
     for row in frame.to_dict("records"):
+        texts[_text(row["Código"])] = _text(row.get("Detalle"))
         moment, approximate = _date(row["Fecha"], None, int(str(row["Código"])[4:8]))
         unit = _text(row.get("Unidad de atención"))
         unit = "" if _plain(unit) in NO_UNIT else unit
@@ -172,8 +200,9 @@ def system_rows(path: Path, sheet: str, source: str) -> list[dict]:
     return rows
 
 
-def matrix_rows(path: Path, sheet: str, source: str, year: int) -> tuple[list[dict], int]:
-    """Rows of the Excel matrix; a repeated alert (same place, date, service and summary) keeps its latest state."""
+def matrix_rows(path: Path, sheet: str, source: str, year: int, texts: dict) -> tuple[list[dict], int]:
+    """Rows of the Excel matrix, one alert each. Only a row equal to an earlier one in every column but its number and
+    state (or the follow-up notes) is the same alert again: it changes that alert's state instead of adding another."""
     frame = pd.read_excel(path, sheet_name=sheet)
     columns = {_plain(c): c for c in frame.columns}
 
@@ -182,15 +211,15 @@ def matrix_rows(path: Path, sheet: str, source: str, year: int) -> tuple[list[di
 
     number, zone = column("no."), columns.get("zona")
     state, affects, people = column("solventado"), column("se afecta"), column("nro. aproximado")
-    summary = column("alerta detectada")
+    summary, detail = column("alerta detectada"), column("detalles")
+    skip = {number, state} | {c for key, c in columns.items() if key.startswith(("observaciones", "actualizacion"))}
     keys = frame[zone].astype(str).str.strip() + "-" + frame[number].astype(str) if zone else frame[number].astype(str)
     by_number = not keys.duplicated().any()
     found, repeated = {}, 0
     for index, row in enumerate(frame.to_dict("records")):
         moment, approximate = _date(row[column("fecha del suceso")], row.get(column("mes")), year)
         service = _service(row.get(column("servicio")))
-        key = (_plain(row[column("provincia")]), _plain(row[column("canton")]), _plain(row.get(column("parroquia"))),
-               f"{moment:%Y-%m-%d}", _plain(service), _plain(row.get(summary)))
+        key = tuple(_plain(row.get(c)) for c in frame.columns if c not in skip)
         if zone:
             identifier = f"{_text(row[zone]).upper().replace(' ', '')}-{int(row[number]):03d}" if by_number else f"{index + 1:04d}"
         else:
@@ -203,11 +232,39 @@ def matrix_rows(path: Path, sheet: str, source: str, year: int) -> tuple[list[di
                          tipo_alerta=EMERGENCY if _plain(service) == "emergencia" else MATRIX_TYPE)
         if key in found:
             repeated += 1
-            found[key].update(estado=record["estado"], afectacion_servicio_confirmada=record["afectacion_servicio_confirmada"],
-                              afectacion_servicio=record["afectacion_servicio"])
+            found[key].update(estado=record["estado"])
         else:
             found[key] = record
+            texts[record["codigo"]] = f"{_text(row.get(summary))} {_text(row.get(detail))}"
     return list(found.values()), repeated
+
+
+def link_registers(current: dict, texts: dict) -> list[list[str]]:
+    """Pairs of an application alert and a matrix row that describe the same case (same province, canton and day ±1, and
+    texts that coincide): both records stay, each one naming the other in ``reportes_relacionados``."""
+    system = [r for r in current.values() if r.get("origen") == "aplicativo" and r["codigo"] in texts]
+    matrix = [r for r in current.values() if r.get("origen") == "matriz_alertas" and r["codigo"] in texts]
+    scored = []
+    for a in system:
+        for b in matrix:
+            if (a["provincia"], a["canton"]) != (b["provincia"], b["canton"]) or a["canton"] == ALL_CANTONS:
+                continue
+            if abs((pd.Timestamp(a["fecha"]) - pd.Timestamp(b["fecha"])).days) > 1:
+                continue
+            score = _alike(texts[a["codigo"]], texts[b["codigo"]])
+            if score >= SAME_CASE:
+                scored.append((score, a["codigo"], b["codigo"]))
+    used, links = set(), []
+    for _score, first, second in sorted(scored, reverse=True):
+        if first in used or second in used:
+            continue
+        used |= {first, second}
+        links.append([first, second])
+        for code, other in ((first, second), (second, first)):
+            related = current[code].setdefault("reportes_relacionados", [])
+            if other not in related:
+                related.append(other)
+    return sorted(links)
 
 
 def main() -> None:
@@ -225,7 +282,7 @@ def main() -> None:
     for row in current.values():
         row.setdefault("tipo_alerta", EMERGENCY)
     counts = {"actualizadas": 0, "cambios_estado": 0, "nuevas_aplicativo": 0, "nuevas_matriz": 0, "filas_repetidas_matriz": 0}
-    sources = []
+    sources, texts = [], {}
     for position, path in enumerate(args.bases):
         name = args.nombre[position] if position < len(args.nombre) else path.name
         book = pd.ExcelFile(path)
@@ -233,10 +290,10 @@ def main() -> None:
         for sheet in book.sheet_names:
             plain = _plain(sheet)
             if plain.startswith("alertas sistema"):
-                rows += system_rows(path, sheet, name)
+                rows += system_rows(path, sheet, name, texts)
             elif plain.startswith("detalle de alertas") or plain == "alertas":
                 year = int(re.search(r"20\d\d", name)[0]) if re.search(r"20\d\d", name) else int(args.dia[:4])
-                found, repeated = matrix_rows(path, sheet, name, year)
+                found, repeated = matrix_rows(path, sheet, name, year, texts)
                 rows += found
                 counts["filas_repetidas_matriz"] += repeated
         for row in rows:
@@ -251,6 +308,7 @@ def main() -> None:
             current[row["codigo"]] = row
             counts["nuevas_aplicativo" if row["origen"] == "aplicativo" else "nuevas_matriz"] += 1
         sources.append({"nombre": name, "sha256": _sha(path), "registros": len(rows)})
+    links = link_registers(current, texts)
     alerts = sorted(current.values(), key=lambda r: (r["fecha"], r["codigo"]))
     data["alertas"] = alerts
     data.setdefault("cortes", {})["alertas"] = args.dia
@@ -263,11 +321,12 @@ def main() -> None:
         "consultar solo las de emergencia. Cada código se cuenta una vez con su estado más reciente; no equivale a eventos "
         "ni unidades únicas.")
     data["control"].update({"alertas_total": len(alerts), "alertas_actualizacion_bases": counts,
+                            "alertas_vinculadas_aplicativo_matriz": links,
                             "alertas_tipos": dict(pd.Series([r["tipo_alerta"] for r in alerts]).value_counts())})
     data["control"]["alertas_tipos"] = {k: int(v) for k, v in data["control"]["alertas_tipos"].items()}
     data["generado_utc"] = datetime.now(timezone.utc).isoformat()
     target.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"publicacion": target.name, "alertas": len(alerts), **counts,
+    print(json.dumps({"publicacion": target.name, "alertas": len(alerts), **counts, "vinculadas": links,
                       "tipos": data["control"]["alertas_tipos"]}, ensure_ascii=False, indent=1))
 
 
