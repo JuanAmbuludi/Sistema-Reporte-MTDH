@@ -251,14 +251,16 @@ def test_executive_summary_of_every_section_fits_three_pages():
     assert 1 < len(pdf) <= 3, "Tres páginas como máximo"
     text = " ".join(page.get_text() for page in pdf)
     for section in ["Transferencias monetarias no contributivas", "Servicios de protección social", "Plan ENOS", "Contingencias y compensaciones",
-                    "Jóvenes en Acción", "Gestión laboral", "Presupuesto institucional", "Presupuesto social"]:
+                    "Jóvenes en Acción", "Gestión laboral", "Presupuesto fiscal", "Presupuesto social",
+                    "Presupuesto acumulado de gobierno"]:
         assert section in text, section
     assert "1.578.019" in text and "13.390" in text and _labour_figures()[0] in text
     # One block for Riesgos (the response of the Ministry; the exposure stays internal) and a chart of its own in every section.
     assert text.count("Riesgos: respuesta del Ministerio") == 1 and "UA expuestas" not in text
     for chart in ["Beneficiarios por provincia", "Usuarios por servicio", "Alertas por provincia",
                   "Monto entregado por mes", "Jóvenes con pago acreditado por mes", "Contratos vigentes por rama de actividad",
-                  "Ejecución presupuestaria por zona", "Ejecución acumulada frente al ritmo uniforme"]:
+                  "Ejecución presupuestaria por programa", "Ejecución acumulada frente al ritmo uniforme",
+                  "Acumulado de gobierno por programa"]:
         assert chart in text, chart
 
 

@@ -22,9 +22,9 @@ from .areas import kpis_from_cards
 from .context import INSTITUTION, PRODUCT, stamp
 
 LOG = logging.getLogger(__name__)
-SHORT = {"transferencias": "Transferencias", "servicios": "Servicios", "riesgos": "ENOS", "contingencias": "Contingencias",
-         "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto institucional",
-         "presupuesto_social": "Presupuesto social"}
+SHORT = {"transferencias": "Transferencias", "servicios": "Servicios sociales", "riesgos": "ENOS", "contingencias": "Contingencias",
+         "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto fiscal",
+         "presupuesto_social": "Presupuesto social", "presupuesto_gobierno": "Presupuesto de gobierno"}
 SECTIONS = [
     ("transferencias", "Transferencias monetarias no contributivas", "hand-coins"),
     ("servicios", "Servicios de protección social", "users"),
@@ -32,8 +32,9 @@ SECTIONS = [
     ("contingencias", "Contingencias y compensaciones", "shield"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
     ("laboral", "Gestión laboral", "briefcase"),
-    ("presupuesto", "Presupuesto institucional", "landmark"),
+    ("presupuesto", "Presupuesto fiscal", "landmark"),
     ("presupuesto_social", "Presupuesto social", "wallet"),
+    ("presupuesto_gobierno", "Presupuesto acumulado de gobierno", "landmark"),
 ]
 MAX_PAGES = 3
 
@@ -60,6 +61,8 @@ def section_views(bases: dict) -> dict:
                                  if "codificado" in bases["budget"] else BudgetView(bases["budget"], bases["budget_manifest"]))
     if not bases["social_groups"].empty:
         views["presupuesto_social"] = SocialBudgetView(bases["social_groups"], bases["social_programs"])
+    if bases.get("government_budget") is not None and not bases["government_budget"].empty:
+        views["presupuesto_gobierno"] = FinanceView(bases["government_budget"], government=True)
     return views
 
 
@@ -105,13 +108,20 @@ def _visual(key: str, ctx: dict) -> dict | None:
                           "text": f"{_number(r['contracts'])} · {_number(r['share'], 1)} %"} for r in rows]}
     if key == "presupuesto":
         if ctx.get("kind") == "presupuesto_conciliado":
+            from src.views.finanzas import short
             return {"kind": "rates", "title": "Ejecución presupuestaria por programa", "note": "Devengado sobre codificado · SGDE",
-                    "rows": [{"name": r["name"], "fraction": (r.get("ejecucion") or 0)/100,
+                    "rows": [{"name": short(r["name"]), "fraction": (r.get("ejecucion") or 0)/100,
                               "text": f"{_number(r.get('ejecucion'), 1)} %"} for r in ctx["tables"][0]["rows"]]}
         zones = ctx["zones"]
         return {"kind": "rates", "title": "Ejecución presupuestaria por zona", "note": "Devengado sobre codificado",
                 "rows": [{"name": z["short"], "fraction": (z.get("execution") or 0) / 100, "text": f"{_number(z['execution'], 1)} %"}
                          for z in zones]}
+    if key == "presupuesto_gobierno":
+        rows = sorted(ctx["tables"][0]["rows"], key=lambda r: -(r.get("acumulado") or 0))[:6]
+        peak = max([r.get("acumulado") or 0 for r in rows] or [1]) or 1
+        return {"kind": "bars", "title": "Acumulado de gobierno por programa", "note": "Seis principales · millones de USD",
+                "rows": [{"name": r["name"], "fraction": (r.get("acumulado") or 0) / peak,
+                          "text": f"USD {_number((r.get('acumulado') or 0) / 1e6, 1)} M"} for r in rows]}
     if key == "presupuesto_social":
         months = ctx["months"]
         return {"kind": "execution", "title": "Ejecución acumulada frente al ritmo uniforme", "labels": [m["short"] for m in months],
