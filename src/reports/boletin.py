@@ -380,19 +380,22 @@ def generate(ctx: dict) -> bytes:
 
     # 3 · El Niño ------------------------------------------------------------------------------------------------------
     enos = x_.get("enos")
-    y = turn("Fenómeno El Niño: respuesta del Ministerio", f"Plan ENOS · seguimiento desde el 28 de septiembre de 2026 · corte {enos['cut'] if enos else ''}")
+    y = turn("Fenómeno El Niño: respuesta del Ministerio", f"Plan ENOS · {enos['period'] if enos else f['span']}")
     if enos:
-        y = panel(c, M, y, full, [(number(enos["units"]), "Unidades de atención con alertas", f"{number(enos['alerts'])} alertas y reportes"),
+        y = panel(c, M, y, full, [(number(enos["units"]), "UA identificadas con código", f"{number(enos['alerts'])} alertas y reportes"),
                                   (number(enos["kits"]), "Kits entregados", f"{enos['kit_provinces']} provincias priorizadas"),
-                                  (number(enos["families"]), "Familias con bono de contingencia", "Habilitadas al pago"),
-                                  (f"USD {number(enos['amount'], 0)}", "Monto del bono de contingencia", "En articulación"),
-                                  (number(enos["closed"]), "Unidades de atención", "con atención suspendida")]) - 24
+                                  (number(enos["families"]), "Familias con bono de contingencia", "Acumulado confirmado"),
+                                  (f"USD {number(enos['amount'], 2)}", "Monto del bono de contingencia", "En articulación"),
+                                  (_fmt(enos["closed"]), "UA con atención suspendida",
+                                   "Sin observación disponible" if enos["closed"] is None else "Último estado al cierre")]) - 16
+        title(c, "", M, y, full, f"Bono de contingencia · {enos['bonus_scope']}")
+        y -= 30
         title(c, "Kits entregados por provincia", M, y, half, "Más oscuro, más kits")
         picture = map_png(enos["kits_map"], layer="provincia", mode="light", legend=False, marks=False, width=half / 72, height=230 / 72, dpi=200)
         _picture(c, picture, M, y - 16, half, 230 / half)
         title(c, "Provincias con más kits", M + half + 24, y, half, "Kits entregados")
         bottom = lollipop(c, M + half + 24, y - 30, half, enos["kits_rank"], step=17)
-        title(c, "Bono de contingencia por provincia", M + half + 24, bottom - 14, half, "Familias habilitadas al pago")
+        title(c, "Bono de contingencia por provincia", M + half + 24, bottom - 14, half, "Familias · acumulado confirmado")
         lollipop(c, M + half + 24, bottom - 44, half, enos["bono_rank"], step=17, color=theme.VIOLETA_500)
         y -= 270
         y = _findings(c, enos["findings"], M, y, full, limit=3) - 18

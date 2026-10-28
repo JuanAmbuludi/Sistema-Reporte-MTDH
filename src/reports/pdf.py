@@ -367,6 +367,8 @@ def _cell(value, kind: str) -> str:
         return "—"
     if kind == "int":
         return number(value)
+    if kind == "usd":
+        return number(value, 2)
     if kind in ("pct", "share", "rate"):
         return f"{number(value, 1)} %"
     if kind == "spct":
@@ -381,7 +383,7 @@ def _table(c, x: float, top: float, width: float, columns: list[tuple], rows: li
            header_h: float = 22) -> float:
     """Ranked table: ``columns`` are (header, key, width, kind) with one ``None`` width that takes the rest.
 
-    Kinds: ``text``, ``center``, ``int``, ``pct``, ``mill``, ``share`` (a percentage over a thin bar relative to the
+    Kinds: ``text``, ``center``, ``int``, ``usd`` (two decimal places), ``pct``, ``mill``, ``share`` (a percentage over a thin bar relative to the
     largest) and ``rate`` (a percentage over a 0–100 track).  ``selected`` rows read in gold.
     """
     fixed = sum(w for _h, _k, w, _kind in columns if w)

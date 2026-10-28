@@ -109,6 +109,16 @@ El script copia la última publicación de cada fuente a los archivos del nuevo 
 
 ## Estabilidad de la aplicación
 
+### Coherencia de los informes institucionales
+
+Los informes **Enero a la fecha** y **Periodo de gobierno** consultan ENOS por las fechas de su portada, desde el primer día del mes inicial hasta el último día del mes final. No heredan el inicio de un boletín publicado ni incorporan entregas posteriores al cierre. El resumen de **Último corte de cada sección** conserva su alcance propio: utiliza todo el historial operativo disponible y muestra sus fechas efectivas.
+
+La revisión del 28/10/2026 concilió las 117 entregas del archivo original de Kobo con la base: 14.581 kits en total, sin diferencias de IDs, fechas, kits o familias. Agosto aporta 403 kits, septiembre 3.888 y octubre 10.290. Por ello, el informe enero–septiembre presenta **4.291 kits en 11 provincias**, mientras el historial hasta el 27/10 conserva **14.581 en 22**. Los 11.207 kits del boletín 28/09–27/10 permanecen exclusivamente en su publicación histórica. La tabla institucional incluye todas las provincias y un total para conciliarla con las cifras clave y el mapa.
+
+El bono confirmado de **1.171 familias / USD 354.987,39** se mantiene y muestra su corte del **27/10/2026** como referencia fuera de enero–septiembre. Los **113 núcleos familiares / USD 33.200,80** son pagos gestionados; no se presentan como personas pagadas ni se incorporan a un período sin desglose confirmado. La falta de un corte territorial aplicable se expresa como falta de observación, no como cero unidades suspendidas. Para enero–septiembre se aclara que la base de alertas disponible inicia el 05/10.
+
+También se corrigió el mapa institucional de brigadas para representar personas atendidas, igual que su título y sus barras. Las **901 brigadas / 331.445 atenciones** de enero–septiembre concilian con la matriz original. Jóvenes en Acción conserva sus **126.855 transferencias / USD 50.754.800**; el informe identifica las fases incluidas y no aplica una tarifa universal de USD 400 a las acreditaciones de fases distintas.
+
 Se eliminó la invalidación manual de `sys.modules` al arrancar cada sesión: podía borrar un módulo mientras otra sesión lo importaba y causar el KeyError observado. La recarga de código queda a cargo de Streamlit.
 
 ### Visibilidad y unidades de medida

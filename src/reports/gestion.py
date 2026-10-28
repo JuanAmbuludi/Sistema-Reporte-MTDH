@@ -123,58 +123,65 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
 
     # ------------------------------------------------------------------------------ El Niño (ENOS)
     try:
-        from src.views.riesgos import RiskView
-        risk = RiskView()
-        risk.select(risk.catalog()[0])
-        if risk.prepare():
+        from .enos_scope import response_view, bonus_scope
+        risk = response_view(start, end)
+        if risk is not None:
             r = risk.response
             kits = (r.kits.groupby(["provincia_codigo", "provincia"], as_index=False).agg(kits=("kits", "sum"), familias=("familias", "sum"))
                     .sort_values("kits", ascending=False))
             bono = r.articulation.groupby("provincia", as_index=False).agg(bono_familias=("personas", "sum"), bono_monto=("monto", "sum"))
             table = kits.merge(bono, on="provincia", how="outer").fillna({"kits": 0, "familias": 0, "bono_familias": 0, "bono_monto": 0})
             table = table.sort_values(["kits", "bono_familias"], ascending=False).reset_index(drop=True)
-            # The ten provinces with most kits and every province with the bonus (none is left out of the table).
-            table = table.loc[(table.index < 10) | table.bono_familias.gt(0)]
             for column in ("bono_familias", "bono_monto"):
                 table[column] = table[column].where(table[column] > 0)
+            province_rows = table.to_dict("records")
+            province_rows.append({"provincia": "Total nacional", "kits": float(table.kits.sum()),
+                                  "familias": float(table.familias.sum()), "bono_familias": float(table.bono_familias.sum()),
+                                  "bono_monto": float(table.bono_monto.sum()), "selected": True})
             units = int(r.alerts.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
-            delivered = (r.data.get("bonos") or {}).get("gestionados", [])
-            delivered_people = sum(int(x.get("personas") or 0) for x in delivered)
-            delivered_amount = sum(float(x.get("monto") or 0) for x in delivered)
+            delivered = r.managed
+            delivered_people = int(delivered.personas.sum())
+            delivered_amount = float(delivered.monto.sum())
             total_kits = float(r.kits_total)
             kit_provinces = int(kits.provincia_codigo.nunique())
+            kit_scope = (f"{kit_provinces} provincias · registros desde {pd.Timestamp(r.kits.fecha.min()):%d/%m/%Y}"
+                         if not r.kits.empty else "Sin entregas registradas en el período")
             visual = {"kind": "map_bars", "title": "Kits entregados por provincia", "note": "Cinco principales · % del total",
                       "map": {c: float(v) for c, v in zip(kits.provincia_codigo, kits.kits)},
                       "rows": [{"name": n, "value": v, "text": f"{number(v)} · {number(v / total_kits * 100, 1)} %"}
                                for n, v in zip(kits.provincia.head(5), kits.kits.head(5))]}
-            kpis = [_kpi("Kits entregados", total_kits, note=f"{kit_provinces} provincias priorizadas"),
-                    _kpi("Familias · bono de contingencia", float(r.articulation.personas.sum()), note="Habilitadas al pago"),
-                    _kpi("Monto · bono de contingencia", float(r.articulation.monto.sum()), "money", note=f"Corte {r.cut_text('bonos')}", decimals=2),
-                    _kpi("Unidades de atención con alertas", units, note=f"{number(len(r.alerts))} alertas y reportes")]
-            findings = [{"icon": "shield", "text": f"{number(r.closed_units or 0)} unidades de atención registran atención suspendida "
-                                                   f"({r.suspension_short()})."},
-                        {"icon": "hand-coins", "text": f"Además, {number(delivered_people)} bonos de contingencia ya fueron entregados por USD "
-                                                       f"{number(delivered_amount, 2)}." if delivered else ""}]
+            kpis = [_kpi("Kits entregados", total_kits, note=kit_scope),
+                    _kpi("Familias · bono de contingencia", float(r.articulation.personas.sum()), note="Habilitadas al pago · acumulado confirmado"),
+                    _kpi("Monto · bono de contingencia", float(r.articulation.monto.sum()), "money", note=bonus_scope(r), decimals=2),
+                    _kpi("UA con alertas registradas", units, note=f"{number(len(r.alerts))} alertas en la base para el período")]
+            continuity_text = (f"{number(r.closed_units)} unidades de atención registran atención suspendida "
+                               f"({r.suspension_short()})." if r.available["continuidad"] else
+                               f"No hay un corte territorial de unidades suspendidas hasta el {r.end:%d/%m/%Y}.")
+            first_alert = r.data.get("cobertura_registros", {}).get("alertas", {}).get("desde")
+            if first_alert and pd.Timestamp(first_alert) > r.end:
+                continuity_text = f"La base de alertas inicia el {pd.Timestamp(first_alert):%d/%m/%Y}, después del período. " + continuity_text
+            findings = [{"icon": "calendar", "text": f"{bonus_scope(r)}. El bono se conserva como referencia y no se contabiliza como pago del período."},
+                        {"icon": "shield", "text": continuity_text}]
             blocks.append(_block("riesgos", "Plan ENOS: respuesta ante el Fenómeno El Niño", "storm",
-                                 f"Desde el 28 de septiembre de 2026 · corte {r.cut_text('alertas')}", kpis, visual,
-                                 {"title": "Kits y bono de contingencia por provincia", "note": "Diez provincias con más kits y todas las del bono",
+                                 r.scope_text(), kpis, visual,
+                                 {"title": "Kits y bono de contingencia por provincia", "note": "Kits del período · familias reportadas por entrega · bono de referencia",
                                   "columns": [("Provincia", "provincia", None, "text"), ("Kits entregados", "kits", 78, "int"),
                                               ("Familias con kit", "familias", 78, "int"), ("Familias con bono", "bono_familias", 84, "int"),
-                                              ("Monto del bono (USD)", "bono_monto", 96, "int")],
-                                  "rows": table.to_dict("records")}, findings))
+                                              ("Monto del bono (USD)", "bono_monto", 96, "usd")],
+                                  "rows": province_rows}, findings))
             deliveries += [{"what": "Kits humanitarios · Fenómeno El Niño", "detail": "kits entregados a familias afectadas",
                             "amount_people": total_kits, "money": None, "icon": "life-buoy", "context": f"{kit_provinces} provincias priorizadas"},
-                           {"what": "Bono de contingencia · Fenómeno El Niño", "detail": "familias habilitadas al pago",
+                           {"what": "Bono de contingencia · referencia", "detail": "familias habilitadas al pago",
                             "amount_people": float(r.articulation.personas.sum()), "money": float(r.articulation.monto.sum()),
-                            "money_word": "en articulación", "icon": "hand-coins", "context": "Inundaciones"}]
-            if delivered:
-                deliveries.append({"what": "Bonos de contingencia pagados", "detail": "personas con el bono pagado",
-                                   "amount_people": float(delivered_people), "money": delivered_amount, "money_word": "pagados",
-                                   "icon": "banknote", "context": "Eventos de inundación"})
+                            "money_word": "en articulación", "icon": "hand-coins", "context": f"Acumulado al {r.cut_text('bonos')}"}]
+            if not delivered.empty:
+                deliveries.append({"what": "Bono de contingencia · pago gestionado", "detail": "núcleos familiares con pago gestionado",
+                                   "amount_people": float(delivered_people), "money": delivered_amount, "money_word": "gestionados",
+                                   "icon": "banknote", "context": f"Corte {r.cut_text('bonos_gestionados')}"})
             cover.append(_kpi("Kits entregados · Plan ENOS", total_kits, note=f"{kit_provinces} provincias", icon="life-buoy"))
             highlights.append({"icon": "life-buoy", "text": f"Ante el Fenómeno El Niño se entregaron {number(total_kits)} kits en {kit_provinces} "
-                                                            f"provincias y {number(r.articulation.personas.sum())} familias están habilitadas al "
-                                                            f"pago del bono de contingencia."})
+                                                            f"provincias durante el período. El bono de referencia mantiene "
+                                                            f"{number(r.articulation.personas.sum())} familias al {r.cut_text('bonos')}."})
     except Exception:  # noqa: BLE001 - one section without its data never stops the report
         LOG.exception("Plan ENOS sin datos para el informe de gestión")
 
@@ -212,11 +219,14 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
         from src import jovenes
         payments = _within(jovenes.payments(), start, end)
         if not payments.empty:
+            phases = sorted(int(phase) for phase in payments.fase.unique())
+            phase_note = ("Fase " + str(phases[0]) if len(phases) == 1 else
+                          "Fases " + ", ".join(map(str, phases[:-1])) + " y " + str(phases[-1]))
             key = payments.periodo_id.str[:4] if yearly else payments.periodo_id
             months = payments.groupby(key).agg(transferencias=("transferencias", "sum"), personas=("personas", "sum"))
             last_month = payments.periodo_id.max()
             kpis = [_kpi("Transferencias acreditadas", float(payments.transferencias.sum()), note=f"{len(months)} {'años' if yearly else 'meses'} con pago"),
-                    _kpi("Monto acreditado", float(payments.monto.sum()), "money", note="USD 400 por joven habilitado"),
+                    _kpi("Monto acreditado", float(payments.monto.sum()), "money", note=f"{phase_note} · acreditaciones disponibles"),
                     _kpi(f"Jóvenes con pago en {MONTHS[int(last_month[5:]) - 1]}", float(payments.loc[payments.periodo_id.eq(last_month), "personas"].sum()),
                          note=_month(last_month).capitalize())]
             visual = {"kind": "columns", "title": "Transferencias acreditadas por " + ("año" if yearly else "mes"), "note": "Meses con pago",
@@ -227,7 +237,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                                                  f"{_money_m(payments.monto.sum())} millones a jóvenes del programa."}]))
             deliveries.append({"what": "Jóvenes en Acción", "detail": "transferencias acreditadas a jóvenes",
                                "amount_people": float(payments.transferencias.sum()), "money": float(payments.monto.sum()),
-                               "money_word": "acreditados", "icon": "graduation", "context": "USD 400 por joven habilitado"})
+                               "money_word": "acreditados", "icon": "graduation", "context": phase_note})
             cover.append(_kpi("Transferencias · Jóvenes en Acción", float(payments.transferencias.sum()), note=f"USD {_money_m(payments.monto.sum())} M",
                               icon="graduation"))
     except Exception:  # noqa: BLE001
@@ -275,7 +285,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                     _kpi("Población alcanzada", reached, note="Personas convocadas"),
                     _kpi("Personas por brigada", attended / len(brig), note="Promedio del periodo", decimals=0)]
             visual = {"kind": "map_bars", "title": "Personas atendidas por provincia", "note": "Cinco principales · % del total",
-                      "map": {c: float(v) for c, v in zip(provinces.provincia_codigo, provinces.brigadas) if c},
+                      "map": {c: float(v) for c, v in zip(provinces.provincia_codigo, provinces.atendida) if c},
                       "rows": [{"name": r.provincia, "value": r.atendida, "text": f"{number(r.atendida)} · {number(r.atendida / attended * 100, 1)} %"}
                                for r in provinces.head(5).itertuples()]}
             blocks.append(_block("brigadas", "Brigadas sociales por el Nuevo Ecuador", "users", span, kpis, visual, None,
@@ -311,7 +321,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
         budget["update"] = {"label": f"Año fiscal {end[:4]} · corte {_month(end)}"}
         blocks.append(budget)
     accrued_total = sum(d["money"] or 0 for d in deliveries[:2])
-    priority = ["Transferencias", "Servicios", "Kits", "Bono de contingencia", "Brigadas", "Bonos de contingencia pagados",
+    priority = ["Transferencias", "Servicios", "Kits", "Bono de contingencia", "Brigadas",
                 "Crédito", "Jóvenes", "Contingencias", "Compensaciones"]
     deliveries.sort(key=lambda d: next((i for i, word in enumerate(priority) if d["what"].startswith(word)), len(priority)))
     cover.insert(2, _kpi(f"Presupuesto devengado {end[:4]}", accrued_total, "money", note="Transferencias y servicios", icon="banknote"))
@@ -326,7 +336,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     return {"kind": "gestion", "title": (title or label)[:100], "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",
             "generated_at": generated_at, "generated_label": generated_label, "period_label": span, "territory_label": "Nacional",
             "programs_label": f"{len(blocks)} secciones del Ministerio", "module_label": label, "share_word": "",
-            "update": {"line": f"Información de {span.lower()}"},
+            "update": {"line": f"Información de {span.lower()} · referencias con corte propio"},
             "kpis": cover[:8], "deliveries": deliveries, "blocks": blocks, "highlights": highlights, "mode": mode}
 
 
@@ -382,10 +392,13 @@ def _deliveries(c, items: list[dict], x: float, top: float, width: float, height
             used = c.stringWidth(line + ("   " if line else ""), "Text-Semi", 7.6)
             c.setFillColor(C("#6E6880"))
             size = 7
-            while size > 5.6 and c.stringWidth(context, "Text", size) > room - used:
+            separate = c.stringWidth(context, "Text", size) > room - used
+            if separate:
+                used = 0
+            while size > 6 and c.stringWidth(context, "Text", size) > room - used:
                 size -= 0.2
             c.setFont("Text", size)
-            c.drawString(tx + used, by - 76, context)
+            c.drawString(tx + used, by - (88 if separate else 76), context)
     rows = (len(items) + columns - 1) // columns
     return top - rows * (height + gap)
 

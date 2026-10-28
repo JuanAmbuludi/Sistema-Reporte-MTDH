@@ -14,9 +14,10 @@ import pandas as pd
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas as pdf_canvas
 
-from src import theme
+from src import enos, theme
 from src.data import MONTHS
 from .context import INSTITUTION, PRODUCT, millions, number, stamp
+from .enos_scope import bonus_scope, response_view
 
 LOG = logging.getLogger(__name__)
 GOVERNMENT_START = "2023-11"
@@ -35,6 +36,13 @@ def _short(period_id: str, year: bool = False) -> str:
 def _within(frame: pd.DataFrame, start: str, end: str, field: str = "periodo_id") -> pd.DataFrame:
     ids = frame[field].astype(str)
     return frame.loc[ids.str.len().eq(7) & ids.ge(start) & ids.le(end)]
+
+
+def _enos_days(response) -> list[pd.Timestamp]:
+    """Dates actually represented by selected operational records, excluding the bonus balance."""
+    values = [*response.alerts.fecha, *response.kits.fecha,
+              *(row["fecha"] for row in response.brigadas)]
+    return sorted(day for value in values if pd.notna(day := enos.day(value)))
 
 
 def gather(bases: dict, mode: str) -> dict:
@@ -207,7 +215,11 @@ def gather(bases: dict, mode: str) -> dict:
                             "rows": scope.to_dict("records")}
         out["coverage"].append(("Presupuesto acumulado de gobierno", "2023", _month(end), "2023–2025 más el año"))
     out["sections"].append(section)
-    out["coverage"].append(("Plan ENOS", "28 de septiembre de 2026", "Último reporte", "En su propio informe"))
+    risk = response_view(start, end)
+    observed = _enos_days(risk.response) if risk else []
+    out["coverage"].append(("Plan ENOS", f"{observed[0]:%d/%m/%Y}" if observed else "—",
+                            f"{observed[-1]:%d/%m/%Y}" if observed else "—",
+                            "Registros disponibles; bono acumulado aparte" if observed else "Sin registros fechados en la base para el período"))
     return out
 
 
@@ -330,36 +342,44 @@ def extras(bases: dict, figures: dict) -> dict:
         out["series"][key] = ([p if len(p) == 4 else _short(p, yearly) for p in keep], [float(points[p]) for p in keep])
     monthly_ids = sorted(p for p in data.periodo_id.astype(str).unique() if len(p) == 7)
     out["timeline"].append(("Transferencias y servicios", "2024-01" if yearly else monthly_ids[0], end))
-    # El Niño (Plan ENOS): the latest report of the response.
+    # ENOS operational records use the report's calendar months; the bonus remains a labelled balance.
     try:
-        from src.views.riesgos import RiskView
-        risk = RiskView()
-        risk.select(risk.catalog()[0])
-        if risk.prepare():
+        risk = response_view(start, end)
+        if risk:
             r = risk.response
             kits = r.kits.groupby(["provincia_codigo", "provincia"]).kits.sum().sort_values(ascending=False)
             bono = r.articulation.groupby("provincia").personas.sum().sort_values(ascending=False)
             units = int(r.alerts.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
+            continuity = r.continuity_summary()
+            closed = int(r.closed_units) if continuity["available"] else None
+            closed_note = (r.suspension_short() if continuity["available"] else
+                           f"Sin observación disponible hasta el {r.end:%d/%m/%Y}")
+            bonus_note = bonus_scope(r)
+            observed = _enos_days(r)
+            leaders = " y ".join(str(name) for _code, name in kits.head(2).index)
+            kit_finding = (f"{number(r.kits_total)} kits registrados en {kits.index.get_level_values(0).nunique()} provincias "
+                           f"durante el período; {leaders} reúnen las mayores entregas." if leaders else
+                           "La base disponible no contiene entregas fechadas de kits para el período.")
             out["enos"] = {"units": units, "alerts": int(len(r.alerts)), "kits": int(r.kits_total),
                            "kit_provinces": int(kits.index.get_level_values(0).nunique()), "families": int(r.articulation.personas.sum()),
-                           "amount": float(r.articulation.monto.sum()), "closed": int(r.closed_units or 0), "closed_note": r.suspension_short(),
+                           "amount": float(r.articulation.monto.sum()), "closed": closed, "closed_note": closed_note,
+                           "period": r.scope_text(), "bonus_scope": bonus_note,
                            "kits_map": {code: float(v) for (code, _n), v in kits.items()},
                            "alerts_rank": [(n, float(v)) for n, v in r.alerts.groupby("provincia").size().sort_values(ascending=False).head(6).items()],
-                           "closed_rank": [(part.split(" ", 1)[1].replace("en otros servicios", "Otros servicios"), float(part.split(" ", 1)[0]))
-                                           for part in r.suspension_short().split(" · ") if part.split(" ", 1)[0].isdigit()],
+                           "closed_rank": [(row["name"], float(row["value"])) for row in continuity["by_service"]]
+                                          if continuity["available"] else [],
                            "kits_rank": [(n, float(v)) for (_c, n), v in kits.head(6).items()],
                            "bono_rank": [(n, float(v)) for n, v in bono.head(5).items()],
-                           "cut": r.cut_text("alertas"),
-                           "findings": [{"icon": "life-buoy", "text": f"{number(r.kits_total)} kits llegaron a {kits.index.get_level_values(0).nunique()} "
-                                                                      f"provincias; Guayas y Esmeraldas reciben la mayor parte."},
-                                        {"icon": "shield", "text": f"{number(r.closed_units or 0)} unidades de atención con atención suspendida "
-                                                                   f"({r.suspension_short()})."},
-                                        {"icon": "hand-coins", "text": f"{number(r.articulation.personas.sum())} familias habilitadas al pago del "
-                                                                       f"bono de contingencia, por USD {number(r.articulation.monto.sum(), 2)}."}]}
-            out["timeline"].append(("Plan ENOS (El Niño)", "2026-09", end))
-            out["highlights"].insert(1, {"icon": "life-buoy", "text": f"Fenómeno El Niño: {number(r.kits_total)} kits entregados, "
-                                                                      f"{number(r.articulation.personas.sum())} familias con bono de contingencia "
-                                                                      f"y {units} unidades de atención con alertas."})
+                           "cut": r.cut_text("kits"),
+                           "findings": [{"icon": "life-buoy", "text": kit_finding},
+                                        {"icon": "shield", "text": (f"{number(closed)} unidades de atención con atención suspendida "
+                                                                   f"({closed_note})." if closed is not None else closed_note + ".")},
+                                        {"icon": "hand-coins", "text": f"Bono de contingencia: {number(r.articulation.personas.sum())} familias "
+                                                                       f"y USD {number(r.articulation.monto.sum(), 2)}. {bonus_note}."}]}
+            if observed:
+                out["timeline"].append(("Plan ENOS (registros disponibles)", f"{observed[0]:%Y-%m}", f"{observed[-1]:%Y-%m}"))
+            out["highlights"].insert(1, {"icon": "life-buoy", "text": f"Plan ENOS: {number(r.kits_total)} kits y {len(r.alerts)} alertas "
+                                                                      f"registrados en la base para el período ({r.scope_text().lower()})."})
     except Exception:  # noqa: BLE001 - the bulletin keeps the other stories
         LOG.exception("ENOS sin datos para el boletín")
     brigades_path = PROCESSED / "brigadas.parquet"

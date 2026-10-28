@@ -254,9 +254,9 @@ def test_executive_summary_of_every_section_fits_three_pages():
                     "Jóvenes en Acción", "Empleo", "Presupuesto", "Cobertura y presupuesto por bono y pensión",
                     "Contratos vigentes por sexo", "Unidades de atención con alertas"]:
         assert section in text, section
-    assert "1.578.019" in text and "13.390" in text and _labour_figures()[0] in text
+    assert "1.578.019" in text and "14.581" in text and _labour_figures()[0] in text
     # One block for Riesgos (the response of the Ministry; the exposure stays internal) and a chart of its own in every section.
-    assert text.count("Riesgos: respuesta del Ministerio") == 1 and "UA expuestas" not in text
+    assert text.count("Plan ENOS") == 1 and "UA expuestas" not in text
     for chart in ["Beneficiarios por provincia", "Usuarios por servicio", "Alertas por provincia",
                   "Monto entregado por mes", "Jóvenes con pago acreditado por mes", "Contratos vigentes por rama de actividad",
                   "Ejecución del presupuesto social"]:

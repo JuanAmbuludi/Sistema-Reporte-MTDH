@@ -98,7 +98,7 @@ def _visual(key: str, ctx: dict) -> dict | None:
                          for p in programs[:5]]}
     if key == "riesgos":
         return {"kind": "bars", "title": "Alertas por provincia", "rows": [dict(r, text=str(r["value"])) for r in ctx["response"]["by_province"]],
-                "note": "Alertas revisadas con código UA"}
+                "note": "Alertas y reportes registrados"}
     if key == "contingencias":
         months = [m for m in ctx["months"] if m.get("amount")]
         return {"kind": "columns", "title": "Monto entregado por mes (USD)", "labels": [m["short"] for m in months],
@@ -159,13 +159,19 @@ def _block(key: str, label: str, icon: str, view) -> dict | None:
     period = _latest(catalog)
     if period is None:
         return None
-    view.select(period)
+    if key == "riesgos":
+        view.select(period, mode="periodo")
+        period = view.period
+    else:
+        view.select(period)
     if not view.prepare():
         return None
     context = view.report_context(label)
     # The figures as the section's own summary prints them (short captions), the dashboard cards otherwise.
     kpis = [k for k in (context.get("kpis") or kpis_from_cards(view.kpi_cards())) if k.get("value") is not None]
     update = view.update_stamp() if hasattr(view, "update_stamp") else corte.stamp(view.id, period)
+    if key == "riesgos":
+        update = {**(update or {}), "label": view.response.scope_text()}
     findings = [i for i in context.get("insights", []) if i.get("text")]
     kpis, findings, table = _adjust(key, kpis, findings, context, view)
     kpis, findings = kpis[:4], findings[:2]
@@ -205,9 +211,7 @@ def _adjust(key: str, kpis: list[dict], findings: list[dict], ctx: dict, view) -
         units = None
         if response is not None and "codigo_ua" in response.alerts:
             units = int(response.alerts.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
-        delivered = (response.data.get("bonos") or {}).get("gestionados", []) if response is not None else []
-        people = sum(int(r.get("personas") or 0) for r in delivered)
-        amount = sum(float(r.get("monto") or 0) for r in delivered)
+        delivered = response.managed if response is not None else None
         adjusted = []
         for kpi in kpis:
             label = kpi["label"]
@@ -217,9 +221,12 @@ def _adjust(key: str, kpis: list[dict], findings: list[dict], ctx: dict, view) -
                 kpi = {**kpi, "label": "Unidades de atención con alertas", "short": None, "value": units, "note": ""}
             elif label.startswith("Monto"):
                 continue
+            elif label.startswith("Familias") and response is not None:
+                kpi = {**kpi, "note": f"USD {_number(response.articulation.monto.sum(), 2)} · acumulado al {response.cut_text('bonos')}"}
             adjusted.append(kpi)
-        if delivered:
-            adjusted.insert(2, _card("Bonos de contingencia entregados", people, note=f"USD {_number(amount, 2)}", icon="hand-coins"))
+        if delivered is not None and not delivered.empty:
+            adjusted.insert(2, _card("Núcleos familiares · pago gestionado", float(delivered.personas.sum()),
+                                     note=f"USD {_number(delivered.monto.sum(), 2)} gestionados", icon="hand-coins"))
         kpis = adjusted
         findings = [f for f in findings if " registros:" not in f["text"] and "reportes sectoriales" not in f["text"]]
     elif key == "contingencias":
