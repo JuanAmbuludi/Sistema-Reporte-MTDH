@@ -412,7 +412,8 @@ def _table_height(block: dict) -> float:
 def _block_height(block: dict, width: float) -> float:
     w = _finding_width(block, width)
     findings = max([_finding_height(f["text"], w) for f in block["findings"]] or [0])
-    return 24 + BODY_H + _table_height(block) + (max(28, findings + 11) + 8 if block["findings"] else 0) + 16
+    # A block with five key figures takes a taller body, so every figure keeps its own line.
+    return 24 + block.get("body_h", BODY_H) + _table_height(block) + (max(28, findings + 11) + 8 if block["findings"] else 0) + 16
 
 
 def _cut_text(block: dict) -> str:
@@ -441,16 +442,17 @@ def _draw_block(c, block: dict, x: float, top: float, width: float) -> float:
     c.setLineWidth(0.7)
     c.line(x, top - 18, x + width, top - 18)
     body = top - 26
+    body_h = block.get("body_h", BODY_H)
     if block.get("visual"):
-        _kpi_list(c, block["kpis"], x, body, KPI_W)
+        _kpi_list(c, block["kpis"], x, body, KPI_W, body_h)
         c.setStrokeColor(C("#ECE8F3"))
-        c.line(x + KPI_W + 7, body - 2, x + KPI_W + 7, body - BODY_H + 4)
-        _draw_visual(c, block["visual"], x + KPI_W + 16, body, width - KPI_W - 16)
+        c.line(x + KPI_W + 7, body - 2, x + KPI_W + 7, body - body_h + 4)
+        _draw_visual(c, block["visual"], x + KPI_W + 16, body, width - KPI_W - 16, body_h)
     else:
         half = (width - 14) / 2
-        _kpi_list(c, block["kpis"][:2], x, body, half, BODY_H / 2)
-        _kpi_list(c, block["kpis"][2:4], x + half + 14, body, half, BODY_H / 2)
-    y = body - BODY_H - 2
+        _kpi_list(c, block["kpis"][:2], x, body, half, body_h / 2)
+        _kpi_list(c, block["kpis"][2:4], x + half + 14, body, half, body_h / 2)
+    y = body - body_h - 2
     table = block.get("table")
     if table and table["rows"]:
         from .pdf import _table

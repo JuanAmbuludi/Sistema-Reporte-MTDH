@@ -55,7 +55,8 @@ def _money_m(value: float) -> str:
 
 
 def _block(key: str, label: str, icon: str, span: str, kpis: list, visual: dict | None, table: dict | None, findings: list) -> dict:
-    return {"key": key, "label": label, "icon": icon, "period": span, "kpis": kpis[:4], "visual": visual, "table": table,
+    return {"key": key, "label": label, "icon": icon, "period": span, "kpis": kpis[:5], "visual": visual, "table": table,
+            **({"body_h": 140} if len(kpis) > 4 else {}),
             "findings": [f for f in findings if f.get("text")][:2], "update": {"label": span}}
 
 
@@ -130,15 +131,30 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
             kits = (r.kits.groupby(["provincia_codigo", "provincia"], as_index=False).agg(kits=("kits", "sum"), familias=("familias", "sum"))
                     .sort_values("kits", ascending=False))
             bono = r.articulation.groupby("provincia", as_index=False).agg(bono_familias=("personas", "sum"), bono_monto=("monto", "sum"))
-            table = kits.merge(bono, on="provincia", how="outer").fillna({"kits": 0, "familias": 0, "bono_familias": 0, "bono_monto": 0})
-            table = table.sort_values(["kits", "bono_familias"], ascending=False).reset_index(drop=True)
+            # The alerts of the follow-up start after the period of the report in some cases (their base begins in October
+            # 2026): the report then shows every alert up to the latest cut, with its own dates, as the dashboard does.
+            latest = response_view() if r.alerts.empty else None
+            alert_rows = latest.response.alerts if latest is not None else r.alerts
+            alerts_available = not alert_rows.empty
+            alert_dates = pd.to_datetime(alert_rows.fecha, errors="coerce") if alerts_available else pd.Series(dtype="datetime64[ns]")
+            alert_span = (f"del {alert_dates.min():%d/%m} al {alert_dates.max():%d/%m/%Y}" if alerts_available and alert_dates.notna().any() else "")
+            outside = latest is not None and alerts_available
+            alerts = alert_rows.groupby("provincia", as_index=False).size().rename(columns={"size": "alertas"})
+            table = (kits.merge(bono, on="provincia", how="outer").merge(alerts, on="provincia", how="outer")
+                     .fillna({"kits": 0, "familias": 0, "bono_familias": 0, "bono_monto": 0, "alertas": 0}))
+            table = table.sort_values(["kits", "bono_familias", "alertas"], ascending=False).reset_index(drop=True)
             for column in ("bono_familias", "bono_monto"):
                 table[column] = table[column].where(table[column] > 0)
+            table["alertas"] = table.alertas.where(table.alertas > 0, 0 if alerts_available else None) if alerts_available else None
             province_rows = table.to_dict("records")
-            province_rows.append({"provincia": "Total nacional", "kits": float(table.kits.sum()),
+            province_rows.append({"provincia": "Total nacional", "alertas": float(len(alert_rows)) if alerts_available else None,
+                                  "kits": float(table.kits.sum()),
                                   "familias": float(table.familias.sum()), "bono_familias": float(table.bono_familias.sum()),
                                   "bono_monto": float(table.bono_monto.sum()), "selected": True})
-            units = int(r.alerts.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
+            units = int(alert_rows.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
+            sectorial = int(alert_rows.origen.eq("reporte_sectorial").sum()) if "origen" in alert_rows else 0
+            alert_note = (alert_span.capitalize() if outside else
+                          f"{number(len(alert_rows) - sectorial)} aplicativo · {number(sectorial)} sectoriales" if sectorial else "Del período")
             delivered = r.managed
             delivered_people = int(delivered.personas.sum())
             delivered_amount = float(delivered.monto.sum())
@@ -153,19 +169,25 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
             kpis = [_kpi("Kits entregados", total_kits, note=kit_scope),
                     _kpi("Familias · bono de contingencia", float(r.articulation.personas.sum()), note="Habilitadas al pago · acumulado confirmado"),
                     _kpi("Monto · bono de contingencia", float(r.articulation.monto.sum()), "money", note=bonus_scope(r), decimals=2),
-                    _kpi("UA con alertas registradas", units, note=f"{number(len(r.alerts))} alertas en la base para el período")]
+                    _kpi("Alertas registradas", float(len(alert_rows)) if alerts_available else None, note=alert_note),
+                    _kpi("UA con alertas registradas", units if alerts_available else None,
+                         note=(f"Al {alert_dates.max():%d/%m/%Y}" if outside else "Con código de UA") if alerts_available else "")]
             continuity_text = (f"{number(r.closed_units)} unidades de atención registran atención suspendida "
                                f"({r.suspension_short()})." if r.available["continuidad"] else
                                f"No hay un corte territorial de unidades suspendidas hasta el {r.end:%d/%m/%Y}.")
-            first_alert = r.data.get("cobertura_registros", {}).get("alertas", {}).get("desde")
-            if first_alert and pd.Timestamp(first_alert) > r.end:
-                continuity_text = f"La base de alertas inicia el {pd.Timestamp(first_alert):%d/%m/%Y}, después del período. " + continuity_text
+            if outside:
+                continuity_text = (f"Las alertas se registran desde el {alert_dates.min():%d/%m/%Y}: se presentan las {number(len(alert_rows))} "
+                                   f"registradas hasta el {alert_dates.max():%d/%m/%Y}. " + continuity_text)
             findings = [{"icon": "calendar", "text": f"{bonus_scope(r)}. El bono se conserva como referencia y no se contabiliza como pago del período."},
                         {"icon": "shield", "text": continuity_text}]
             blocks.append(_block("riesgos", "Plan ENOS: respuesta ante el Fenómeno El Niño", "storm",
                                  r.scope_text(), kpis, visual,
-                                 {"title": "Kits y bono de contingencia por provincia", "note": "Kits del período · familias reportadas por entrega · bono de referencia",
-                                  "columns": [("Provincia", "provincia", None, "text"), ("Kits entregados", "kits", 78, "int"),
+                                 {"title": "Alertas, kits y bono de contingencia por provincia",
+                                  "note": ("Alertas al último corte · kits del período · bono de referencia" if outside
+                                           else "Alertas y kits del período · bono de referencia"),
+                                  "columns": [("Provincia", "provincia", None, "text"),
+                                              (f"Alertas al {alert_dates.max():%d/%m}" if outside else "Alertas", "alertas", 62, "int"),
+                                              ("Kits entregados", "kits", 78, "int"),
                                               ("Familias con kit", "familias", 78, "int"), ("Familias con bono", "bono_familias", 84, "int"),
                                               ("Monto del bono (USD)", "bono_monto", 96, "usd")],
                                   "rows": province_rows}, findings))
