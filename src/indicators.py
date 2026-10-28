@@ -138,7 +138,7 @@ AREAS: dict[str, dict] = {
     "jovenes": {"label": "Jóvenes en Acción", "short": "Jóvenes en Acción", "kind": "jovenes",
                 "description": "Jóvenes registrados y habilitados, transferencias acreditadas y ejecución presupuestaria de "
                                "cada fase del programa."},
-    "laboral": {"label": "Gestión laboral", "short": "Empleo", "kind": "laboral",
+    "laboral": {"label": "Empleo", "short": "Empleo", "kind": "laboral",
                 "description": "Contratos de trabajo vigentes en el país por provincia y cantón, su perfil, y las "
                                "compensaciones jubilares pagadas a exservidores y extrabajadores públicos."},
     "presupuesto": {"label": "Presupuesto institucional", "short": "Presupuesto", "kind": "presupuesto",

@@ -44,7 +44,7 @@ def labour():
     view = LabourView(load_labour())
     view.select(view.catalog()[0])
     assert view.prepare()
-    return view.report_context("Gestión laboral")
+    return view.report_context("Empleo")
 
 
 @pytest.fixture(scope="module")
@@ -289,7 +289,7 @@ def test_labour_exports_keep_each_figure_with_its_reference(labour):
     assert labour["levels"] == ["provincia", "canton"]
     assert labour["update"]["frequency"] == "Actualización diaria"
     text = _pdf_text(generate_pdf(labour), pages=2)
-    for expected in ["Gestión laboral", number(stock["vigentes"]), number(stock["empresas"]), "Contratos vigentes por provincia",
+    for expected in ["Empleo", number(stock["vigentes"]), number(stock["empresas"]), "Contratos vigentes por provincia",
                      "Perfil de los contratos vigentes",
                      "Compensación jubilar por año", "Contratos registrados por mes en 2026", "El corazón de Ecuador."]:
         assert expected in text, expected

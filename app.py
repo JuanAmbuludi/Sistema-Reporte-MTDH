@@ -205,8 +205,8 @@ def report_center() -> None:
         if everything:
             st.caption("Tres páginas como máximo, a nivel nacional: cada sección con su último corte, cuatro cifras clave, un "
                        "gráfico propio y dos hallazgos. Las secciones no se suman entre sí.")
-            title = st.text_input("Título", value="Resumen de todas las secciones", max_chars=80,
-                                  key="report_title_all").strip() or "Resumen de todas las secciones"
+            title = st.text_input("Título", value="Informe ejecutivo institucional", max_chars=80,
+                                  key="report_title_all").strip() or "Informe ejecutivo institucional"
             ui.scope_chips([("Secciones", "Todas, cada una con su último corte"), ("Territorio", "Nacional"),
                             ("Páginas", "Tres como máximo")])
         else:

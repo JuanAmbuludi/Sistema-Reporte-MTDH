@@ -359,7 +359,7 @@ class LabourView:
         with st.container(border=True, key="card_labour_detail"):
             ui.data_table(frame, columns, height=min(640, 35 * (len(frame) + 1) + 3), key="labour_table",
                           bar="participacion" if "participacion" in columns else None)
-            download_table(frame, layout, title="Gestión laboral", subtitle=f"{self.context_label} · {name.lower()}",
+            download_table(frame, layout, title=AREAS["laboral"]["label"], subtitle=f"{self.context_label} · {name.lower()}",
                            period_label=self.period["label"], file_name=f"MTDH_cuadro_laboral_{self.period['id']}.xlsx", key="labour_xlsx")
 
     # --------------------------------------------------------------------------------------------- reports

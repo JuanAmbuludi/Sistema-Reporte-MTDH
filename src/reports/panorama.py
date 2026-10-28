@@ -23,18 +23,20 @@ from .context import INSTITUTION, PRODUCT, stamp
 
 LOG = logging.getLogger(__name__)
 SHORT = {"transferencias": "Transferencias", "servicios": "Servicios sociales", "riesgos": "ENOS", "contingencias": "Contingencias",
-         "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto fiscal",
-         "presupuesto_social": "Presupuesto social", "presupuesto_gobierno": "Presupuesto de gobierno"}
+         "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto", "cdh": "Crédito de Desarrollo Humano",
+         "brigadas": "Brigadas sociales"}
+TITLE = "Informe ejecutivo institucional"
 SECTIONS = [
     ("transferencias", "Transferencias monetarias no contributivas", "hand-coins"),
     ("servicios", "Servicios de protección social", "users"),
     ("riesgos", "Plan ENOS: respuesta del Ministerio", "storm"),
     ("contingencias", "Contingencias y compensaciones", "shield"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
-    ("laboral", "Gestión laboral", "briefcase"),
-    ("presupuesto", "Presupuesto fiscal", "landmark"),
-    ("presupuesto_social", "Presupuesto social", "wallet"),
-    ("presupuesto_gobierno", "Presupuesto acumulado de gobierno", "landmark"),
+    ("laboral", "Empleo", "briefcase"),
+    ("cdh", "Crédito de Desarrollo Humano", "coins"),
+    ("brigadas", "Brigadas sociales", "users"),
+    # One block for the three budgets: each section already carries its own amounts.
+    ("presupuesto", "Presupuesto", "landmark"),
 ]
 MAX_PAGES = 3
 
@@ -63,6 +65,14 @@ def section_views(bases: dict) -> dict:
         views["presupuesto_social"] = SocialBudgetView(bases["social_groups"], bases["social_programs"])
     if bases.get("government_budget") is not None and not bases["government_budget"].empty:
         views["presupuesto_gobierno"] = FinanceView(bases["government_budget"], government=True)
+    try:
+        from src.views.cdh import CreditView
+        from src.views.brigadas import BrigadeView
+        for key, view in (("cdh", CreditView()), ("brigadas", BrigadeView())):
+            if view.catalog():
+                views[key] = view
+    except ImportError:  # noqa: PERF203 - the new areas are optional in older deployments
+        pass
     return views
 
 
@@ -144,16 +154,114 @@ def _block(key: str, label: str, icon: str, view) -> dict | None:
         return None
     context = view.report_context(label)
     # The figures as the section's own summary prints them (short captions), the dashboard cards otherwise.
-    kpis = [k for k in (context.get("kpis") or kpis_from_cards(view.kpi_cards())) if k.get("value") is not None][:4]
+    kpis = [k for k in (context.get("kpis") or kpis_from_cards(view.kpi_cards())) if k.get("value") is not None]
     update = view.update_stamp() if hasattr(view, "update_stamp") else corte.stamp(view.id, period)
-    findings = [i for i in context.get("insights", []) if i.get("text")][:2]
+    findings = [i for i in context.get("insights", []) if i.get("text")]
+    kpis, findings, table = _adjust(key, kpis, findings, context, view)
+    kpis, findings = kpis[:4], findings[:2]
     try:
         visual = _visual(key, context)
     except Exception:  # noqa: BLE001 - a section without its chart keeps its figures and findings
         LOG.exception("Sección sin gráfico: %s", key)
         visual = None
     return {"key": key, "label": label, "icon": icon, "period": period["label"], "kpis": kpis, "findings": findings,
-            "visual": visual, "update": update or {}, "source": context.get("source", f"Fuente: {INSTITUTION}")}
+            "visual": visual, "table": table, "update": update or {}, "source": context.get("source", f"Fuente: {INSTITUTION}")}
+
+
+def _card(label: str, value, *, money: bool = False, rate: bool = False, note: str = "", icon: str = "wallet") -> dict:
+    """A key figure in the shape of the dashboard cards (money in USD, rates in percent)."""
+    card = {"label": label, "value": value, "decimals": 1, "icon": icon, "note": note}
+    if money:
+        card.update(value=(value or 0) / 1e6, prefix="USD", suffix="millones")
+    if rate:
+        card["suffix"] = "%"
+    return kpis_from_cards([card])[0]
+
+
+def _adjust(key: str, kpis: list[dict], findings: list[dict], ctx: dict, view) -> tuple[list[dict], list[dict], dict | None]:
+    """What the institutional summary says of each section beyond its own cards: units in every label, the breakdown
+    of each bonus and of each sex, and no register counts that only the technical team reads."""
+    from .context import millions
+    table = None
+    if key == "transferencias":
+        rows = sorted([p for p in ctx.get("programs", []) if p.get("people")], key=lambda p: -(p["people"] or 0))
+        table = {"title": "Cobertura y presupuesto por bono y pensión", "note": "Devengado y ejecución de enero al mes del corte",
+                 "columns": [("Bono o pensión", "short", None, "text"), ("Beneficiarios", "people", 70, "int"),
+                             ("Participación", "share", 64, "pct"), ("Devengado (USD M)", "fiscal", 84, "mill"),
+                             ("Ejecución", "execution", 58, "pct")],
+                 "rows": rows}
+    elif key == "riesgos":
+        response = getattr(view, "response", None)
+        units = None
+        if response is not None and "codigo_ua" in response.alerts:
+            units = int(response.alerts.codigo_ua.dropna().astype(str).str.strip().replace("", None).dropna().nunique())
+        delivered = (response.data.get("bonos") or {}).get("gestionados", []) if response is not None else []
+        people = sum(int(r.get("personas") or 0) for r in delivered)
+        amount = sum(float(r.get("monto") or 0) for r in delivered)
+        adjusted = []
+        for kpi in kpis:
+            label = kpi["label"]
+            if label.startswith("Alertas reportadas"):
+                if units is None:
+                    continue
+                kpi = {**kpi, "label": "Unidades de atención con alertas", "short": None, "value": units, "note": ""}
+            elif label.startswith("Monto"):
+                continue
+            adjusted.append(kpi)
+        if delivered:
+            adjusted.insert(2, _card("Bonos de contingencia entregados", people, note=f"USD {_number(amount, 2)}", icon="hand-coins"))
+        kpis = adjusted
+        findings = [f for f in findings if " registros:" not in f["text"] and "reportes sectoriales" not in f["text"]]
+    elif key == "contingencias":
+        kpis = [{**k, "label": k["label"] if k["kind"] == "money" or k["label"].startswith("Personas") else f"Personas · {k['label'][:1].lower()}{k['label'][1:]}",
+                 "short": None} for k in kpis]
+    elif key == "laboral":
+        sexes = (ctx.get("profile") or {}).get("Sexo") or []
+        if sexes:
+            table = {"title": "Contratos vigentes por sexo", "note": "Personas contratadas",
+                     "columns": [("Sexo", "name", None, "text"), ("Contratos vigentes", "contracts", 96, "int"),
+                                 ("Participación", "share", 72, "pct")], "rows": sexes}
+    return kpis, findings, table
+
+
+def _budget_block(views: dict) -> dict | None:
+    """The three budgets in one block: the fiscal SGDE execution, the social budget and the government accumulation."""
+    fiscal, social, government = views.get("presupuesto"), views.get("presupuesto_social"), views.get("presupuesto_gobierno")
+    kpis, findings, visual, update, period = [], [], None, {}, None
+    if fiscal is not None and (period := _latest(fiscal.catalog())):
+        fiscal.select(period)
+        if fiscal.prepare():
+            stats = fiscal.stats
+            kpis.append(_card(f"Presupuesto fiscal codificado {period['year']}", stats["codificado"], money=True,
+                              note=f"Devengado: USD {_number(stats['devengado'] / 1e6, 1)} M"))
+            kpis.append(_card("Ejecución del presupuesto fiscal", stats["ejecucion"], rate=True, note=f"SGDE, al {fiscal.cut_text}",
+                              icon="target"))
+            update = fiscal.update_stamp()
+            findings.append({"icon": "wallet", "text": f"Presupuesto fiscal SGDE: USD {_number(stats['devengado'] / 1e6, 1)} millones devengados "
+                                                       f"de USD {_number(stats['codificado'] / 1e6, 1)} millones codificados al {fiscal.cut_text}."})
+    if social is not None and (social_period := _latest(social.catalog())):
+        social.select(social_period)
+        if social.prepare():
+            stats = social.stats
+            kpis.append(_card("Ejecución del presupuesto social", stats["execution"], rate=True,
+                              note=f"Devengado: USD {_number(stats['accrued'] / 1e6, 1)} M", icon="target"))
+            context = social.report_context("Presupuesto social")
+            visual = _visual("presupuesto_social", context)
+            if visual:
+                visual["title"] = "Ejecución del presupuesto social"
+            text = next((i["text"] for i in context.get("insights", []) if i.get("text")), "")
+            if text:
+                findings.append({"icon": "trending-up", "text": text})
+            period = period or social_period
+    if government is not None and (gov_period := _latest(government.catalog())):
+        government.select(gov_period)
+        if government.prepare():
+            kpis.append(_card(f"Acumulado de gobierno 2023–{gov_period['year']}", government.stats["acumulado"], money=True,
+                              note="Transferencias y servicios", icon="landmark"))
+    if not kpis or period is None:
+        return None
+    return {"key": "presupuesto", "label": "Presupuesto", "icon": "landmark", "period": period["label"], "kpis": kpis[:4],
+            "findings": findings[:2], "visual": visual, "table": None, "update": update or {}, "source": f"Fuente: {INSTITUTION}"}
 
 
 def build_panorama(bases: dict, title: str) -> dict:
@@ -164,7 +272,7 @@ def build_panorama(bases: dict, title: str) -> dict:
         if view is None:
             continue
         try:
-            block = _block(key, label, icon, view)
+            block = _budget_block(views) if key == "presupuesto" else _block(key, label, icon, view)
         except Exception:  # noqa: BLE001 - one section without its data never stops the others
             LOG.exception("Sección sin resumen: %s", key)
             block = None
@@ -173,10 +281,10 @@ def build_panorama(bases: dict, title: str) -> dict:
     if not blocks:
         raise ValueError("Ninguna sección tiene información para resumir.")
     generated_at, generated_label = stamp()
-    return {"kind": "panorama", "title": str(title or "Resumen de todas las secciones")[:100], "blocks": blocks,
+    return {"kind": "panorama", "title": str(title or TITLE)[:100], "blocks": blocks,
             "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}", "generated_at": generated_at,
             "generated_label": generated_label, "period_label": "Último corte de cada sección", "territory_label": "Nacional",
-            "programs_label": f"{len(blocks)} secciones", "module_label": "Todas las secciones", "update": {}}
+            "programs_label": f"{len(blocks)} secciones", "module_label": "Informe ejecutivo", "update": {}}
 
 
 # ------------------------------------------------------------------------------------------------- drawing
@@ -200,14 +308,15 @@ def _kpi_list(c, kpis: list[dict], x: float, top: float, width: float, height: f
         note = kpi.get("note") or ""
         room = width - 12
         c.setFillColor(C(theme.PIZARRA))
-        c.setFont("Text-Semi", 6.5)
-        shown = _clip(label, "Text-Semi", 6.5, room)
-        c.drawString(x + 8, y - 21.5, shown)
-        used = c.stringWidth(shown + " · ", "Text-Semi", 6.5)
-        if note and room - used > 30:
+        size = _fit(label, "Text-Semi", 6.5, room, 5.4)
+        c.setFont("Text-Semi", size)
+        c.drawString(x + 8, y - 21.5, label)
+        used = c.stringWidth(label + " · ", "Text-Semi", size)
+        # A note reads whole or not at all (never cut with an ellipsis).
+        if note and c.stringWidth(note, "Text", 6.3) <= room - used:
             c.setFillColor(PURPLE)
             c.setFont("Text", 6.3)
-            c.drawString(x + 8 + used, y - 21.5, _clip(note, "Text", 6.3, room - used))
+            c.drawString(x + 8 + used, y - 21.5, note)
 
 
 def _bar_rows(c, rows: list[dict], x: float, top: float, width: float, height: float) -> None:
@@ -278,10 +387,15 @@ def _finding_width(block: dict, width: float) -> float:
     return (width - 8 * (count - 1)) / count
 
 
+def _table_height(block: dict) -> float:
+    table = block.get("table")
+    return 16 + 16 + 12.4 * len(table["rows"]) + 6 if table and table["rows"] else 0
+
+
 def _block_height(block: dict, width: float) -> float:
     w = _finding_width(block, width)
     findings = max([_finding_height(f["text"], w) for f in block["findings"]] or [0])
-    return 24 + BODY_H + (max(28, findings + 11) + 8 if block["findings"] else 0) + 16
+    return 24 + BODY_H + _table_height(block) + (max(28, findings + 11) + 8 if block["findings"] else 0) + 16
 
 
 def _cut_text(block: dict) -> str:
@@ -318,6 +432,16 @@ def _draw_block(c, block: dict, x: float, top: float, width: float) -> float:
         _kpi_list(c, block["kpis"][:2], x, body, half, BODY_H / 2)
         _kpi_list(c, block["kpis"][2:4], x + half + 14, body, half, BODY_H / 2)
     y = body - BODY_H - 2
+    table = block.get("table")
+    if table and table["rows"]:
+        from .pdf import _table
+        c.setFillColor(NIGHT)
+        c.setFont("Display-Bold", 8.2)
+        c.drawString(x, y - 9, table["title"])
+        c.setFillColor(MUTED)
+        c.setFont("Text", 6.6)
+        c.drawRightString(x + width, y - 9, table.get("note", ""))
+        y = _table(c, x, y - 15, width, table["columns"], table["rows"], row_h=12.4, header_h=16) - 6
     if block["findings"]:
         w = _finding_width(block, width)
         style = ParagraphStyle("pf", fontName="Text", fontSize=7.2, leading=9.4, textColor=INK)
@@ -373,7 +497,7 @@ def generate_panorama_pdf(ctx: dict) -> bytes:
         if number == 1:
             y = _band(c, ctx, H, emblem_png()) - 18
         else:
-            y = _slim_band(c, ctx, "Todas las secciones", "Cada sección con su último corte, sus cifras clave, su gráfico y sus hallazgos") - 20
+            y = _slim_band(c, ctx, ctx["title"], "Cada sección con su último corte, sus cifras clave, su gráfico y sus hallazgos") - 20
         for block in blocks:
             y = _draw_block(c, block, M, y, width)
         if number == len(pages) and y - cuts_h > BOTTOM:
