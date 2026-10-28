@@ -44,7 +44,7 @@ def test_login_presents_the_product_name():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60)
     app.run()
     html = _markdown(app)
-    assert "<h1>InfoReport</h1>" in html and "Acceso a InfoReport" in html
+    assert "<h1>InfoReport</h1>" in html and "Iniciar sesión" in html
     assert "Información estratégica para la toma de decisiones" not in html
 
 

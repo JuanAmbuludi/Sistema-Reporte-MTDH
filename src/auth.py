@@ -76,7 +76,7 @@ def _login_layout():
         card = right.container(key="login_card")
         with card:
             st.markdown(
-                f'<div class="login-head"><span class="lock">{icon("lock", 24)}</span><h2>Acceso a InfoReport</h2>'
+                f'<div class="login-head"><span class="lock">{icon("lock", 24)}</span><h2>Iniciar sesión</h2>'
                 '<p>Ingrese con la cuenta autorizada por la dirección responsable de la información.</p></div>',
                 unsafe_allow_html=True,
             )
