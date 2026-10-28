@@ -66,7 +66,7 @@ def test_dashboard_is_formal_strategic_and_without_collapsibles():
     assert "update-stamp" in html and "Actualizado el" in html and "Actualización mensual" in html, "Corte y frecuencia visibles"
     assert "El corazón de Ecuador." not in html and "Velamos por la calidad de vida de los ecuatorianos" not in html
     assert app.segmented_control(key="module").options == ["Transferencias", "Servicios sociales", "ENOS", "Contingencias", "Jóvenes en Acción",
-                                                           "Empleo", "Presupuesto"]
+                                                           "Empleo", "Crédito (CDH)", "Brigadas sociales", "Presupuesto"]
 
 
 def test_every_territorial_chart_switches_between_province_canton_and_parish():
@@ -283,3 +283,28 @@ def test_risks_area_reads_the_response_of_the_ministry():
     app.multiselect(key="risk_provinces").set_value(["09"]).run()
     assert not app.exception
     assert "17 unidades suspendidas" in _markdown(app)
+
+
+def test_credit_and_brigade_areas_show_their_figures_and_documents():
+    """Crédito de Desarrollo Humano and Brigadas sociales read their aggregated bases (no personal data) and export."""
+    import pandas as pd
+    from src.views.brigadas import BrigadeView
+    from src.views.cdh import CreditView
+    for path in ["data/processed/cdh_territorio.parquet", "data/processed/cdh_perfil.parquet", "data/processed/brigadas.parquet"]:
+        columns = set(pd.read_parquet(ROOT / path).columns)
+        assert not columns & {"CEDULA", "cedula", "NOMBRES", "nombres", "TELEFONO", "telefono", "LUGAR", "lugar"}, path
+    for module, expected in (("cdh", ["Créditos desembolsados 2026", "44.834", "95.986"]),
+                             ("brigadas", ["Brigadas realizadas", "Personas atendidas"])):
+        app = _logged_in_app()
+        app.segmented_control(key="module").set_value(module).run()
+        assert not app.exception
+        html = _markdown(app)
+        for text in expected:
+            assert text in html, text
+        _generate_every_product(app)
+    credit = CreditView()
+    credit.select({"id": "2026-09", "year": 2026, "month": 9, "label": "Septiembre 2026"})
+    assert credit.prepare() and credit.stats["credits"] == 44834 and round(credit.stats["amount"], 2) == 48036993.87
+    brigades = BrigadeView()
+    brigades.select(brigades.catalog()[0])
+    assert brigades.prepare() and brigades.stats["total"] == 3038

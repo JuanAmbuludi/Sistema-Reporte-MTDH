@@ -564,7 +564,9 @@ def generate_pptx(context: dict) -> bytes:
     props.keywords = f"MTDH, {PRODUCT}, indicadores"
     from .pptx_areas import RENDERERS
     from .finanzas import render_slides
-    {"presupuesto": _budget, "presupuesto_conciliado": render_slides, **RENDERERS}.get(context.get("kind"), _territorial)(prs, context)
+    from .simple import render_slides as simple_slides
+    {"presupuesto": _budget, "presupuesto_conciliado": render_slides, "area_simple": simple_slides,
+     **RENDERERS}.get(context.get("kind"), _territorial)(prs, context)
     out = BytesIO()
     prs.save(out)
     return out.getvalue()

@@ -37,6 +37,8 @@ from src.views.presupuesto import BudgetArea, SocialBudgetView  # noqa: E402
 from src.views.finanzas import FinanceView  # noqa: E402
 from src.views.territorial import TerritorialView  # noqa: E402
 from src.views.riesgos import RiskView  # noqa: E402
+from src.views.cdh import CreditView  # noqa: E402
+from src.views.brigadas import BrigadeView  # noqa: E402
 
 ui.inject_styles()
 user = require_login()
@@ -95,6 +97,9 @@ if youth.catalog():
 labour = LabourView(bases["labour"])
 if labour.catalog():
     views["laboral"] = labour
+for area_key, area_view in (("cdh", CreditView()), ("brigadas", BrigadeView())):
+    if area_view.catalog():
+        views[area_key] = area_view
 institutional = FinanceView(bases["budget"], metadata=bases["budget_manifest"]) if not bases["budget"].empty else None
 social = SocialBudgetView(bases["social_groups"], bases["social_programs"]) if not bases["social_groups"].empty else None
 government = FinanceView(bases["government_budget"], government=True)
@@ -169,7 +174,7 @@ PRODUCTS = {
 
 SCOPES = {"seccion": "Esta sección", "todas": "Todas las secciones"}
 SECTION_ICONS = {"transferencias": "hand-coins", "servicios": "users", "riesgos": "storm", "contingencias": "shield",
-                 "jovenes": "graduation", "laboral": "briefcase", "presupuesto": "landmark"}
+                 "jovenes": "graduation", "laboral": "briefcase", "cdh": "coins", "brigadas": "users", "presupuesto": "landmark"}
 
 # Documents of a single territorial level name it in the file; the complete set needs no suffix.
 LEVEL_SUFFIX = {"provincia": "_provincias", "canton": "_cantones", "parroquia": "_parroquias"}

@@ -141,6 +141,11 @@ AREAS: dict[str, dict] = {
     "laboral": {"label": "Empleo", "short": "Empleo", "kind": "laboral",
                 "description": "Contratos de trabajo vigentes en el país por provincia y cantón, su perfil, y las "
                                "compensaciones jubilares pagadas a exservidores y extrabajadores públicos."},
+    "cdh": {"label": "Crédito de Desarrollo Humano", "short": "Crédito (CDH)", "kind": "cdh",
+            "description": "Créditos de Desarrollo Humano desembolsados cada mes, su perfil, actividad productiva y territorio, y la "
+                           "cartera vigente."},
+    "brigadas": {"label": "Brigadas sociales", "short": "Brigadas sociales", "kind": "brigadas",
+                 "description": "Brigadas sociales por el Nuevo Ecuador: población alcanzada y atendida por mes, territorio y tipo."},
     "presupuesto": {"label": "Presupuesto institucional", "short": "Presupuesto", "kind": "presupuesto",
                     "description": "Presupuesto codificado, devengado y ejecución del Ministerio, por programa, zona y "
                                    "grupo de gasto."},

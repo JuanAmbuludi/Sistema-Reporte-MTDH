@@ -1091,6 +1091,9 @@ class Workbook:
         elif kind == "presupuesto_conciliado":
             from .finanzas import render_book
             render_book(self)
+        elif kind == "area_simple":
+            from .simple import render_book
+            render_book(self)
         elif kind in BOOKS:
             BOOKS[kind](self)
         else:

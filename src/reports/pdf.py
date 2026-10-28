@@ -782,6 +782,8 @@ def generate_pdf(context: dict) -> bytes:
     renderers = {"presupuesto": _budget, **RENDERERS}
     from .finanzas import render_pdf
     renderers["presupuesto_conciliado"] = render_pdf
+    from .simple import render_pdf as simple_pdf
+    renderers["area_simple"] = simple_pdf
     renderers.get(context.get("kind"), _territorial)(c, context, pages)
     _footer(c, context, pages, pages)
     c.showPage()

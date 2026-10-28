@@ -1,0 +1,46 @@
+{
+  "generado_utc": "2026-10-28T18:22:20+00:00",
+  "cdh": {
+    "fuentes": {
+      "desembolso": "CDH_HISTORICO_2026.parquet",
+      "vigente": "CDH_BASE_VIGENTE.parquet"
+    },
+    "control": {
+      "desembolso": {
+        "creditos": 44834,
+        "monto": 48036993.87,
+        "periodos": [
+          "2026-01",
+          "2026-02",
+          "2026-03",
+          "2026-04",
+          "2026-05",
+          "2026-06",
+          "2026-07",
+          "2026-08",
+          "2026-09"
+        ]
+      },
+      "vigente": {
+        "creditos": 95986,
+        "monto": 103611078.66,
+        "periodos": [
+          "2026-09"
+        ]
+      }
+    },
+    "alcance": "Créditos de Desarrollo Humano desembolsados en 2026 por mes de archivo y cartera vigente al último corte. Agregado sin datos personales."
+  },
+  "brigadas": {
+    "fuente": "22.10.2026_RESULTADOS_BRIGADAS_SOCIALES_POR_EL_NUEVO_ECUADOR_MATRIZ.xlsx",
+    "control": {
+      "brigadas": 3038,
+      "alcanzada": 1133360,
+      "atendida": 978484,
+      "desde": "2024-02-06",
+      "hasta": "2026-10-22",
+      "sin_provincia": 0
+    },
+    "alcance": "Brigadas sociales por el Nuevo Ecuador: una fila por brigada con su fecha, territorio, tipo, población alcanzada y atendida. Sin lugar ni responsables."
+  }
+}
