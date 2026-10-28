@@ -248,7 +248,7 @@ def test_executive_summary_of_every_section_fits_three_pages():
     assert any(d.label == "Descargar resumen ejecutivo" for d in app.download_button)
     content = app.session_state["generated_report"]["content"]
     pdf = pymupdf.open(stream=content, filetype="pdf")
-    assert 1 < len(pdf) <= 3, "Tres páginas como máximo"
+    assert 1 < len(pdf) <= 4, "Cuatro páginas como máximo"
     text = " ".join(page.get_text() for page in pdf)
     for section in ["Transferencias monetarias no contributivas", "Servicios de protección social", "Plan ENOS", "Contingencias y compensaciones",
                     "Jóvenes en Acción", "Empleo", "Presupuesto", "Cobertura y presupuesto por bono y pensión",
@@ -308,3 +308,27 @@ def test_credit_and_brigade_areas_show_their_figures_and_documents():
     brigades = BrigadeView()
     brigades.select(brigades.catalog()[0])
     assert brigades.prepare() and brigades.stats["total"] == 3038
+
+
+def test_period_bulletins_cover_the_year_and_the_government_period():
+    """Two bulletins besides the monthly summary: January to the latest month and the government period, five pages each,
+    with the coverage of every section (from when to when it has information)."""
+    import pymupdf
+    from src import contingencias, finanzas, mensual, presupuesto_social
+    from src.data import load_periods, load_territory
+    from src.gestion_laboral import load_labour
+    from src.reports import periodo
+    data, catalog = load_periods()
+    budget, manifest = finanzas.load_fiscal()
+    groups, programs = presupuesto_social.load_social_budget()
+    bases = {"data": data, "catalog": catalog, "territory": load_territory(), "budget": budget, "budget_manifest": manifest,
+             "labour": load_labour(), "program_budget": mensual.program_budget(), "contingencies": contingencias.monthly(),
+             "contingency_places": contingencias.territorial(), "contingency_catalog": contingencias.catalog(),
+             "social_groups": groups, "social_programs": programs, "government_budget": finanzas.load_government()}
+    for mode, expected in (("anual", "Enero a septiembre de 2026"), ("gobierno", "Noviembre de 2023 a septiembre de 2026")):
+        pdf = pymupdf.open(stream=periodo.generate(periodo.build(bases, mode)), filetype="pdf")
+        text = " ".join(page.get_text() for page in pdf)
+        assert 4 <= len(pdf) <= 5 and expected in text and "Cobertura de la información por sección" in text
+        for section in ["Transferencias y servicios sociales", "Crédito de Desarrollo Humano", "Brigadas sociales",
+                        "Contingencias y compensaciones", "Jóvenes en Acción", "Presupuesto social", "1.578.019"]:
+            assert section in text, (mode, section)

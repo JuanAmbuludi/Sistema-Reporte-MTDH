@@ -38,7 +38,7 @@ SECTIONS = [
     # One block for the three budgets: each section already carries its own amounts.
     ("presupuesto", "Presupuesto", "landmark"),
 ]
-MAX_PAGES = 3
+MAX_PAGES = 4
 
 
 def section_views(bases: dict) -> dict:

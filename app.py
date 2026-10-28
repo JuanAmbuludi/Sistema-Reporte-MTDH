@@ -206,14 +206,26 @@ def report_center() -> None:
             scope = st.segmented_control("Alcance", list(SCOPES), key="report_scope", required=True, width="stretch",
                                          format_func=lambda k: f"Solo {AREAS[area]['short']}" if k == "seccion" else SCOPES[k])
             everything = scope == "todas"
-        file_id = "todas_las_secciones" if everything else getattr(view, "file_id", view.id)
+        span_mode = "mes"
         if everything:
-            st.caption("Tres páginas como máximo, a nivel nacional: cada sección con su último corte, cuatro cifras clave, un "
-                       "gráfico propio y dos hallazgos. Las secciones no se suman entre sí.")
-            title = st.text_input("Título", value="Informe ejecutivo institucional", max_chars=80,
-                                  key="report_title_all").strip() or "Informe ejecutivo institucional"
-            ui.scope_chips([("Secciones", "Todas, cada una con su último corte"), ("Territorio", "Nacional"),
-                            ("Páginas", "Tres como máximo")])
+            spans = {"mes": "Último mes", "anual": "Enero a la fecha", "gobierno": "Periodo de gobierno"}
+            if st.session_state.get("report_span") not in spans:
+                st.session_state["report_span"] = "mes"
+            span_mode = st.segmented_control("Periodo", list(spans), format_func=spans.get, key="report_span", required=True,
+                                             width="stretch")
+        file_id = ({"mes": "todas_las_secciones", "anual": "informe_anual", "gobierno": "informe_periodo_gobierno"}[span_mode]
+                   if everything else getattr(view, "file_id", view.id))
+        if everything:
+            from src.reports.periodo import MODES
+            default = "Informe ejecutivo institucional" if span_mode == "mes" else MODES[span_mode]
+            st.caption({"mes": "Cuatro páginas como máximo, a nivel nacional: cada sección con su último corte, cuatro cifras clave, un "
+                               "gráfico propio y dos hallazgos. Las secciones no se suman entre sí.",
+                        "anual": "Cinco páginas: cifras clave de enero al último mes, cobertura de cada sección, gráficos mensuales y cuadros.",
+                        "gobierno": "Cinco páginas desde noviembre de 2023: cifras clave, desde y hasta cuándo hay información en cada "
+                                    "sección, gráficos por año o mes y cuadros."}[span_mode])
+            title = st.text_input("Título", value=default, max_chars=80, key=f"report_title_all_{span_mode}").strip() or default
+            ui.scope_chips([("Secciones", "Todas"), ("Territorio", "Nacional"),
+                            ("Periodo", {"mes": "Último corte de cada sección", "anual": "Enero a la fecha", "gobierno": "Desde noviembre de 2023"}[span_mode])])
         else:
             st.caption(view.products_notes()[spec["kind"]])
             title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{file_id}").strip() or view.label
@@ -221,7 +233,7 @@ def report_center() -> None:
                 view.report_options()
             ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
-        selection = f"todas-{version}" if everything else view.digest()
+        selection = f"todas-{span_mode}-{version}" if everything else view.digest()
         digest = hashlib.sha256((selection + json.dumps({"title": title, "product": product, "area": file_id},
                                                          sort_keys=True)).encode("utf-8")).hexdigest()
         name = product.lower()
@@ -229,7 +241,10 @@ def report_center() -> None:
             with st.spinner("Preparando el documento…"):
                 try:
                     from src.reports import generate_pdf, generate_pptx, generate_xlsx
-                    if everything:
+                    if everything and span_mode != "mes":
+                        from src.reports import periodo
+                        context, generator = periodo.build(bases, span_mode, title), periodo.generate
+                    elif everything:
                         from src.reports.panorama import build_panorama, generate_panorama_pdf
                         context, generator = build_panorama(bases, title), generate_panorama_pdf
                     else:
