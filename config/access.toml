@@ -9,3 +9,21 @@ name = "Administrador"
 password_hash = "pbkdf2_sha256$600000$2BxZAikcR7ccGiJhtebPpuWkR8fSnQ3w$hVY17syi5B4ntmB7kLxoNDKZGieUSjpzYG1Pcs8Ax64="
 role = "admin"
 enabled = true
+
+[auth.users."david.paguay"]
+name = "David Paguay"
+password_hash = "pbkdf2_sha256$600000$FavAUH3E5thI19g/6EkuWSe5hnv5vbOl$PfaXdwJgO+R/e8/LUrdFfXC1r9KlZh1PWw3v6JxAHIk="
+role = "viewer"
+enabled = true
+
+[auth.users."geovanny.altamirano"]
+name = "Geovanny Altamirano"
+password_hash = "pbkdf2_sha256$600000$Ir4m6Wbu0r6UPF9B56yEzz4/e48Fz2Zs$beCLkvKCHM6T32Por4ww7BFsUVUt6ImWRXt6NwKKfzo="
+role = "viewer"
+enabled = true
+
+[auth.users."michael.gomez"]
+name = "Michael Gómez"
+password_hash = "pbkdf2_sha256$600000$JTk5WCVWR0ZvFLhSjJKJO9smXeS/Lzwp$O5Z/hkFl/tzHXpDxbj97V81ebB/8y0I2fZ112FySDpA="
+role = "viewer"
+enabled = true

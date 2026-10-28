@@ -14,7 +14,7 @@ El scraping diario de las páginas SGDE incorpora contratos por provincia y cant
 
 ## Descomprimir, subir y abrir
 
-El paquete está preparado para subir su contenido directamente a GitHub. Incluye los Parquet depurados, la cartografía, el logo, los iconos, las tipografías y una cuenta lista para ingresar. **No necesitas ejecutar scripts de configuración ni pegar Secrets para el primer despliegue.**
+El paquete está preparado para subir su contenido directamente a GitHub. Incluye los Parquet depurados, la cartografía, el logo, los iconos, las tipografías y las cuentas autorizadas para ingresar. **No necesitas ejecutar scripts de configuración ni pegar Secrets para el primer despliegue.**
 
 La configuración inicial de acceso está en `config/access.toml`. Para definir tus propias credenciales, consulta **Configuración de acceso opcional**.
 
@@ -46,7 +46,7 @@ En Windows también puedes ejecutar **INICIAR_WINDOWS.bat**. Instala las depende
 
 ## Configuración de acceso opcional
 
-La cuenta inicial se encuentra en **`config/access.toml`**, con la contraseña almacenada como hash. Ese archivo forma parte del proyecto y permite el acceso inmediato.
+Las cuentas se encuentran en **`config/access.toml`**, con las contraseñas almacenadas como hashes. Se conserva `admin` y se incluyen los perfiles de consulta `david.paguay`, `geovanny.altamirano` y `michael.gomez`. Las claves individuales se entregan al responsable del sistema y no se publican en el repositorio.
 
 Si después deseas usar otras cuentas, puedes configurar una sección **`[auth]`** en **Settings → Secrets** de Streamlit Cloud o en `.streamlit/secrets.toml` al trabajar localmente. Cuando existe esa sección, **sustituye por completo** el acceso incluido en `config/access.toml`; no mezcla automáticamente las cuentas. El archivo de Secrets personal está excluido del repositorio por `.gitignore`. No se incluye la cuenta personal del usuario en el acceso distribuido.
 

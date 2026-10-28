@@ -9,10 +9,22 @@ from src.security import verify_password
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_bundled_access_only_contains_requested_account():
+def test_bundled_access_only_contains_requested_accounts():
     config = tomllib.loads((ROOT / "config" / "access.toml").read_text())
-    assert set(config["auth"]["users"]) == {"admin"}
-    assert verify_password("admin12345678", config["auth"]["users"]["admin"]["password_hash"])
+    users = config["auth"]["users"]
+    assert set(users) == {"admin", "david.paguay", "geovanny.altamirano", "michael.gomez"}
+    assert verify_password("admin12345678", users["admin"]["password_hash"])
+    assert users["admin"]["role"] == "admin"
+    expected = {"david.paguay": "David Paguay", "geovanny.altamirano": "Geovanny Altamirano",
+                "michael.gomez": "Michael Gómez"}
+    for username, name in expected.items():
+        record = users[username]
+        assert record["name"] == name
+        assert record["role"] == "viewer"
+        assert record["enabled"] is True
+        assert record["password_hash"].startswith("pbkdf2_sha256$600000$")
+        assert not verify_password("admin12345678", record["password_hash"])
+    assert len({record["password_hash"] for record in users.values()}) == len(users)
 
 
 def test_real_app_login_without_secrets():
