@@ -226,6 +226,8 @@ def kits(data, name, binary, cut):
     previous = {str(r["id_kobo"]): r for r in data.get("kits", [])}
     if len(previous) != len(data.get("kits", [])):
         raise ValueError("Kits: el histórico anterior contiene IDs duplicados.")
+    revised = sum(previous[identifier] != row for identifier, row in incoming.items() if
+                  identifier in previous)
     if mode != "parcial":
         missing = set(previous) - set(incoming)
         if missing:
@@ -257,7 +259,7 @@ def kits(data, name, binary, cut):
     source(data, name, binary)
     return {"registros_fuente": len(incoming), "ids_nuevos": len(set(incoming) - set(previous)),
             "kits_acumulados": metadata["kits"], "registros_acumulados": len(combined),
-            "tipo_carga": mode}
+            "tipo_carga": mode, "registros_corregidos": revised}
 
 
 def suspendidas(data, continuity, name, binary, cut):
@@ -299,7 +301,7 @@ def suspendidas(data, continuity, name, binary, cut):
             "unidades": 1, "programa_id": program, "corte_fuente": cut,
             "cobertura": integer(coverage, "Cobertura")
         }
-        key = (names.key(prov), names.key(canton), short, names.key(unit))
+        key = (names.key(prov), names.key(canton), names.key(parish), short, names.key(mode), names.key(unit))
         if key in seen:
             raise ValueError("Unidades: identificador territorial repetido: " + str(unit))
         seen.add(key)
@@ -357,6 +359,10 @@ def build(snapshot, continuity, files, publication, units_cut):
             cont, results[kind] = suspendidas(data, cont, name, binary, units_cut)
     if not any("sin_cambios" not in r for r in results.values()):
         return {}, results
+    # No se permiten cambios incidentales en otras secciones institucionales.
+    for key in ("bonos", "brigadas", "notas", "criterio_alertas"):
+        if data.get(key) != snapshot.get(key):
+            raise ValueError(f"Se detectó modificación no autorizada en {key}.")
     data["corte"] = publication
     data["generado_utc"] = datetime.now(timezone.utc).isoformat()
     data.pop("pdf_publicado", None)
@@ -384,4 +390,42 @@ def build(snapshot, continuity, files, publication, units_cut):
         stream = BytesIO()
         frame.to_parquet(stream, engine="pyarrow", compression="zstd", index=False)
         products[key] = stream.getvalue()
+    # Auditoría: diferenciar el histórico de códigos del universo del periodo.
+    previous_ids = {str(x["codigo"]) for x in snapshot.get("alertas", [])}
+    current_ids = {str(x["codigo"]) for x in data.get("alertas", [])}
+    if not previous_ids.issubset(current_ids):
+        raise ValueError("No se permite borrar códigos de alertas del histórico.")
+    window = data.get("desde", "2026-09-28")
+    latest = publication
+    active = [r for r in data["alertas"] if window <= r.get("fecha", "") <= latest]
+    from src.enos import included
+    included_active = [r for r in active if included(r, data)]
+    coincidences = {}
+    for item in active:
+        ua = str(item.get("codigo_ua") or "").strip()
+        if ua:
+            key = (ua, item.get("fecha", ""))
+            coincidences.setdefault(key, set()).add(item["codigo"])
+    suspicious = [{"ua": ua, "fecha": dt, "cantidad_codigos": len(codes)}
+                  for (ua, dt), codes in coincidences.items() if len(codes) > 1]
+    old_kits = {r["id_kobo"]: r for r in snapshot.get("kits", [])}
+    new_kits = {r["id_kobo"]: r for r in data.get("kits", [])}
+    if len(old_kits) != len(snapshot.get("kits", [])):
+        raise ValueError("La base anterior de kits tiene identificadores duplicados.")
+    results["auditoria"] = {
+        "desde": window, "hasta": latest,
+        "alertas_historico": len(data["alertas"]),
+        "alertas_periodo_codigo": len(active),
+        "alertas_periodo_con_criterio": len(included_active),
+        "coincidencias_ua_fecha": suspicious[:25],
+        "nuevos_codigos_historico": len(current_ids - previous_ids),
+        "kits_historico": sum(r["kits"] for r in new_kits.values()),
+        "kits_periodo": sum(r["kits"] for r in new_kits.values() if window <= r["fecha"] <= latest),
+        "nuevos_ids_kobo": len(set(new_kits) - set(old_kits)),
+        "unidades_suspendidas": len(cont.get("detalle", [])),
+        "cobertura_suspendida": sum(r.get("cobertura", 0) for r in cont.get("detalle", [])),
+        "corte_unidades": cont.get("corte"),
+        "bonos_sin_modificar": data.get("bonos") == snapshot.get("bonos"),
+        "brigadas_sin_modificar": data.get("brigadas") == snapshot.get("brigadas"),
+    }
     return products, results
