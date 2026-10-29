@@ -616,16 +616,25 @@ class RiskView:
         continuity = r.available["continuidad"]
         cut = r.continuity_cut
         cut_day = f"{cut:%d/%m/%Y}" if cut is not None else ""
+        bonus_note = r.data.get("bonos_presentacion", {}).get("estado", "En articulación para el pago")
+        amount_note = f"Corte del bono: {r.cut_text('bonos')}"
+        if r.data.get("bonos_presentacion", {}).get("cobro_confirmado"):
+            provinces = set(r.articulation.provincia)
+            collected = [row for row in r.data["bonos"]["gestionados"] if row["provincia"] in provinces]
+            collected_count = sum(row["personas"] for row in collected)
+            collected_amount = sum(row["monto"] for row in collected)
+            bonus_note = f"{ui.number(collected_count)} familias cobraron"
+            amount_note = f"Cobrado: USD {ui.number(collected_amount, 2)}"
         return [
             {"label": "Alertas reportadas", "value": len(r.alerts), "icon": "shield", "tone": "oro",
              "note": "Registro y reportes sectoriales"},
             {"label": "Kits entregados", "value": r.kits_total, "icon": "life-buoy", "tone": "violeta",
              "note": f"{respuesta._n(kit_provinces, 'provincia priorizada', 'provincias priorizadas')} · corte {enos.short_cut(r.cuts['kits'])}"},
             {"label": r.data.get("bonos_presentacion", {}).get("unidad", "Personas") + " · Bono de Contingencia", "value": int(r.articulation.personas.sum()) if r.bonus_period_available else None, "icon": "users" if "bonos_presentacion" in r.data else "hand-coins", "tone": "oro" if "bonos_presentacion" in r.data else "lila",
-             "note": r.data.get("bonos_presentacion", {}).get("estado", "En articulación para el pago") if r.bonus_period_available else "Sin desglose temporal disponible"},
+             "note": bonus_note if r.bonus_period_available else "Sin desglose temporal disponible"},
             {"label": "Monto · Bono de Contingencia", "value": float(r.articulation.monto.sum()) if r.bonus_period_available else None,
              "prefix": "USD" if r.bonus_period_available else None, "decimals": 2,
-             "icon": "banknote", "tone": "morado", "note": f"Corte del bono: {r.cut_text('bonos')}" if r.bonus_period_available else "Sin desglose temporal disponible"},
+             "icon": "banknote", "tone": "morado", "note": amount_note if r.bonus_period_available else "Sin desglose temporal disponible"},
             # A territorial report outside the period has no figure in it (never a zero).
             {"label": "Unidades cerradas / suspendidas", "value": r.closed_units if continuity else None, "icon": "shield", "tone": "fucsia",
              "note": r.suspension_short() + f" · corte {cut_day}" if continuity else "Sin reporte territorial en el periodo"},
