@@ -27,3 +27,9 @@ name = "Michael Gómez"
 password_hash = "pbkdf2_sha256$600000$JTk5WCVWR0ZvFLhSjJKJO9smXeS/Lzwp$O5Z/hkFl/tzHXpDxbj97V81ebB/8y0I2fZ112FySDpA="
 role = "viewer"
 enabled = true
+
+[auth.users.delegado]
+name = "Delegado"
+password_hash = "pbkdf2_sha256$600000$L0jKt2suaakffF9Pjgw8/fdRZd/n56hk$kIWdZO/8i/oFQTZ9RuvyQEZ8BKi4OZFcD+ORcnPj3RY="
+role = "viewer"
+enabled = true

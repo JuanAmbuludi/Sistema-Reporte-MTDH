@@ -46,7 +46,7 @@ En Windows también puedes ejecutar **INICIAR_WINDOWS.bat**. Instala las depende
 
 ## Configuración de acceso opcional
 
-Las cuentas se encuentran en **`config/access.toml`**, con las contraseñas almacenadas como hashes. Se conserva `admin` y se incluyen los perfiles de consulta `david.paguay`, `geovanny.altamirano` y `michael.gomez`. Las claves individuales se entregan al responsable del sistema y no se publican en el repositorio.
+Las cuentas se encuentran en **`config/access.toml`**, con las contraseñas almacenadas como hashes. Se conserva `admin` y se incluyen los perfiles de consulta `david.paguay`, `geovanny.altamirano`, `michael.gomez` y `delegado`. Las claves individuales se entregan al responsable del sistema y no se publican en el repositorio.
 
 Si después deseas usar otras cuentas, puedes configurar una sección **`[auth]`** en **Settings → Secrets** de Streamlit Cloud o en `.streamlit/secrets.toml` al trabajar localmente. Cuando existe esa sección, **sustituye por completo** el acceso incluido en `config/access.toml`; no mezcla automáticamente las cuentas. El archivo de Secrets personal está excluido del repositorio por `.gitignore`. No se incluye la cuenta personal del usuario en el acceso distribuido.
 

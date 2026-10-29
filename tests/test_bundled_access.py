@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_bundled_access_only_contains_requested_accounts():
     config = tomllib.loads((ROOT / "config" / "access.toml").read_text())
     users = config["auth"]["users"]
-    assert set(users) == {"admin", "david.paguay", "geovanny.altamirano", "michael.gomez"}
+    assert set(users) == {"admin", "david.paguay", "geovanny.altamirano", "michael.gomez", "delegado"}
     assert verify_password("admin12345678", users["admin"]["password_hash"])
     assert users["admin"]["role"] == "admin"
     expected = {"david.paguay": "David Paguay", "geovanny.altamirano": "Geovanny Altamirano",
-                "michael.gomez": "Michael Gómez"}
+                "michael.gomez": "Michael Gómez", "delegado": "Delegado"}
     for username, name in expected.items():
         record = users[username]
         assert record["name"] == name
