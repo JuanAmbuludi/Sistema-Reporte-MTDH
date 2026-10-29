@@ -259,7 +259,9 @@ def _response(r) -> dict:
                   for p in bonus],
         "managed_people": int(r.managed.personas.sum()), "managed_amount": float(r.managed.monto.sum()),
         "articulation_people": int(r.articulation.personas.sum()), "articulation_amount": float(r.articulation.monto.sum()),
-        "bonus_cut": f"{pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}", "bonus_since": f"{pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y}",
+        "bonus_cut": f"{pd.Timestamp(r.cuts['bonos']):%d/%m/%Y}",
+        "bonus_since": (f"{pd.Timestamp(r.cuts['bonos_desde']):%d/%m/%Y}"
+                        if r.cuts.get("bonos_desde") else ""),
         "plan": dict(r.plan),
         "notes": r.notes(),
     }
@@ -658,7 +660,7 @@ def _response_tiles(c, r: dict, x: float, top: float, width: float, height: floa
               [kits or "En el territorio de la consulta"]),
              ("hand-coins", theme.MORADO, "Bono de contingencia",
               f"{number(r['managed_people'])} personas con pago gestionado" if r["managed_people"] else "Sin pagos gestionados",
-              ([f"USD {number(r['managed_amount'], 2)} · desde el {r['bonus_since']}"] if r["managed_people"] else [])
+              ([f"USD {number(r['managed_amount'], 2)}" + (f" · desde el {r['bonus_since']}" if r["bonus_since"] else "")] if r["managed_people"] else [])
               + ([f"{number(r['articulation_people'])} en articulación · USD {number(r['articulation_amount'], 2)}"]
                  if r["articulation_people"] else ["Sin casos en articulación en el territorio de la consulta"])),
              ("users", theme.ORO, "Plan El Niño 2026–2027", f"{number(plan['personas'])} personas potenciales",
@@ -994,7 +996,7 @@ def render_pptx(prs, ctx: dict) -> None:
         else:
             _text(s, 0.55, 1.6, 6.2, 0.5, "No hay entregas de kits en el territorio de la consulta.", size=14, color=theme.PIZARRA)
         _title(s, "Bono de contingencia · inundaciones", 7.05, 1.36, 5.8,
-               f"Pagos gestionados desde el {r['bonus_since']} y casos en articulación al {r['bonus_cut']}")
+               ("Pagos gestionados" + (f" desde el {r['bonus_since']}" if r["bonus_since"] else "") + f" y casos en articulación al {r['bonus_cut']}"))
         plan = r["plan"]
         tiles = [("Pago gestionado", f"{number(r['managed_people'])} personas", f"USD {number(r['managed_amount'], 2)}"),
                  ("En articulación", f"{number(r['articulation_people'])} personas", f"USD {number(r['articulation_amount'], 2)}"),
@@ -1224,7 +1226,7 @@ def render_workbook(book) -> None:
                                  [("Provincia", "name", "text"), ("Pago gestionado (personas)", "managed", "int"),
                                   ("Monto gestionado", "managed_amount", "usd"), ("En articulación (personas)", "articulation", "int"),
                                   ("Monto en articulación", "articulation_amount", "usd")], bonus,
-                                 note=f"Pagos gestionados desde el {r['bonus_since']} y casos en articulación al {r['bonus_cut']}",
+                                 note=("Pagos gestionados" + (f" desde el {r['bonus_since']}" if r["bonus_since"] else "") + f" y casos en articulación al {r['bonus_cut']}"),
                                  total={"managed": r["managed_people"], "managed_amount": r["managed_amount"],
                                         "articulation": r["articulation_people"], "articulation_amount": r["articulation_amount"]},
                                  last=5, height=22)

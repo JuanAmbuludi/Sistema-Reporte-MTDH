@@ -982,7 +982,7 @@ def render_workbook(book):
         first, end, row = _block(book, ws, row + 1, "Por provincia", [("Provincia", "name", "text"),
                                  ("Pago gestionado (núcleos familiares)", "managed", "int_dash"), ("En articulación (personas)", "articulation", "int_dash"),
                                  ("Monto gestionado (USD)", "managed_amount", "usd_dash"), ("Monto en articulación (USD)", "articulation_amount", "usd_dash")],
-                                 bonus, last=5, note=f"Pagos gestionados desde el {r['bonus_since']} · articulación al {r['bonus_cut']}",
+                                 bonus, last=5, note=("Pagos gestionados" + (f" desde el {r['bonus_since']}" if r["bonus_since"] else "") + f" · articulación al {r['bonus_cut']}"),
                                  total={"managed": r["managed_people"], "articulation": r["articulation_people"], "managed_amount": r["managed_amount"],
                                         "articulation_amount": r["articulation_amount"]})
         header = first - 1
