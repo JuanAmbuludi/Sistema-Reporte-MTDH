@@ -158,21 +158,51 @@ def commit_changes(token, plan):
     return f"https://github.com/{REPO}/commit/{new_commit}"
 
 
-st.set_page_config(page_title="Cargador interno ENOS", page_icon="📂", layout="wide")
-st.title("ENOS · Cargador interno de datos")
-st.caption("Herramienta independiente. No modifica las vistas, el dashboard ni los exportables aprobados.")
-st.info("Suba únicamente los Excel actualizados que recibió. Los formatos actuales se reconocen automáticamente.")
+st.set_page_config(page_title="Centro de actualización | ENOS", page_icon="📊", layout="wide",
+                   initial_sidebar_state="expanded")
+st.markdown("""<style>
+:root {color-scheme: light;}
+.block-container {max-width:1190px; padding-top:2.15rem; padding-bottom:3rem;}
+h1,h2,h3 {letter-spacing:-.025em;}
+[data-testid="stSidebar"] {background: #f3f5f9; border-right:1px solid #e0e5ee;}
+[data-testid="stSidebar"] .block-container {padding-top:2.5rem;}
+[data-testid="stFileUploader"] {border:1px dashed #a5b4c7; border-radius:16px;}
+[data-testid="stMetric"] {background:#f7f8fb;border:1px solid #e3e8ef;border-radius:14px;padding:15px 18px;}
+div.stButton button[kind="primary"] {background:#183052; border-radius:10px;border:1px solid #183052;}
+div.stButton button {border-radius:10px;}
+.enos-eyebrow {font-size:.81rem;font-weight:700;color:#58708f;letter-spacing:.12em;text-transform:uppercase;}
+.enos-lead {color:#52637c;font-size:1.04rem;margin:-.2rem 0 1.4rem;}
+.enos-block {border:1px solid #dde5ef; border-radius:14px; padding:16px 20px; background:#fff;}
+.enos-pill {display:inline-block; background:#edf1f6; color:#27425d; padding:5px 12px;border-radius:100px;font-size:.79rem;margin-right:8px;}
+</style>""", unsafe_allow_html=True)
+st.markdown('<div class="enos-eyebrow">MTDH · Monitoreo institucional</div>', unsafe_allow_html=True)
+st.title("Centro de actualización ENOS")
+st.markdown('<div class="enos-lead">Importación, conciliación y publicación controlada de fuentes operativas.</div>',
+            unsafe_allow_html=True)
+st.markdown('<span class="enos-pill">Herramienta interna independiente</span>'
+            '<span class="enos-pill">JSON compatibles + Parquet</span>'
+            '<span class="enos-pill">Histórico protegido</span>', unsafe_allow_html=True)
+st.write("")
+st.warning("La publicación requiere revisión. No se modifica el dashboard, sus KPI ni el informe exportable.", icon="🔒")
 
 with st.sidebar:
-    st.subheader("Acceso a GitHub")
+    st.markdown("### Configuración")
+    st.caption("Autorización y fechas de la carga.")
     token = st.text_input("Token personal con permiso Contents: Read and write", type="password",
                           help="Permiso exclusivamente para el repositorio Sistema-Reporte-MTDH.")
     now = datetime.now(ZONE).date()
     report_date = st.date_input("Fecha de publicación", value=now)
     unit_cut = st.date_input("Corte de unidades suspendidas", value=now)
-    st.caption("No use archivos con información personal que no esté autorizada para tratamiento.")
+    st.caption("El token no se publica en GitHub. No adjunte información personal sin autorización institucional.")
+    st.divider()
+    st.caption("Repositorio: JuanAmbuludi / Sistema-Reporte-MTDH")
+    st.caption("Destino: main · archivos de datos únicamente")
 
-uploads = st.file_uploader("Seleccione los Excel", type=["xlsx"], accept_multiple_files=True)
+st.markdown("### 1 · Importar fuentes")
+st.caption("Puede cargar una, dos o las tres fuentes; el sistema reconoce sus hojas y encabezados.")
+uploads = st.file_uploader("Archivos Excel (.xlsx)", type=["xlsx"], accept_multiple_files=True,
+                           help="Alertas del aplicativo, Kobo kits o unidades suspendidas.")
+
 files = {}
 errors = []
 for upload in uploads or []:
@@ -187,7 +217,8 @@ for upload in uploads or []:
     except Exception as exc:
         errors.append(f"{upload.name}: {exc}")
 if files:
-    st.write("Archivos detectados:", {label: item[0] for label, item in files.items()})
+    for label, item in files.items():
+        st.markdown(f"**{label.capitalize()}** · `{item[0]}`")
 for err in errors:
     st.error(err)
 
@@ -199,7 +230,9 @@ if "enos_signature" not in st.session_state:
 signature = (report_date.isoformat(), unit_cut.isoformat(),
              tuple(sorted((k, hashlib.sha256(b).hexdigest()) for k, (_, b) in files.items())))
 
-if st.button("1. Validar y preparar", disabled=not token or not files or bool(errors), type="primary"):
+st.markdown("### 2 · Conciliar y validar")
+st.caption("No se escribe nada en GitHub durante esta etapa.")
+if st.button("Validar archivos y comparar con GitHub", disabled=not token or not files or bool(errors), type="primary"):
     try:
         with st.spinner("Conciliando todas las fuentes con GitHub..."):
             plan = prepare(token, files, report_date.isoformat(), unit_cut.isoformat())
@@ -215,13 +248,41 @@ if st.button("1. Validar y preparar", disabled=not token or not files or bool(er
 
 plan = st.session_state.enos_plan
 if plan and st.session_state.enos_signature == signature:
-    st.subheader("Resultado de la conciliación")
-    st.json(plan["result"])
+    st.markdown("### 3 · Resultado de la auditoría")
+    report = plan["result"].get("auditoria", {})
+    if report:
+        a,b,c,d = st.columns(4)
+        a.metric("Alertas históricas", f'{report["alertas_historico"]:,}')
+        b.metric("Alertas del período", f'{report["alertas_periodo_con_criterio"]:,}')
+        c.metric("Kits del período", f'{report["kits_periodo"]:,}')
+        d.metric("Unidades suspendidas", f'{report["unidades_suspendidas"]:,}')
+        st.caption(f'Período consultado: {report["desde"]} a {report["hasta"]} · '
+                   f'Corte de unidades: {report.get("corte_unidades") or "No disponible"}')
+        st.markdown("#### Conciliación de variaciones")
+        c1,c2,c3 = st.columns(3)
+        c1.metric("Nuevos códigos de alerta", report["nuevos_codigos_historico"])
+        c2.metric("Nuevos ID Kobo", report["nuevos_ids_kobo"])
+        c3.metric("Kits históricos", f'{report["kits_historico"]:,}')
+        if report.get("coincidencias_ua_fecha"):
+            st.warning(f'Hay {len(report["coincidencias_ua_fecha"])} coincidencias de UA y fecha '
+                       'entre códigos de alerta. No se han fusionado; deben revisarse.')
+            st.dataframe(report["coincidencias_ua_fecha"], use_container_width=True, hide_index=True)
+        if not report["bonos_sin_modificar"] or not report["brigadas_sin_modificar"]:
+            st.error("Se detectaron cambios fuera del alcance. Publicación no permitida.")
+        else:
+            st.success("Bonos y brigadas permanecen intactos.")
+    else:
+        st.info("No hay nueva auditoría: el archivo ya se había procesado.")
+    with st.expander("Detalle técnico de conciliación y fuentes", expanded=False):
+        st.json(plan["result"])
     if plan["changed"]:
         st.caption(f"Archivos a actualizar: {len(plan['paths'])}. No se modificarán archivos del dashboard.")
         st.code("\n".join(plan["paths"]), language="text")
-        agree = st.checkbox("Confirmo que revisé las cifras, las fuentes y sus fechas de corte.")
-        if st.button("2. Publicar cambios en GitHub", disabled=not agree or not token):
+        st.markdown("### 4 · Publicación controlada")
+        st.info("Esta operación publicará solo archivos de datos ENOS en GitHub. "
+                "No altera el panel ni los documentos exportables.")
+        agree = st.checkbox("Revisé las cifras, las alertas potencialmente coincidentes, las fuentes y sus cortes.")
+        if st.button("Publicar datos validados en GitHub", disabled=not agree or not token, type="primary"):
             try:
                 with st.spinner("Creando un único commit validado..."):
                     link = commit_changes(token, plan)
