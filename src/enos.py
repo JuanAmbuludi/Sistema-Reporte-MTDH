@@ -120,9 +120,10 @@ def ensure_open(path) -> None:
 
 
 def history_paths() -> list[Path]:
+    from src import enos_excel
     paths = [path for pattern in (SNAPSHOT, CONTINUITY) for _date, path in publications(pattern)]
     brigades = FOLDER / "brigadas_emergencia.json"
-    return paths + ([brigades] if brigades.exists() else [])
+    return paths + ([brigades] if brigades.exists() else []) + enos_excel.paths(FOLDER)
 
 
 def history() -> dict:
@@ -164,6 +165,12 @@ def history() -> dict:
     assert data is not None
     for name in registers:
         data[name] = [row for row, keep in registers[name].values() if keep]
+    # Editable sources apply only to current queries. Published JSON and PDFs
+    # retain their original records and metadata.
+    from src import enos_excel
+    data = enos_excel.overlay(data, FOLDER)
+    if enos_excel.read(FOLDER, 'alertas') is not None:
+        data['alertas'] = [row for row in data['alertas'] if included(row, data)]
     from src import brigadas
     complete = brigadas.load(FOLDER / "brigadas_emergencia.json")
     if complete.get("corte"):
@@ -200,6 +207,8 @@ def history() -> dict:
         cut = continuity_cut(continuity(path))
         if cut is not None:
             recorded_days.append(day(cut))
+    for observation in _editable_observations():
+        recorded_days.append(day(continuity_cut(observation)))
     if not recorded_days:
         raise ValueError("Las bases no contienen registros con fecha para consultar.")
     data.update(desde=min(recorded_days).strftime("%Y-%m-%d"), corte=max(recorded_days).strftime("%Y-%m-%d"),
@@ -226,10 +235,21 @@ def continuity_at(until) -> dict:
         data = continuity(path)
         cut = continuity_cut(data)
         if cut is not None and day(cut) <= day(until):
-            available.append((cut, published, data))
+            available.append((cut, 0, published, data))
+    for data in _editable_observations():
+        cut = continuity_cut(data)
+        if cut is not None and day(cut) <= day(until):
+            available.append((cut, 1, cut, data))
     if not available:
         return {"registros": [], "detalle": [], "disponible": False}
-    return max(available, key=lambda item: (item[0], item[1]))[2]
+    return max(available, key=lambda item: (item[0], item[1], item[2]))[3]
+
+
+def _editable_observations() -> list[dict]:
+    from src import enos_excel
+    latest = in_force(CONTINUITY)[0]
+    base = continuity(latest) if latest else {}
+    return enos_excel.observations(FOLDER, base)
 
 
 # ------------------------------------------------------------------------------------------------ texts

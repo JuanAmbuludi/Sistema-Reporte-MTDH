@@ -65,6 +65,11 @@ def classify(binary):
     wb = load_xlsx(binary)
     try:
         sheets = set(wb.sheetnames)
+        if {'Datos', 'Control'}.issubset(sheets):
+            from src.enos_excel import FILES, FORMAT
+            control = dict(wb['Control'].iter_rows(min_row=2, max_row=8, max_col=2, values_only=True))
+            if control.get('formato') == FORMAT and control.get('tipo') in FILES:
+                return control['tipo']
         if {"DETALLE", "RESUMEN"}.issubset(sheets):
             return "suspendidas"
         if "Detalle" in sheets:

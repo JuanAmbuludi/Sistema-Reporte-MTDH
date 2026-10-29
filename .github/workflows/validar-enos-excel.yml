@@ -1,0 +1,19 @@
+name: Validar bases Excel ENOS
+on:
+  push:
+    paths: ['data/enos_excel/**', 'src/enos*.py', 'scripts/ingesta_enos_excel.py', 'scripts/validar_enos_excel.py', 'tests/test_enos_excel.py', '.github/workflows/validar-enos-excel.yml']
+  pull_request:
+    paths: ['data/enos_excel/**', 'src/enos*.py', 'scripts/ingesta_enos_excel.py', 'scripts/validar_enos_excel.py', 'tests/test_enos_excel.py', '.github/workflows/validar-enos-excel.yml']
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pandas==2.2.3 openpyxl==3.1.5
+      - run: python scripts/validar_enos_excel.py
+      - run: python -m unittest discover -s tests -p test_enos_excel.py

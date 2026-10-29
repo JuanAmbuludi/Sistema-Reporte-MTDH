@@ -2,7 +2,7 @@
 
 No está integrado al dashboard de producción. Solicita un token de GitHub
 solo para la sesión, con permiso Contents: Read and write sobre este repositorio.
-Los Excel se procesan en memoria y no se almacenan en GitHub.
+Las plantillas validadas se publican como fuentes Excel en GitHub.
 """
 from __future__ import annotations
 
@@ -20,6 +20,8 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts import ingesta_enos_automatica as engine
+from scripts import ingesta_enos_excel as excel_engine
+from src.enos_excel import FILES as EXCEL_FILES
 
 REPO = "JuanAmbuludi/Sistema-Reporte-MTDH"
 BRANCH = "main"
@@ -83,6 +85,15 @@ def fingerprint(binary):
 def prepare(token, inputs, publication, units_date):
     head, root, index = tree(token)
     latest, old_follow_path, snapshot, cont_day, old_cont_path, continuity = last_publication(token, index)
+    excel_paths = {kind: f'{excel_engine.FOLDER}/{name}' for kind, name in EXCEL_FILES.items()}
+    if any(path in index for path in excel_paths.values()):
+        if not all(path in index for path in excel_paths.values()):
+            raise ValueError('La base Excel de GitHub está incompleta; restaure las cuatro plantillas.')
+        current = {kind: read_blob(path, index, token) for kind, path in excel_paths.items()}
+        changes, result = excel_engine.build(snapshot, continuity, current, inputs)
+        return {'changed': bool(changes), 'changes': changes, 'result': result, 'head': head,
+                'root': root, 'base_day': latest, 'published': result['auditoria']['hasta'],
+                'paths': list(changes), 'bytes': sum(len(x) for x in changes.values())}
     if cont_day != latest:
         raise ValueError("Los dos archivos ENOS tienen cortes de publicación distintos. Revisar antes de actualizar.")
     if publication < latest:
@@ -180,10 +191,10 @@ st.title("Centro de actualización ENOS")
 st.markdown('<div class="enos-lead">Importación, conciliación y publicación controlada de fuentes operativas.</div>',
             unsafe_allow_html=True)
 st.markdown('<span class="enos-pill">Herramienta interna independiente</span>'
-            '<span class="enos-pill">JSON compatibles + Parquet</span>'
+            '<span class="enos-pill">Bases Excel editables</span>'
             '<span class="enos-pill">Histórico protegido</span>', unsafe_allow_html=True)
 st.write("")
-st.warning("La publicación requiere revisión. No se modifica el dashboard, sus KPI ni el informe exportable.", icon="🔒")
+st.info("Revise las cifras antes de publicar. Los datos actualizan las consultas del tablero y sus exportaciones; el diseño y los reportes publicados se conservan.")
 
 with st.sidebar:
     st.markdown("### Configuración")
@@ -191,17 +202,18 @@ with st.sidebar:
     token = st.text_input("Token personal con permiso Contents: Read and write", type="password",
                           help="Permiso exclusivamente para el repositorio Sistema-Reporte-MTDH.")
     now = datetime.now(ZONE).date()
-    report_date = st.date_input("Fecha de publicación", value=now)
-    unit_cut = st.date_input("Corte de unidades suspendidas", value=now)
+    report_date = unit_cut = now
+    st.caption("Las fechas se toman de Control y de las filas de cada Excel.")
     st.caption("El token no se publica en GitHub. No adjunte información personal sin autorización institucional.")
     st.divider()
     st.caption("Repositorio: JuanAmbuludi / Sistema-Reporte-MTDH")
     st.caption("Destino: main · archivos de datos únicamente")
 
 st.markdown("### 1 · Importar fuentes")
-st.caption("Puede cargar una, dos o las tres fuentes; el sistema reconoce sus hojas y encabezados.")
+st.caption("Cargue uno o varios de los cuatro Excel editables. Descargue primero la versión vigente de data/enos_excel.")
+st.markdown(f"[Descargar bases e instrucciones](https://github.com/{REPO}/tree/{BRANCH}/data/enos_excel)")
 uploads = st.file_uploader("Archivos Excel (.xlsx)", type=["xlsx"], accept_multiple_files=True,
-                           help="Alertas del aplicativo, Kobo kits o unidades suspendidas.")
+                           help="Plantillas con hojas Datos y Control: alertas, kits, unidades suspendidas y contingencias.")
 
 files = {}
 errors = []
@@ -267,10 +279,16 @@ if plan and st.session_state.enos_signature == signature:
             st.warning(f'Hay {len(report["coincidencias_ua_fecha"])} coincidencias de UA y fecha '
                        'entre códigos de alerta. No se han fusionado; deben revisarse.')
             st.dataframe(report["coincidencias_ua_fecha"], use_container_width=True, hide_index=True)
-        if not report["bonos_sin_modificar"] or not report["brigadas_sin_modificar"]:
+        if (not report["bonos_sin_modificar"] and not report.get('contingencias_autorizadas')) or not report["brigadas_sin_modificar"]:
             st.error("Se detectaron cambios fuera del alcance. Publicación no permitida.")
         else:
-            st.success("Bonos y brigadas permanecen intactos.")
+            st.success("Las cifras corresponden a las fuentes seleccionadas.")
+        if report.get('formato_excel'):
+            a,b,c,d = st.columns(4)
+            a.metric('Núcleos habilitados', report['nucleos_habilitados'])
+            b.metric('Monto habilitado', f"USD {report['monto_habilitado']:,.2f}")
+            c.metric('Núcleos cobrados', report['nucleos_cobrados'])
+            d.metric('Monto cobrado', f"USD {report['monto_cobrado']:,.2f}")
     else:
         st.info("No hay nueva auditoría: el archivo ya se había procesado.")
     with st.expander("Detalle técnico de conciliación y fuentes", expanded=False):
@@ -280,7 +298,7 @@ if plan and st.session_state.enos_signature == signature:
         st.code("\n".join(plan["paths"]), language="text")
         st.markdown("### 4 · Publicación controlada")
         st.info("Esta operación publicará solo archivos de datos ENOS en GitHub. "
-                "No altera el panel ni los documentos exportables.")
+                "Actualiza las cifras de las consultas actuales y conserva los documentos ya publicados.")
         agree = st.checkbox("Revisé las cifras, las alertas potencialmente coincidentes, las fuentes y sus cortes.")
         if st.button("Publicar datos validados en GitHub", disabled=not agree or not token, type="primary"):
             try:
