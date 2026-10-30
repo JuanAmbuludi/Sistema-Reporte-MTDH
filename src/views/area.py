@@ -94,12 +94,8 @@ class AreaView:
 
     # ------------------------------------------------------------------------------------------------- band
     def update_stamp(self) -> dict:
-        stamp = corte.stamp("presupuesto", self.period)
         info = manifest().get(self.id, {})
-        stamp["frequency"] = "Actualización mensual"
-        if info.get("corte"):
-            stamp["cut"] = info["corte"]
-        return stamp
+        return corte.stamp(self.id, self.period, cut_text=info.get("corte"))
 
     def series_svg(self, night: bool = True, width: int = 640, height: int = 360) -> str:
         series = self.series

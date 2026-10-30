@@ -86,7 +86,7 @@ def test_managed_contingency_payments_are_not_claimed_as_paid_people(report):
 
 def test_brigade_map_uses_attended_population_not_number_of_brigades(report):
     raw = pd.read_parquet(PROCESSED / "brigadas.parquet")
-    first = "2026-01" if report["mode"] == "anual" else "2023-11"
+    first = "2026-01" if report["mode"] == "anual" else "2023-12"
     selected = raw.loc[raw.periodo.between(first, "2026-09")]
     expected = selected.groupby("provincia_codigo").atendida.sum().to_dict()
     actual = block(report, "brigadas")["visual"]["map"]

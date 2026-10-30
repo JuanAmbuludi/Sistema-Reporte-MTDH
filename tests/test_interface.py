@@ -173,7 +173,7 @@ def test_labour_management_shows_contracts_and_retirement():
     app.segmented_control(key="module").set_value("laboral").run()
     assert not app.exception
     html = _markdown(app)
-    for expected in ["Empleo", *_labour_figures(), "4.686", "Actualización diaria", "Contratos vigentes por provincia",
+    for expected in ["Empleo", *_labour_figures(), "4.686", "Consulta diaria", "Contratos vigentes por provincia",
                      "Perfil de los contratos vigentes", "Compensación jubilar", "Contratos registrados por mes"]:
         assert expected in html, expected
     app.multiselect(key="labour_provinces").set_value(["09"]).run()
@@ -325,7 +325,7 @@ def test_period_bulletins_cover_the_year_and_the_government_period():
              "labour": load_labour(), "program_budget": mensual.program_budget(), "contingencies": contingencias.monthly(),
              "contingency_places": contingencias.territorial(), "contingency_catalog": contingencias.catalog(),
              "social_groups": groups, "social_programs": programs, "government_budget": finanzas.load_government()}
-    for mode, expected in (("anual", "Enero a septiembre de 2026"), ("gobierno", "Noviembre de 2023 a septiembre de 2026")):
+    for mode, expected in (("anual", "Enero a septiembre de 2026"), ("gobierno", "Diciembre de 2023 a septiembre de 2026")):
         pdf = pymupdf.open(stream=periodo.generate(periodo.build(bases, mode)), filetype="pdf")
         text = " ".join(page.get_text() for page in pdf)
         assert 4 <= len(pdf) <= 5 and expected in text and "Gestión realizada desde " in text and "Aspectos destacados del periodo" in text

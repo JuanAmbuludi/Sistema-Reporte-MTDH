@@ -1,13 +1,12 @@
 """Cut and update of the information of each area: shown on the dashboard and printed on every document.
 
 The *cut* is the period the figures describe (September 2026, or the date and hour of the daily labour cut); the
-*update* is when the bases were processed and published (the manifests record it in UTC).  Social programs and the
-budget are updated every month; labour contracts every day.
+*update* is the last substantive change in each area's own sources. A query,
+file re-save, deployment or change in another area never advances this clock.
 """
 from __future__ import annotations
 
 from datetime import datetime
-from functools import lru_cache
 import json
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -28,28 +27,35 @@ def long_date(moment: datetime, *, hour: bool = True) -> str:
     return f"{text}, {moment:%H:%M}" if hour else text
 
 
-@lru_cache(maxsize=4)
-def _updated(stamp: float) -> datetime | None:
-    moments = []
-    for name in ("manifest.json", "manifest_financiero.json", "manifest_laboral.json"):
-        path = PROCESSED / name
-        if not path.exists():
-            continue
-        data = json.loads(path.read_text(encoding="utf-8"))
-        value = data.get("generado_utc") or data.get("fecha_consulta_utc")
-        if value:
-            try:
-                moments.append(datetime.fromisoformat(value))
-            except ValueError:
-                continue
-    return max(moments).astimezone(ECUADOR) if moments else None
+def _moment(value) -> datetime | None:
+    try:
+        moment = datetime.fromisoformat(str(value))
+        return moment.astimezone(ECUADOR) if moment.tzinfo is not None else None
+    except (ValueError, TypeError):
+        return None
 
 
-def updated_at() -> datetime | None:
-    """When the bases were last processed and published, in Ecuador time."""
-    paths = [PROCESSED / n for n in ("manifest.json", "manifest_financiero.json", "manifest_laboral.json")]
-    stamp = max((p.stat().st_mtime for p in paths if p.exists()), default=0.0)
-    return _updated(stamp)
+def updated_at(area: str | None = None) -> datetime | None:
+    """The persisted content revision; never infer it from filesystem times."""
+    path = PROCESSED / "actualizacion_secciones.json"
+    if not path.exists():
+        return None
+    areas = json.loads(path.read_text(encoding="utf-8")).get("areas", {})
+    if area == "presupuesto":
+        moments = [_moment(areas.get(key, {}).get("actualizado_utc"))
+                   for key in ("presupuesto_social", "presupuesto_fiscal", "presupuesto_gobierno")]
+        return max((moment for moment in moments if moment is not None), default=None)
+    if area is not None:
+        return _moment(areas.get(area, {}).get("actualizado_utc"))
+    moments = [_moment(item.get("actualizado_utc")) for item in areas.values()]
+    return max((moment for moment in moments if moment is not None), default=None)
+
+
+def labour_updated_at() -> datetime | None:
+    path = SERIES / "laboral/ultima_consulta.json"
+    if path.exists():
+        return _moment(json.loads(path.read_text(encoding="utf-8")).get("actualizado_datos_utc"))
+    return None
 
 
 def labour_cut() -> datetime | None:
@@ -84,12 +90,14 @@ def labour_consulted_at() -> datetime | None:
     return None
 
 
-def stamp(area: str, period: dict | None = None) -> dict:
+def stamp(area: str, period: dict | None = None, *, cut_text: str | None = None) -> dict:
     """Cut, update and frequency of an area, in words for the dashboard and the documents."""
     frequency = FREQUENCY.get(area, "mensual")
-    updated = labour_consulted_at() if area == "laboral" else updated_at()
-    updated_label = "Última consulta:" if area == "laboral" else "Actualizado el"
-    if area == "laboral":
+    updated = labour_updated_at() if area == "laboral" else updated_at(area)
+    updated_label = "Actualizado el"
+    if cut_text is not None:
+        pass
+    elif area == "laboral":
         cut = labour_cut()
         cut_text = long_date(cut) if cut else ""
     elif period and period.get("month"):
@@ -103,12 +111,13 @@ def stamp(area: str, period: dict | None = None) -> dict:
     if cut_text:
         parts.append(f"Corte de la información: {cut_text}")
     if updated_text:
-        parts.append(f"última consulta: {updated_text}" if area == "laboral" else f"actualizada el {updated_text}")
-    parts.append(f"actualización {frequency}")
+        parts.append(f"actualizada el {updated_text}")
+    frequency_text = "Consulta diaria" if area == "laboral" else f"Actualización {frequency}"
+    parts.append(frequency_text.lower())
     line = " · ".join(parts)
-    short_label = "Última consulta" if area == "laboral" else "Actualizado"
+    short_label = "Actualizado"
     short = " · ".join(([f"Corte: {cut_text}"] if cut_text else []) + ([f"{short_label}: {updated:%d/%m/%Y %H:%M}"] if updated else [])
-                       + [f"Actualización {frequency}"])
+                       + [frequency_text])
     return {"cut": cut_text, "updated": updated_text, "updated_short": f"{updated:%d/%m/%Y %H:%M}" if updated else "",
-            "frequency": f"Actualización {frequency}", "frequency_word": frequency, "line": line[:1].upper() + line[1:],
+            "frequency": frequency_text, "frequency_word": frequency, "line": line[:1].upper() + line[1:],
             "short": short, "updated_label": updated_label}

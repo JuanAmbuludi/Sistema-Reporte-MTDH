@@ -4,5 +4,21 @@
   "origen": "web",
   "fecha_corte": "2026-10-30",
   "fecha_hora_corte": "2026-10-30T03:54",
-  "recursos_consultados": 7
+  "recursos_consultados": 7,
+  "actualizado_datos_utc": "2026-10-30T18:02:34.264456+00:00",
+  "huella_datos_laborales": "48d3f6ca54ea22d437218bf2e78af55017b52c9bcd6f3e18d313c26e46e2f9d2",
+  "revisiones_fuente": {
+    "contratos": {
+      "huella_datos": "1b5756f9cfe77fcc473fa5711d18651805657ec9125e0409661617b07fef6bfa",
+      "actualizado_datos_utc": "2026-10-30T18:02:34.264456+00:00"
+    },
+    "jubilados": {
+      "huella_datos": "e1aea9582a950760185a073a70fac36cc20b270825fc97243f9276a31f0d3237",
+      "actualizado_datos_utc": "2026-10-25T22:53:21.189235+00:00"
+    },
+    "jovenes": {
+      "huella_datos": "c4b68d46f47c6277e5ea917cc9085af1981c7fac858cbaaf7087283d6ee0aa93",
+      "actualizado_datos_utc": "2026-10-25T22:53:21.189235+00:00"
+    }
+  }
 }

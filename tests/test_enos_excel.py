@@ -4,10 +4,15 @@ from datetime import datetime
 import hashlib
 import json
 import gzip
+import os
 from pathlib import Path
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
+
+import openpyxl
+from openpyxl.styles import Font
 
 from src import enos, enos_excel as excel
 from scripts.ingesta_enos_excel import build
@@ -254,6 +259,99 @@ class PublishedSafety(unittest.TestCase):
         self.save()
         with self.assertRaisesRegex(ValueError, 'identificadores'):
             excel.check_retention(self.processed)
+
+
+class MeaningfulPublicationDates(unittest.TestCase):
+    def setUp(self):
+        self.temporary = TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.processed = self.root / 'data/processed'
+        self.processed.mkdir(parents=True)
+        self.folder = excel.directory(self.processed)
+        self.folder.mkdir()
+        fixture = ExcelRegisters()
+        fixture.setUp()
+        for kind, rows in fixture.rows.items():
+            book = openpyxl.Workbook()
+            data = book.active
+            data.title = 'Datos'
+            data.append(excel.FIELDS[kind])
+            for row in rows:
+                data.append([row[key] for key in excel.FIELDS[kind]])
+            control = book.create_sheet('Control')
+            control.append(['Campo', 'Valor'])
+            control.append(['formato', excel.FORMAT])
+            control.append(['tipo', kind])
+            control.append(['corte', '2026-10-28'])
+            book.save(self.folder / excel.FILES[kind])
+        subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
+        self.commit('2026-10-28T10:00:00+00:00')
+
+    def commit(self, moment):
+        subprocess.run(['git', 'add', 'data'], cwd=self.root, check=True)
+        env = {**os.environ, 'GIT_AUTHOR_DATE': moment, 'GIT_COMMITTER_DATE': moment}
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'Source revision'], cwd=self.root, env=env, check=True)
+
+    def edit(self, kind, change):
+        path = self.folder / excel.FILES[kind]
+        book = openpyxl.load_workbook(path)
+        change(book)
+        book.save(path)
+        excel._read.cache_clear()
+
+    def stamp(self):
+        from scripts import actualizar_sello_enos as publisher
+        with patch.object(publisher, 'ROOT', self.root), patch.object(publisher, 'FOLDER', self.folder):
+            return publisher.build_stamp()
+
+    def test_formatting_and_control_summary_changes_do_not_become_new_data(self):
+        before = excel.content_hashes(self.processed)
+        self.edit('kits', lambda book: setattr(book['Datos']['A2'], 'font', Font(bold=True, color='512F8D')))
+        self.edit('alertas', lambda book: setattr(book['Control']['B4'], 'value', '2099-01-01'))
+        self.commit('2026-10-29T10:00:00+00:00')
+        self.assertEqual(excel.content_hashes(self.processed), before)
+        # First migration also searches behind a format-only Git commit.
+        stamp = self.stamp()
+        self.assertEqual(stamp['generado_utc'], '2026-10-28T10:00:00+00:00')
+        self.assertTrue(all(item['actualizado_utc'] == stamp['generado_utc'] for item in stamp['fuentes'].values()))
+
+    def test_real_cell_change_advances_only_its_source_clock_and_revalidation_keeps_it(self):
+        initial = self.stamp()
+        (self.folder / excel.STAMP).write_text(json.dumps(initial), encoding='utf-8')
+        self.edit('kits', lambda book: setattr(book['Datos']['E2'], 'value', 8))
+        self.commit('2026-10-30T12:34:00+00:00')
+        revised = self.stamp()
+        self.assertEqual(revised['generado_utc'], '2026-10-30T12:34:00+00:00')
+        for path, row in revised['fuentes'].items():
+            expected = revised['generado_utc'] if path.endswith('kits.xlsx') else initial['generado_utc']
+            self.assertEqual(row['actualizado_utc'], expected)
+        (self.folder / excel.STAMP).write_text(json.dumps(revised), encoding='utf-8')
+        self.assertEqual(self.stamp(), revised)
+
+    def test_dates_statuses_and_collection_amounts_are_meaningful(self):
+        for kind, cell, value in [('alertas', 'E2', 'Resuelto'), ('kits', 'B2', '2026-10-29'),
+                                  ('unidades_suspendidas', 'K2', 'Reanudada'), ('contingencias', 'G2', 900)]:
+            with self.subTest(kind=kind):
+                path = self.folder / excel.FILES[kind]
+                previous = excel.content_hash(path)
+                self.edit(kind, lambda book: setattr(book['Datos'][cell], 'value', value))
+                self.assertNotEqual(excel.content_hash(path), previous)
+
+    def test_failed_validation_cannot_publish_or_advance_the_clock(self):
+        from scripts import actualizar_sello_enos as publisher
+        stamp = self.stamp()
+        path = self.folder / excel.STAMP
+        path.write_text(json.dumps(stamp), encoding='utf-8')
+        original = path.read_bytes()
+        with patch('scripts.validar_enos_excel.validate', side_effect=ValueError('invalid row')), \
+             patch.object(publisher, 'ROOT', self.root), patch.object(publisher, 'FOLDER', self.folder), \
+             patch.object(publisher, 'build_stamp') as build_stamp:
+            with self.assertRaisesRegex(ValueError, 'invalid row'):
+                publisher.publish()
+            build_stamp.assert_not_called()
+        self.assertEqual(path.read_bytes(), original)
 
 
 if __name__ == '__main__':

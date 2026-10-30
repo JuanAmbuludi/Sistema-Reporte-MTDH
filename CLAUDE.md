@@ -1,5 +1,12 @@
 # Indicaciones para este repositorio
 
+## Período de gobierno y fechas de actualización
+
+- El período de gobierno comienza el **1 de diciembre de 2023**. Los flujos con fecha se filtran desde ese día. CDH usa `cdh_desembolsos_fechados.parquet`, conciliado por mes real de desembolso: las 888 operaciones de noviembre incluidas en el reporte mensual de diciembre quedan fuera del gobierno; las operaciones sin fecha conservan su mes de reporte y su nota de alcance. El presupuesto acumulado oficial sin desglose de noviembre conserva su valor y declara expresamente esa limitación.
+- `data/processed/actualizacion_secciones.json` registra las huellas de contenido y la última modificación real por sección. Se actualiza con `scripts/actualizar_trazabilidad.py`; no use la fecha de consulta laboral, el despliegue, la generación de un manifiesto ni el mtime para fechar otras secciones. Una consulta sin cambios, reordenar filas o cambiar formato no constituye actualización de datos.
+- Laboral separa `consulta_utc` de `actualizado_datos_utc` y conserva revisiones independientes por fuente. ENOS mantiene sus propias huellas y fechas en `data/enos_excel/actualizacion.json`. El tablero y los boletines usan estos mismos sellos. El corte de la fuente y la fecha de generación del PDF son conceptos diferentes y no se sustituyen entre sí.
+- La actualización manual de ENOS consiste en modificar y subir los cuatro Excel de `data/enos_excel/` con sus mismos nombres y estructura. No requiere escribir horas ni editar Control. El workflow valida antes de activar la carga; ante un error se conserva la publicación anterior. Véase `data/enos_excel/README.md`.
+
 ## Riesgos: lo reportado un día no se reescribe
 
 - Hay dos modalidades explícitas. **Por período** consulta las versiones más recientes de los registros disponibles con fechas **Desde/Hasta inclusivas**; es la modalidad inicial de la interfaz y permite consultar fechas anteriores al primer boletín guardado. **Reportes publicados / Fecha del reporte** recupera la publicación conservada y el alcance de sus propias fuentes. No presente una consulta actual por período como si fuera un documento emitido entonces: antes de la primera publicación guardada no existe un boletín histórico, aunque haya registros operativos para esas fechas.

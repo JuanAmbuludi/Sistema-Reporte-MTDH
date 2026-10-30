@@ -1,10 +1,68 @@
 {
   "generado_utc": "2026-10-30T15:09:07+00:00",
-  "criterio": "Fecha y hora del último commit que actualizó las bases Excel o el histórico de alertas ENOS.",
+  "criterio": "Último cambio real en registros o cortes de las fuentes ENOS; guardar, formatear o validar sin cambios no modifica la fecha.",
   "archivos": {
     "alertas.xlsx": "3b5761b34788f95807cfeaf9d1c3453ef8a0ab84cfb40e4bb94c8ba82c41eca5",
     "kits.xlsx": "c391846dd6bdb5e42b551ff04e0ecd6f9b188ba23d6c83d936a3a62c967454ed",
     "unidades_suspendidas.xlsx": "44231b8f4dfe1d808cc1172c0e21e9c851b18201c5b1f9d75c452139e0ec2691",
     "contingencias.xlsx": "86cc55d880182b81b1512a2b4fc2845348cec79c5c9c5e60dd4c755dab6b8f4b"
+  },
+  "fuentes": {
+    "data/enos_excel/alertas.xlsx": {
+      "contenido_sha256": "91f5f4fdd43c2f683a3a1a44f989b64c2ff54a53136985e86204306a7ef5634d",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/enos_excel/contingencias.xlsx": {
+      "contenido_sha256": "2c4ebe519a75e5247777f73ec3bdbaeed00f801529a00ed5eefcf35791044f88",
+      "actualizado_utc": "2026-10-30T13:57:35+00:00"
+    },
+    "data/enos_excel/kits.xlsx": {
+      "contenido_sha256": "5d521c3595e704562e2e59ef939fdca02c434aca0b105ae43d90a944314bb237",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/enos_excel/unidades_suspendidas.xlsx": {
+      "contenido_sha256": "b1f400d22371e83a6d3db03babfe996ad60f7c0873e481cbacf2d58bff389abc",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/alertas_historicas.json": {
+      "contenido_sha256": "73f3587ccdf7d7707fbb47dca5b557b852c889b0b82cd8b17ea6140a170641b9",
+      "actualizado_utc": "2026-10-30T15:09:07+00:00"
+    },
+    "data/processed/brigadas_emergencia.json": {
+      "contenido_sha256": "76700152c6c1aae290764ebbb2cc3eb209fc909c195e8331cb19683939c48da9",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/continuidad_servicios_2026-10-26.json": {
+      "contenido_sha256": "22483cbbdbc17fb9088d37491cb38b7084f9b353e35211b243658862392ead66",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/continuidad_servicios_2026-10-27.json": {
+      "contenido_sha256": "01aa68819932e38d55b9fc2e97112afd0156ea3651bd5c0747fc3a349048bcba",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/continuidad_servicios_2026-10-28.json": {
+      "contenido_sha256": "01aa68819932e38d55b9fc2e97112afd0156ea3651bd5c0747fc3a349048bcba",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/continuidad_servicios_2026-10-29.json": {
+      "contenido_sha256": "8ceb16a7be3404aa4077ec17a81b7f8c68194b81389aaefb96e76b13d8b51990",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/seguimiento_enos_2026-10-26.json": {
+      "contenido_sha256": "3358fb279b84d885a25954b42503f9c3b83d660f79b451bf9ec66574d6a97f3b",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/seguimiento_enos_2026-10-27.json": {
+      "contenido_sha256": "9051f71659444eba7f6209dcba6898d9271c96bba0c65c9288bbd3aebf76c954",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/seguimiento_enos_2026-10-28.json": {
+      "contenido_sha256": "ca7b87ed10e1eb87f246dbb10b45c9369f9371943c3007acbc081ea8258da3fc",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    },
+    "data/processed/seguimiento_enos_2026-10-29.json": {
+      "contenido_sha256": "902c7e2c9e5c2dfa5bd8e96263ad80745de9b0163d506657722eb753b0c49987",
+      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+    }
   }
 }

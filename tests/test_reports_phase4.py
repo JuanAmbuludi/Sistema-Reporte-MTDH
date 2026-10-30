@@ -25,7 +25,7 @@ def test_fourth_phase_is_an_independent_undated_reference(bases, mode):
     assert len(reasons) == 10
     assert sum(r["transferencias"] for r in reasons) == 14021
     payments = jovenes.payments()
-    start = "2026-01" if mode == "anual" else "2023-11"
+    start = "2026-01" if mode == "anual" else "2023-12"
     expected = payments.loc[payments.periodo_id.between(start, "2026-09")].transferencias.sum()
     assert blocks["jovenes"]["kpis"][0]["value"] == expected
     assert ctx["programs_label"] == "10 secciones del Ministerio"

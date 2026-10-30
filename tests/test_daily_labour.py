@@ -3,13 +3,15 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+from pathlib import Path
+import shutil
 from threading import Thread
 
 import pandas as pd
 import pytest
 import requests
 
-from scripts.update_history import update
+from scripts.update_history import update, update_current_labour
 from src import corte, gestion_laboral, sgde_scraper
 
 
@@ -77,6 +79,9 @@ def test_repeat_query_updates_consultation_without_redating_or_duplicating_sourc
     assert json.loads(before.pop(status))["consulta_utc"] == "2026-10-27T12:15:00+00:00"
     last = json.loads(after.pop(status))
     assert last["consulta_utc"] == "2026-10-28T12:15:00+00:00"
+    assert last["actualizado_datos_utc"] == "2026-10-27T12:15:00+00:00"
+    assert all(r["actualizado_datos_utc"] == "2026-10-27T12:15:00+00:00"
+               for r in last["revisiones_fuente"].values())
     assert last["fecha_corte"] == "2026-10-27"
     assert before == after
 
@@ -157,16 +162,99 @@ def test_dashboard_reloads_contracts_after_file_replacement(tmp_path, monkeypatc
     assert current.fecha_corte.iloc[0] == "2026-10-27"
 
 
-def test_labour_stamp_uses_own_consultation_and_preserves_source_cut(tmp_path, monkeypatch):
+def test_labour_stamp_uses_real_revision_and_preserves_source_cut(tmp_path, monkeypatch):
     series = tmp_path / "series"
     (series / "laboral").mkdir(parents=True)
-    (series / "laboral/ultima_consulta.json").write_text(json.dumps({"consulta_utc": "2026-10-28T12:15:00+00:00"}))
+    (series / "laboral/ultima_consulta.json").write_text(json.dumps({"consulta_utc": "2026-10-28T12:15:00+00:00",
+        "actualizado_datos_utc": "2026-10-27T12:15:00+00:00"}))
     (series / "actualizacion.json").write_text(json.dumps({"controles": {
         "contratos": {"fecha_hora_corte": "2026-10-27T03:35"}}}))
     monkeypatch.setattr(corte, "SERIES", series)
     monkeypatch.setattr(corte, "PROCESSED", tmp_path / "absent")
     stamp = corte.stamp("laboral")
     assert stamp["cut"] == "27 de octubre de 2026, 03:35"
-    assert stamp["updated"] == "28 de octubre de 2026, 07:15"
-    assert stamp["updated_label"] == "Última consulta:"
-    assert "Última consulta: 28/10/2026 07:15" in stamp["short"]
+    assert stamp["updated"] == "27 de octubre de 2026, 07:15"
+    assert stamp["updated_label"] == "Actualizado el"
+    assert "Actualizado: 27/10/2026 07:15" in stamp["short"]
+    assert corte.labour_consulted_at().day == 28
+
+
+def test_transport_format_changes_do_not_redate_the_data(web_source, tmp_path):
+    data = tmp_path / "data"
+    update(data, web=True)
+    before = {p: content for p, content in snapshot(data).items() if p.endswith(".parquet")}
+    status_path = data / "series/laboral/ultima_consulta.json"
+    prior = json.loads(status_path.read_text())
+    page = web_source / sgde_scraper.PAGES[0]
+    page.write_text(page.read_text() + "\n<!-- cosmetic site update -->")
+    payload_path = web_source / sgde_scraper.FILES[0]
+    payload_path.write_text(json.dumps(json.loads(payload_path.read_text()), indent=4))
+    result = update(data, web=True)
+    current = json.loads(status_path.read_text())
+    assert current["consulta_utc"] != prior["consulta_utc"]
+    assert current["revisiones_fuente"] == prior["revisiones_fuente"]
+    assert current["actualizado_datos_utc"] == prior["actualizado_datos_utc"]
+    assert result["bases_actualizadas"] == []
+    assert before == {p: content for p, content in snapshot(data).items() if p.endswith(".parquet")}
+
+
+def test_real_contract_change_does_not_redate_retirement_or_youth(web_source, tmp_path):
+    data = tmp_path / "data"
+    update(data, web=True)
+    status_path = data / "series/laboral/ultima_consulta.json"
+    before = json.loads(status_path.read_text())
+    payload_path = web_source / sgde_scraper.FILES[0]
+    payload = json.loads(payload_path.read_text())
+    payload["registrados"] = 11
+    for name in ("base", "canton", "rama", "tipo", "etnia", "act"):
+        payload["t"][name][0][-1] = 11
+    payload_path.write_text(json.dumps(payload))
+    update(data, web=True)
+    after = json.loads(status_path.read_text())
+    assert after["actualizado_datos_utc"] == after["consulta_utc"] == "2026-10-28T12:15:00+00:00"
+    assert after["revisiones_fuente"]["contratos"] != before["revisiones_fuente"]["contratos"]
+    for source in ("jubilados", "jovenes"):
+        assert after["revisiones_fuente"][source] == before["revisiones_fuente"][source]
+
+
+def test_legacy_revision_is_seeded_from_saved_evidence_not_today(web_source, tmp_path):
+    data = tmp_path / "data"
+    update(data, web=True)
+    status_path = data / "series/laboral/ultima_consulta.json"
+    status = json.loads(status_path.read_text())
+    for field in ("actualizado_datos_utc", "huella_datos_laborales", "revisiones_fuente"):
+        status.pop(field)
+    status_path.write_text(json.dumps(status))
+    update(data, web=True)
+    after = json.loads(status_path.read_text())
+    assert after["consulta_utc"] == "2026-10-28T12:15:00+00:00"
+    assert after["actualizado_datos_utc"] == "2026-10-27T12:15:00+00:00"
+
+
+def test_refreshing_stock_preserves_unchanged_retirement_observation(tmp_path):
+    root = Path(__file__).resolve().parents[1] / "data"
+    stage = tmp_path / "data"
+    (stage / "processed").mkdir(parents=True)
+    for name in ("gestion_laboral.parquet", "manifest_laboral.json"):
+        shutil.copyfile(root / "processed" / name, stage / "processed" / name)
+    before = pd.read_parquet(stage / "processed/gestion_laboral.parquet")
+    audit = json.loads((root / "series/actualizacion.json").read_text())
+    checks = audit["controles"]["contratos"]
+    new_day = (pd.Timestamp(checks["fecha_corte"]) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    checks.update(fecha_corte=new_day, fecha_hora_corte=new_day + "T03:35")
+    checks["por_estado"]["Vigente"] += 1
+    receipt = audit["fuentes"]["web"]
+    receipt["consulta_utc"] = (datetime.fromisoformat(receipt["consulta_utc"]) + timedelta(days=1)).isoformat()
+    for resource in receipt["recursos"]:
+        if resource["url"].endswith("contratos/dashboard_data.json"):
+            resource["sha256"] = "b" * 64
+    retirees = pd.read_parquet(root / "series/laboral/jubilados.parquet")
+    update_current_labour(stage, pd.DataFrame(), checks, receipt, retirees)
+    after = pd.read_parquet(stage / "processed/gestion_laboral.parquet")
+    unchanged = ["jubilados_compensados", "compensaciones_jubilares_usd", "contratos_del_mes_vigentes"]
+    pd.testing.assert_frame_equal(before.loc[before.indicador_id.isin(unchanged)].reset_index(drop=True),
+                                  after.loc[after.indicador_id.isin(unchanged)].reset_index(drop=True))
+    old_stock = before.loc[before.indicador_id.eq("contratos_vigentes_total")].iloc[0]
+    stock = after.loc[after.indicador_id.eq("contratos_vigentes_total")].iloc[0]
+    assert stock.valor == old_stock.valor + 1
+    assert stock.fecha_consulta_utc > old_stock.fecha_consulta_utc

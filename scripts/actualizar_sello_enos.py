@@ -1,4 +1,4 @@
-"""Record the last committed Excel publication time; run after ENOS validation."""
+"""Record real source changes after validation, independently of Excel formatting."""
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import gzip
 import sys
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'data/enos_excel'
@@ -13,15 +14,57 @@ FILES = ('alertas.xlsx', 'kits.xlsx', 'unidades_suspendidas.xlsx', 'contingencia
 sys.path.insert(0, str(ROOT))
 
 
+def changed_at(relative: str, current: str) -> str:
+    """Find the commit that introduced the current values, skipping re-saves."""
+    from src import enos_excel as excel
+    history = subprocess.check_output(['git', 'log', '--format=%H\t%cI', '--', relative], cwd=ROOT, text=True).splitlines()
+    if not history:
+        raise ValueError(f'No se encontró la publicación de {relative} en Git.')
+    introduced = None
+    with TemporaryDirectory() as temporary:
+        path = Path(temporary) / Path(relative).name
+        for line in history:
+            commit, moment = line.split('\t', 1)
+            result = subprocess.run(['git', 'show', f'{commit}:{relative}'], cwd=ROOT, capture_output=True)
+            if result.returncode:
+                break
+            path.write_bytes(result.stdout)
+            # A temporary file can retain its size and filesystem clock across
+            # historical versions; do not reuse a workbook cache entry.
+            excel._read.cache_clear()
+            try:
+                same = excel.content_hash(path) == current
+            except Exception:  # A historical invalid upload is not a usable data revision.
+                same = False
+            if not same:
+                break
+            introduced = moment
+    value = introduced or history[0].split('\t', 1)[1]
+    return datetime.fromisoformat(value).astimezone(timezone.utc).isoformat()
+
+
 def build_stamp():
-    paths = [f'data/enos_excel/{name}' for name in FILES] + ['data/processed/alertas_historicas.json']
-    value = subprocess.check_output(['git', 'log', '-1', '--format=%cI', '--', *paths], cwd=ROOT, text=True).strip()
-    if not value:
-        raise ValueError('No se encontró la publicación de los Excel en Git.')
-    moment = datetime.fromisoformat(value).astimezone(timezone.utc)
-    return {'generado_utc': moment.isoformat(),
-            'criterio': 'Fecha y hora del último commit que actualizó las bases Excel o el histórico de alertas ENOS.',
-            'archivos': {name: hashlib.sha256((FOLDER / name).read_bytes()).hexdigest() for name in FILES}}
+    from src import enos_excel as excel
+    processed = ROOT / 'data/processed'
+    stamp_path = FOLDER / excel.STAMP
+    previous = json.loads(stamp_path.read_text(encoding='utf-8')) if stamp_path.exists() else {}
+    hashes = excel.content_hashes(processed)
+    sources = {}
+    for name, fingerprint in hashes.items():
+        before = previous.get('fuentes', {}).get(name, {})
+        moment = (before.get('actualizado_utc') if before.get('contenido_sha256') == fingerprint else None)
+        sources[name] = {'contenido_sha256': fingerprint,
+                         'actualizado_utc': moment or changed_at(name, fingerprint)}
+    latest = max(source['actualizado_utc'] for source in sources.values())
+    # Preserve the already published clock on first migration and re-validation
+    # when the exact protected sources are still the same.
+    publication = excel.published(processed)
+    if previous.get('generado_utc') and publication and not publication['pendiente']:
+        latest = previous['generado_utc']
+    return {'generado_utc': latest,
+            'criterio': 'Último cambio real en registros o cortes de las fuentes ENOS; guardar, formatear o validar sin cambios no modifica la fecha.',
+            'archivos': {name: hashlib.sha256((FOLDER / name).read_bytes()).hexdigest() for name in FILES},
+            'fuentes': sources}
 
 
 def publish():

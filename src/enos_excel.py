@@ -48,7 +48,7 @@ def paths(processed: Path, *, strict=True) -> list[Path]:
 
 
 def updated_at(processed: Path) -> str | None:
-    """Publication time of these exact Excel bytes, independent of source cuts."""
+    """Last real source update, guarded by the currently validated Excel bytes."""
     folder = directory(processed)
     path = folder / STAMP
     if not path.exists():
@@ -72,6 +72,57 @@ def source_hashes(processed: Path) -> dict:
         if source.exists():
             sources.append(source)
     return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(sources)}
+
+
+def content_hash(path: Path) -> str:
+    """Hash source values, excluding Excel formatting and processing clocks.
+
+    Byte hashes still protect the validated publication. This separate hash is
+    only for the last real source update, so a re-save cannot look like new data.
+    """
+    path = Path(path)
+    if path.suffix == '.xlsx':
+        stat = path.stat()
+        kind, cut, control, rows = _read(str(path.resolve()), stat.st_mtime_ns, stat.st_size)
+        dates = {'fecha', 'corte', 'corte_fuente', 'fecha_habilitacion'}
+        integers = {'kits', 'familias', 'afectados_fuente', 'cobertura', 'nucleos_habilitados', 'nucleos_cobrados'}
+        records = []
+        for line, row in rows:
+            record = {}
+            for key, value in row.items():
+                if key in dates:
+                    value = _date(value, f'{path.name} · fila {line} · {key}')
+                elif key in integers or key.startswith('monto_'):
+                    value = _number(value, key, integer=key in integers, optional=key == 'afectados_fuente')
+                elif key in {'incluir', 'afectacion_servicio_confirmada'}:
+                    value = _bool(value, key, optional=key == 'afectacion_servicio_confirmada')
+                elif key in {'codigo', 'codigo_ua', 'id_kobo', 'id_unidad'}:
+                    value = _identifier(value)
+                else:
+                    value = _text(value)
+                record[key] = value
+            records.append(record)
+        records.sort(key=lambda row: json.dumps(row, sort_keys=True, ensure_ascii=False))
+        data = {'tipo': kind, 'corte': cut, 'registros': records,
+                'control': {key: control[key] for key in ('formato', 'tipo', 'modalidad', 'anio_fuente') if key in control}}
+    else:
+        ignored = {'generado_utc', 'fecha_consulta_utc', 'consulta_utc'}
+
+        def meaningful(value):
+            if isinstance(value, dict):
+                return {key: meaningful(item) for key, item in value.items() if key not in ignored}
+            if isinstance(value, list):
+                return [meaningful(item) for item in value]
+            return value
+
+        data = meaningful(json.loads(path.read_text(encoding='utf-8')))
+    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
+
+
+def content_hashes(processed: Path) -> dict:
+    """Semantic revisions of the same sources protected by ``source_hashes``."""
+    root = Path(processed).parent.parent
+    return {name: content_hash(root / name) for name in source_hashes(processed)}
 
 
 def published(processed: Path) -> dict | None:

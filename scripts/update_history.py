@@ -10,7 +10,9 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 from decimal import Decimal
+import hashlib
 import json
+from numbers import Number
 from pathlib import Path
 import re
 import shutil
@@ -50,6 +52,76 @@ def source_date(value):
     return pd.to_datetime(value, errors="coerce", dayfirst=not bool(re.match(r"^\d{4}-", str(value))))
 
 
+def _semantic_value(value):
+    if value is None or pd.isna(value):
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (Number, Decimal)):
+        return {"number": str(Decimal(str(value)).normalize())}
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def data_fingerprint(tables, *, cut=None):
+    """Hash parsed observations, independent of row order, transport bytes and query time."""
+    contents = {}
+    for name, frame in sorted(tables.items()):
+        columns = sorted(frame.columns)
+        rows = [json.dumps([_semantic_value(v) for v in row], ensure_ascii=False, sort_keys=True)
+                for row in frame[columns].itertuples(index=False, name=None)]
+        contents[name] = {"columns": columns, "rows": sorted(rows)}
+    payload = json.dumps({"tables": contents, "cut": cut}, ensure_ascii=False, sort_keys=True).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _latest_table(path, field="fecha_corte"):
+    if not path.exists():
+        return pd.DataFrame()
+    frame = pd.read_parquet(path)
+    return frame.loc[frame[field].eq(frame[field].max())].copy()
+
+
+def _original_receipt_time(series, audit, suffixes):
+    """Seed legacy data from its existing source evidence, never from today's rerun."""
+    current = audit.get("fuentes", {}).get("web", {})
+    wanted = {r["url"]: r["sha256"] for r in current.get("recursos", []) if r["url"].endswith(tuple(suffixes))}
+    moments = []
+    for path in (series / "laboral").glob("fuentes_*.json"):
+        receipt = json.loads(path.read_text())
+        observed = {r["url"]: r["sha256"] for r in receipt.get("recursos", []) if r["url"] in wanted}
+        if wanted and observed == wanted and receipt.get("consulta_utc"):
+            moments.append(receipt["consulta_utc"])
+    return min(moments) if moments else current.get("consulta_utc")
+
+
+def web_revisions(series, audit, tables, checks, retirees, phases, consulted):
+    """Keep independent change dates for contracts, retirement and youth sources."""
+    status_path = series / "laboral/ultima_consulta.json"
+    previous = json.loads(status_path.read_text()) if status_path.exists() else {}
+    prior_checks = audit.get("controles", {}).get("contratos", {})
+    specs = {
+        "contratos": (tables, {name: _latest_table(series / f"laboral/{name}.parquet") for name in tables},
+                       checks.get("fecha_hora_corte"), prior_checks.get("fecha_hora_corte"), ["contratos/dashboard_data.json"]),
+        "jubilados": ({"jubilados": retirees}, {"jubilados": _latest_table(series / "laboral/jubilados.parquet")},
+                      None, None, ["jubilados/corte.csv", "jubilados/gestion.csv"]),
+        "jovenes": ({"fases": phases}, {"fases": _latest_table(series / "jovenes_accion_fases.parquet", "periodo")},
+                    None, None, ["jovenes_accion/periodos.csv"]),
+    }
+    revisions = {}
+    for key, (incoming, existing, cut, old_cut, suffixes) in specs.items():
+        digest = data_fingerprint(incoming, cut=cut)
+        prior = previous.get("revisiones_fuente", {}).get(key, {})
+        unchanged = digest == data_fingerprint(existing, cut=old_cut)
+        original = prior.get("actualizado_datos_utc") or _original_receipt_time(series, audit, suffixes)
+        # With no historical evidence, leave an unchanged source undated instead of fabricating a revision.
+        revisions[key] = {"huella_datos": digest, "actualizado_datos_utc": original if unchanged else consulted}
+    labour = {key: revisions[key]["huella_datos"] for key in ("contratos", "jubilados")}
+    moments = [revisions[key]["actualizado_datos_utc"] for key in labour if revisions[key]["actualizado_datos_utc"]]
+    return {"actualizado_datos_utc": max(moments) if moments else None,
+            "huella_datos_laborales": hashlib.sha256(json.dumps(labour, sort_keys=True).encode()).hexdigest(),
+            "revisiones_fuente": revisions}
+
+
 def update(data_dir, folder=None, web=False, sgde_local=None):
     data_dir = Path(data_dir)
     data_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -68,6 +140,8 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
             path = series/f"{name}.parquet"
             previous = pd.read_parquet(path) if path.exists() else pd.DataFrame(columns=frame.columns)
             merged = upsert_partitions(previous, frame, keys=keys, partitions=partitions)
+            if path.exists() and data_fingerprint({name: previous}) == data_fingerprint({name: merged}):
+                return
             write_parquet(merged, path, keys=keys, money_columns=monies, note=note)
             changes.append(name)
 
@@ -149,19 +223,22 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
             previous_cut = audit.get("controles", {}).get("contratos", {}).get("fecha_corte")
             if web and previous_cut and checks["fecha_corte"] < previous_cut:
                 raise ValueError("SGDE publicó un corte anterior al vigente; se conserva la última base validada.")
+            retirees = retirement(raw)
+            phases = youth_phases(raw)
             consultation = {"estado": "validada", "consulta_utc": receipt["consulta_utc"],
                 "origen": "web" if web and not sgde_local else "copia_local",
                 "fecha_corte": checks["fecha_corte"], "fecha_hora_corte": checks.get("fecha_hora_corte"),
                 "recursos_consultados": len(receipt["recursos"])}
+            consultation.update(web_revisions(series, audit, tables, checks, retirees, phases, receipt["consulta_utc"]))
             audit["controles"]["contratos"] = checks
             for name, table in tables.items():
                 dims = [c for c in table if c not in {"periodo", "anio", "mes", "mes_nombre", "fecha_corte", "contratos", "empresas"}]
                 save("laboral/"+name, table, ["fecha_corte", *dims], ["fecha_corte"], note=checks["naturaleza"])
-            table = retirement(raw)
+            table = retirees
             save("laboral/jubilados", table, ["fecha_corte", "anio", "dimension", "categoria", "codigo"], ["fecha_corte"],
                  ["monto_usd"], "Cada dimensión repite el universo; total, sexo, provincia y régimen nunca se suman entre sí.")
             audit["controles"]["jovenes_web"] = youth(raw)
-            save("jovenes_accion_fases", youth_phases(raw), ["periodo", "fase"], ["periodo"],
+            save("jovenes_accion_fases", phases, ["periodo", "fase"], ["periodo"],
                  ["monto_transferencia_usd", "presupuesto_usd", "ejecucion_usd"],
                  "Fases con ejecución o atención publicadas en SGDE; participantes son habilitados o atendidos de cada fase, no pagos mensuales.")
             evidence = series/"laboral"/f"fuentes_{checks['fecha_corte']}.json"
@@ -172,7 +249,7 @@ def update(data_dir, folder=None, web=False, sgde_local=None):
                     receipt = previous
             evidence.write_text(json.dumps(receipt, ensure_ascii=False, indent=2)+"\n")
             audit["fuentes"]["web"] = receipt
-            update_current_labour(stage, tables["contratos_base"], checks, receipt, table)
+            update_current_labour(stage, tables["contratos_base"], checks, receipt, table, consultation)
             # A successful repeat query is recorded separately from the source's
             # original receipt and cut. It is published only after ALL checks pass.
             (series/"laboral/ultima_consulta.json").write_text(
@@ -260,7 +337,7 @@ def derived_tables(series, audit, save):
                     "decision": "Usar archivo aprobado para devengado. SANC01 solo acredita pagos de julio de fase 3; cobertura bancaria parcial."}
 
 
-def update_current_labour(stage, base, checks, receipt, retirees):
+def update_current_labour(stage, base, checks, receipt, retirees, revisions=None):
     """Refresh current stock; preserve the independently dated SUT monthly cohorts."""
     from src.laboral import SCHEMA
     import pyarrow as pa
@@ -283,6 +360,7 @@ def update_current_labour(stage, base, checks, receipt, retirees):
         filtros_json=json.dumps({"estado": "Vigente", "ambito": "nacional"}),
         filtro_desde=None, filtro_hasta=None,
         nota="Stock de contratos vigentes publicado por SGDE a su fecha_corte. No es flujo del mes. La serie mensual SUT conserva su fecha original.")
+    row = _retain_observation(template, row)
     rows = [r for r in rows if r["indicador_id"] != "contratos_vigentes_total"]+[row]
     current_retirees = next((r for r in rows if r["indicador_id"] == "jubilados_compensados"), None)
     totals = retirees.loc[retirees.dimension.eq("total")].sort_values("anio")
@@ -306,7 +384,7 @@ def update_current_labour(stage, base, checks, receipt, retirees):
                     evidencia_sha256=next(r["sha256"] for r in receipt["recursos"] if r["url"].endswith("jubilados/gestion.csv")),
                     filtros_json=json.dumps({"anio": int(latest.anio), "dimension": "total"}),
                     nota=f"Expedientes y monto acumulados del año al {latest.fecha_corte}. No son personas únicas ni gasto exclusivo de septiembre.")
-                rows = [r for r in rows if r["indicador_id"] != indicator]+[new]
+                rows = [r for r in rows if r["indicador_id"] != indicator]+[_retain_observation(old, new)]
     pq.write_table(pa.Table.from_pylist(rows, schema=SCHEMA), path, compression="zstd")
     manifest_path = path.parent/"manifest_laboral.json"
     manifest = json.loads(manifest_path.read_text())
@@ -317,6 +395,9 @@ def update_current_labour(stage, base, checks, receipt, retirees):
                     alcance_evidencia="evidencia y copia_del_corte respaldan la consulta SUT original, conservada como referencia. Los cortes actuales están en cortes_por_indicador y data/series/laboral.")
     manifest.update(parquet_sha256=sha256(path), actualizacion_stock_sgde=checks,
                     fuentes_stock=receipt, filas=len(rows))
+    if revisions:
+        manifest.update(actualizado_datos_utc=revisions["actualizado_datos_utc"],
+                        revisiones_fuente=revisions["revisiones_fuente"])
     # List only sources used by the current rows. Earlier source configurations
     # remain in their dated evidence, not in the current source catalog.
     manifest["fuentes"] = {r["fuente_id"]: r["fuente_url"] for r in rows}
@@ -329,6 +410,14 @@ def update_current_labour(stage, base, checks, receipt, retirees):
         "El stock y las cohortes conservan cortes independientes; no calcular participaciones entre ellos.",
         "La jubilación SGDE mide expedientes y monto acumulado anual al corte publicado, no personas únicas ni gasto de un solo mes."]
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
+
+
+def _retain_observation(old, new):
+    """An unchanged indicator retains its own evidence and observation timestamp."""
+    volatile = {"consulta_id", "fecha_consulta_utc", "evidencia_sha256"}
+    old_values = {key: _semantic_value(value) for key, value in old.items() if key not in volatile}
+    new_values = {key: _semantic_value(value) for key, value in new.items() if key not in volatile}
+    return old if old_values == new_values else new
 
 
 def main():

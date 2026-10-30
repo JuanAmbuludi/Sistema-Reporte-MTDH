@@ -1,4 +1,4 @@
-"""Period bulletins: January to the latest month of the year, and the government period (from November 2023).
+"""Period bulletins: January to the latest month of the year, and the government period (from December 2023).
 
 Both follow the executive summaries: a band with the period, two rows of key figures, the coverage of the information of
 each section (from when to when it exists) and then, section by section, monthly or yearly charts with their tables.
@@ -20,7 +20,7 @@ from .context import INSTITUTION, PRODUCT, millions, number, stamp
 from .enos_scope import bonus_scope, response_view
 
 LOG = logging.getLogger(__name__)
-GOVERNMENT_START = "2023-11"
+GOVERNMENT_START = "2023-12"
 MODES = {"anual": "Informe de gestión del año", "gobierno": "Informe de gestión del periodo de gobierno"}
 
 
@@ -53,7 +53,7 @@ def gather(bases: dict, mode: str) -> dict:
     start = f"{end[:4]}-01" if mode == "anual" else GOVERNMENT_START
     yearly = mode == "gobierno"
     out = {"mode": mode, "start": start, "end": end, "kpis": [], "coverage": [], "sections": [], "insights": []}
-    span = f"enero a {MONTHS[int(end[5:]) - 1]} de {end[:4]}" if mode == "anual" else f"noviembre de 2023 a {_month(end)}"
+    span = f"enero a {MONTHS[int(end[5:]) - 1]} de {end[:4]}" if mode == "anual" else f"diciembre de 2023 a {_month(end)}"
     out["span"] = span
 
     # -------------------------------------------------------------- transfers and services

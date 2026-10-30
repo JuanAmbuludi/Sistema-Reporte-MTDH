@@ -1,0 +1,40 @@
+name: Registrar cambios reales por sección
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'data/**'
+      - '!data/processed/actualizacion_secciones.json'
+      - 'src/revisions.py'
+      - 'scripts/actualizar_trazabilidad.py'
+      - '.github/workflows/actualizar-trazabilidad.yml'
+permissions:
+  contents: write
+concurrency:
+  group: trazabilidad-secciones
+  cancel-in-progress: false
+jobs:
+  registrar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install pandas==2.2.3 pyarrow==26.0.0
+      - name: Comparar contenido de cada sección
+        run: python scripts/actualizar_trazabilidad.py
+      - name: Guardar únicamente revisiones reales
+        run: |
+          git add data/processed/actualizacion_secciones.json
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Registrar cambios reales de las fuentes por sección"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

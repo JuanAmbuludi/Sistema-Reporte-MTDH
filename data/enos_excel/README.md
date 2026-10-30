@@ -6,7 +6,17 @@ La operación habitual es **descargar la versión vigente, completar la hoja de 
 2. Complete únicamente la hoja **Datos** (en contingencias, **Hoja1**), conservando sus columnas y los registros anteriores. Las fechas de las filas son las fechas reales de las entregas o reportes recibidos.
 3. Guarde y súbalo en esta misma carpeta con **Add file → Upload files**. Puede subir solo los archivos modificados. El [cargador interno](../../herramientas/README_ENOS_CARGADOR.md) es otra opción para revisar las cifras antes de enviarlas.
 
-Al subir los archivos, GitHub valida el conjunto y publica automáticamente la nueva versión del tablero. El sello **Actualizado el** toma la fecha y hora real de publicación en horario de Ecuador. Guardar un archivo solamente en la computadora no lo sube al sistema.
+Al subir los archivos, GitHub valida el conjunto y publica automáticamente la nueva versión del tablero. El sello **Actualizado el** corresponde al último cambio real de los registros o cortes, en horario de Ecuador. Guardar un archivo solamente en la computadora no lo sube al sistema.
+
+## Fecha de actualización y trazabilidad
+
+- Agregar una alerta o entrega, corregir un monto o fecha, cambiar un estado, registrar una reapertura o actualizar un cobro sí constituye una actualización.
+- Abrir y volver a guardar el mismo Excel, cambiar colores o anchos, ordenar las mismas filas, editar el resumen automático de Control, ejecutar la validación o volver a desplegar la aplicación **no cambia la fecha de los datos**.
+- Cada fuente conserva su propia fecha de último cambio. El sello general de ENOS muestra la más reciente de las fuentes que alimentan esta sección; no toma la fecha diaria de otra sección.
+- El **corte** describe hasta cuándo llegan los registros. **Actualizado el** indica cuándo se publicó su última modificación real. La fecha **Generado el** de un PDF indica cuándo se creó ese documento: descargar otro PDF no actualiza los datos.
+- Las consultas y exportaciones usan la misma publicación validada. Una carga inválida conserva los datos y la fecha anteriores hasta que se corrija; el aviso de validación pendiente permite identificarla.
+
+Las huellas de los archivos completos siguen protegiendo la validación. Por separado, el sistema compara sus valores normalizados para distinguir modificaciones reales de cambios de formato. No hay que escribir ninguna hora manualmente.
 
 ## Qué llenar en cada base
 

@@ -6,8 +6,6 @@ to another line as a count of distinct people.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 import pandas as pd
 import streamlit as st
 
@@ -101,14 +99,7 @@ class FairView(AreaView):
                 "tipo de capacitación, modalidad y territorio.")
 
     def update_stamp(self) -> dict:
-        stamp = corte.stamp(self.id, self.period)
-        value = self.metadata.get("generado_utc")
-        if value:
-            moment = datetime.fromisoformat(value).astimezone(corte.ECUADOR)
-            stamp.update(updated=corte.long_date(moment), updated_short=f"{moment:%d/%m/%Y %H:%M}")
-            stamp["line"] = f"Corte de la información: {stamp['cut']} · actualizada el {stamp['updated']} · actualización mensual"
-            stamp["short"] = f"Corte: {stamp['cut']} · Actualizado: {stamp['updated_short']} · Actualización mensual"
-        return stamp
+        return corte.stamp(self.id, self.period)
 
     def kpi_cards(self) -> list[dict]:
         s, month = self.stats, MONTHS[self.period["month"] - 1]

@@ -177,17 +177,7 @@ class FinanceView:
         return f"Año fiscal {year} · corte {self.period['label'].lower()}", self.label, lead
 
     def update_stamp(self):
-        stamp = corte.stamp(self.id, self.period)
-        consulted = (self.metadata.get("procedencia") or {}).get("consulta")
-        if self.government or not consulted:
-            return stamp
-        day = date.fromisoformat(consulted)
-        cut_day = date.fromisoformat(self.metadata["fecha_corte"][:10])
-        frequency = stamp["frequency"]
-        return {**stamp, "cut": self.cut_text, "updated": _long_date(consulted), "updated_label": "Consultado en SGDE el",
-                "updated_short": f"{day:%d/%m/%Y}",
-                "line": f"Corte de la información: {self.cut_text} · consultada en SGDE el {_long_date(consulted)} · {frequency.lower()}",
-                "short": f"Corte: {cut_day:%d/%m/%Y} · Consulta SGDE: {day:%d/%m/%Y} · {frequency}"}
+        return corte.stamp(self.file_id, self.period, cut_text=self.cut_text)
 
     # -------------------------------------------------------------------------------------------------- band
     def hero_visual(self):

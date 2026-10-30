@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/actualizar-datos-laborales.yml'
       - 'scripts/update_history.py'
+      - 'scripts/actualizar_trazabilidad.py'
       - 'src/sgde_scraper.py'
       - 'requirements-data.txt'
       - 'tests/test_daily_labour.py'
@@ -15,7 +16,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: actualizacion-datos-laborales
+  group: trazabilidad-secciones
   cancel-in-progress: false
 jobs:
   actualizar:
@@ -25,6 +26,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: main
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -36,11 +38,13 @@ jobs:
         run: python scripts/update_history.py --web > /tmp/laboral-update.json
       - name: Validar datos y actualización automática
         run: python -m pytest tests/test_history.py tests/test_daily_labour.py -q
+      - name: Registrar únicamente cambios reales por sección
+        run: python scripts/actualizar_trazabilidad.py
       - name: Guardar solo cambios de datos validados
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/series data/processed/gestion_laboral.parquet data/processed/manifest_laboral.json
+          git add data/series data/processed/gestion_laboral.parquet data/processed/manifest_laboral.json data/processed/actualizacion_secciones.json
           if ! git diff --cached --quiet; then
             git commit -m "Actualizar corte publicado de datos laborales"
             git pull --rebase origin main
@@ -58,6 +62,10 @@ jobs:
           consulted = datetime.fromisoformat(status['consulta_utc']).astimezone(ZoneInfo('America/Guayaquil'))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
               out.write(f"Consulta validada: {consulted:%d/%m/%Y %H:%M} (Ecuador)\n\n")
+              changed = status.get('actualizado_datos_utc')
+              if changed:
+                  changed = datetime.fromisoformat(changed).astimezone(ZoneInfo('America/Guayaquil'))
+                  out.write(f"Último cambio real de los datos: {changed:%d/%m/%Y %H:%M} (Ecuador)\n\n")
               out.write(f"Corte publicado por la fuente: {checks.get('fecha_hora_corte') or checks['fecha_corte']}\n\n")
               out.write(f"Contratos vigentes: {checks['por_estado'].get('Vigente', 0):,}\n\n")
               out.write('Frecuencia: diaria, programada a las 07:15 de Ecuador.\n')

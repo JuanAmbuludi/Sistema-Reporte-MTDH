@@ -118,6 +118,19 @@
       "criterio_filas": "Una operación por fila. No deduplicar por atributos demográficos: la fuente no contiene un identificador único de crédito.",
       "nota_fecha": "El reporte de diciembre de 2023 incluye desembolsos desde el 23 de noviembre de 2023. Se conservan 55 operaciones sin fecha diaria, con mes de reporte informado.",
       "nota_geografia": "Los códigos ausentes en la fuente se resuelven con el catálogo territorial del tablero; las parroquias no ubicadas conservan su nombre y el código vacío."
+    },
+    "desembolsos_fechados": {
+      "criterio_periodo": "Mes de FECHA_DESEMBOLSO; cuando falta la fecha diaria se conserva PERIODO_ARCHIVO y se identifica como mes_reporte.",
+      "filas_fuente": 152517,
+      "creditos": 152517,
+      "monto": 144362972.08,
+      "sin_fecha_diaria": 55,
+      "fecha_desembolso_desde": "2023-11-23",
+      "fecha_desembolso_hasta": "2026-09-11",
+      "periodo_desde": "2023-11",
+      "periodo_hasta": "2026-09",
+      "archivo": "CDH_PERIODO_GOBIERNO.parquet",
+      "sha256": "7efeb3af9ec790a981a3fce47de84073818be13bfe4f7897c890eed563677563"
     }
   },
   "brigadas": {

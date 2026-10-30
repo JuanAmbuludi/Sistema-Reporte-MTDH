@@ -292,6 +292,9 @@ def _budget_block(views: dict) -> dict | None:
                               note="Transferencias y servicios", icon="landmark"))
     if not kpis or period is None:
         return None
+    # This block combines all three budget sources, so its revision follows
+    # whichever of those sources changed most recently, not fiscal alone.
+    update = corte.stamp("presupuesto", period, cut_text=update.get("cut"))
     return {"key": "presupuesto", "label": "Presupuesto", "icon": "landmark", "period": period["label"], "kpis": kpis[:4],
             "findings": findings[:2], "visual": visual, "table": None, "update": update or {}, "source": f"Fuente: {INSTITUTION}"}
 
@@ -452,9 +455,12 @@ def _block_height(block: dict, width: float) -> float:
 
 def _cut_text(block: dict) -> str:
     update = block["update"]
+    revision = update.get("updated_short")
     if update.get("label"):
-        return update["label"]
+        return update["label"] + (f" · Actualizado: {revision}" if revision else "")
     cut = update.get("cut") or block["period"]
+    if revision:
+        return f"Corte: {cut} · Actualizado: {revision}"
     text = update.get("short") if len(cut) > 34 and update.get("short") else f"Corte: {cut}"
     frequency = update.get("frequency_short") or update.get("frequency")
     return f"{text} · {frequency}" if frequency else text
@@ -462,9 +468,10 @@ def _cut_text(block: dict) -> str:
 
 def _header_height(block: dict, width: float) -> float:
     from reportlab.pdfbase import pdfmetrics
-    cut_w = min(width * 0.52, pdfmetrics.stringWidth(_cut_text(block), "Text", 7))
+    full_cut_w = pdfmetrics.stringWidth(_cut_text(block), "Text", 7)
+    cut_w = min(width * 0.52, full_cut_w)
     title_w = pdfmetrics.stringWidth(block["label"], "Display-Bold", 10.6)
-    return 36 if title_w > width - cut_w - 34 else 24
+    return 36 if title_w > width - cut_w - 34 or full_cut_w > width * 0.52 else 24
 
 
 def _draw_block(c, block: dict, x: float, top: float, width: float) -> float:

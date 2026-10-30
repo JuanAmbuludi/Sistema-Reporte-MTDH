@@ -347,7 +347,7 @@ class RiskView:
                           on_click=self._all_history, args=(first, last))
             with government:
                 st.button("Período de gobierno", key="risk_government", type="tertiary",
-                          on_click=self._period, args=(max(first, min(date(2023, 11, 23), last)), last))
+                          on_click=self._period, args=(max(first, min(date(2023, 12, 1), last)), last))
             left, right = st.columns(2, gap="small")
             with left:
                 since = st.date_input("Desde", key=keys[0], min_value=first, max_value=last, format="DD/MM/YYYY")
@@ -555,7 +555,10 @@ class RiskView:
         cut = f"Respuesta al {r.end:%d/%m/%Y}" if r else "Sin seguimiento disponible"
         frequency = ('Carga pendiente de validación · se muestran los últimos datos validados'
                      if r and r.data.get('carga_pendiente') else 'Según cortes recibidos')
-        return {"cut": cut, "updated": updated, "short": cut,
+        updated_short = (datetime.fromisoformat(r.data["generado_utc"]).astimezone(ECUADOR).strftime("%d/%m/%Y %H:%M")
+                         if r else "")
+        return {"cut": cut, "updated": updated, "updated_short": updated_short,
+                "short": cut + (f" · Actualizado: {updated_short}" if updated_short else ""),
                 "line": cut + (f" · Actualizado el {updated}" if updated else ""),
                 "frequency": frequency, "frequency_short": frequency.lower()}
 

@@ -1,7 +1,7 @@
 """Informe de Gestión Institucional: everything the Ministry delivered in a period, with the structure of the monthly
 executive report (one block per section: key figures, its chart, its table and its findings).
 
-Two periods: January to the latest month of the year, and the government period (from November 2023).  The cover
+Two periods: January to the latest month of the year, and the government period (from December 2023).  The cover
 carries the eight key figures and the table of deliveries; the sections follow in the order of the dashboard and the
 highlights of the period close the document.
 """
@@ -14,12 +14,12 @@ import pandas as pd
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas as pdf_canvas
 
-from src import theme
+from src import corte, theme
 from src.data import MONTHS
 from .context import INSTITUTION, PRODUCT, millions, number, stamp
 
 LOG = logging.getLogger(__name__)
-GOVERNMENT_START = "2023-11"
+GOVERNMENT_START = "2023-12"
 TITLES = {"anual": "Informe de Gestión Institucional", "gobierno": "Informe de Gestión del Periodo de Gobierno"}
 
 
@@ -76,7 +76,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     end = monthly_ids[-1]
     start = f"{end[:4]}-01" if mode == "anual" else GOVERNMENT_START
     yearly = mode == "gobierno"
-    span = (f"Enero a {MONTHS[int(end[5:]) - 1]} de {end[:4]}" if mode == "anual" else f"Noviembre de 2023 a {_month(end)}")
+    span = (f"Enero a {MONTHS[int(end[5:]) - 1]} de {end[:4]}" if mode == "anual" else f"Diciembre de 2023 a {_month(end)}")
     blocks, deliveries, cover, highlights = [], [], [], []
     last = data.loc[data.periodo_id.eq(end)]
 
@@ -109,7 +109,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                 _kpi(f"Presupuesto devengado {end[:4]}", accrued, "money", note=f"Enero a {MONTHS[int(end[5:]) - 1]}"),
                 _kpi("Ejecución presupuestaria", accrued / coded * 100 if coded else None, "rate", note=f"Codificado: USD {_money_m(coded)} M")]
         if section == "bonos_pensiones" or yearly:
-            kpis.append(_kpi(f"Presupuesto acumulado 2023–{end[:4]}", float(programs.monto_gobierno.sum()), "money", note="Gestión de gobierno"))
+            kpis.append(_kpi(f"Presupuesto acumulado 2023–{end[:4]}", float(programs.monto_gobierno.sum()), "money", note="Referencia de la fuente · sin desglose mensual"))
         columns = [("Bono o pensión" if section == "bonos_pensiones" else "Servicio", "programa", None, "text"),
                    (word, "usuarios", 70, "int"), ("Participación", "participacion", 62, "pct"),
                    *([("Unidades", "unidades", 56, "int")] if section == "proteccion_integral" else []),
@@ -127,6 +127,8 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                                f"{number(accrued / coded * 100 if coded else 0, 1)} % del presupuesto codificado."}]
         if yearly and section == "proteccion_integral":
             findings[1] = {"icon": "calendar", "text": "La serie histórica presenta coberturas reportadas por corte; una persona puede figurar en distintas modalidades. No se suman meses como personas únicas de la gestión."}
+        if yearly:
+            findings[1]["text"] += " El presupuesto acumulado conserva el alcance 2023–" + end[:4] + " de la fuente; no permite descontar noviembre de 2023."
         blocks.append(_block(key, label, icon, span, kpis, visual,
                              {"title": "Cobertura y presupuesto por " + ("bono y pensión" if section == "bonos_pensiones" else "servicio"),
                               "note": f"Personas de {_month(end)} · montos en millones de USD",
@@ -136,7 +138,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                      + MONTHS[int(end[5:]) - 1],
                            "amount_people": total_people,
                            "money": float(programs.monto_gobierno.sum()) if yearly else accrued,
-                           "money_word": "acumulados en la gestión" if yearly else "devengados",
+                           "money_word": "acumulados según fuente" if yearly else "devengados",
                            "icon": "hand-coins" if section == "bonos_pensiones" else "users",
                            "context": f"{len(programs)} bonos y pensiones" if section == "bonos_pensiones" else f"{number(units)} unidades de atención"})
         cover.append(_kpi("Beneficiarios de bonos y pensiones" if section == "bonos_pensiones" else "Usuarios de servicios sociales",
@@ -344,14 +346,23 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     if cdh_path.exists():
         cdh = pd.read_parquet(cdh_path)
         disbursed = _within(cdh.loc[cdh.fuente.eq("desembolso")], start, end, "periodo")
+        dated_path = PROCESSED / "cdh_desembolsos_fechados.parquet"
+        dated_credit = yearly and dated_path.exists()
+        if dated_credit:
+            disbursed = _within(pd.read_parquet(dated_path), start, end, "periodo")
         if not disbursed.empty:
             profile_path = PROCESSED / "cdh_perfil.parquet"
             profile = _within(pd.read_parquet(profile_path), start, end, "periodo") if profile_path.exists() else pd.DataFrame()
             profile = profile.loc[profile.fuente.eq("desembolso")] if not profile.empty else profile
+            if dated_credit:
+                profile = disbursed
             women = profile.loc[profile.sexo.eq("Mujeres"), "creditos"].sum() / profile.creditos.sum() * 100 if not profile.empty else None
             months = disbursed.groupby("periodo").creditos.sum()
             bonus = disbursed.groupby("bono", as_index=False)[["creditos", "monto"]].sum().sort_values("creditos", ascending=False)
             credits, amount = float(disbursed.creditos.sum()), float(disbursed.monto.sum())
+            undated = int(disbursed.loc[disbursed.fecha_precision.eq("mes_reporte"), "creditos"].sum()) if dated_credit else 0
+            date_note = (f" Se usa la fecha de desembolso; {number(undated)} operaciones sin fecha diaria conservan su mes de reporte."
+                         if dated_credit else "")
             bonus["participacion"] = bonus.creditos / credits * 100
             kpis = [_kpi("Créditos desembolsados", credits, note=f"{_month(months.index.min()).capitalize()} a {_month(months.index.max())}"),
                     _kpi("Monto desembolsado", amount, "money", note=f"USD {number(amount / credits)} por crédito"),
@@ -364,7 +375,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
             blocks.append(_block("cdh", "Crédito de Desarrollo Humano", "coins", span, kpis, visual, None,
                                  [{"icon": "users", "text": f"El {number(women, 1)} % de los créditos se entregó a mujeres." if women else ""},
                                   {"icon": "coins", "text": f"Los usuarios de {bonus.iloc[0].bono} recibieron el "
-                                                            f"{number(bonus.iloc[0].participacion, 1)} % de los créditos."}]))
+                                                            f"{number(bonus.iloc[0].participacion, 1)} % de los créditos." + date_note}]))
             deliveries.append({"what": "Crédito de Desarrollo Humano", "detail": "créditos desembolsados para emprender",
                                "amount_people": credits, "money": amount, "money_word": "desembolsados", "icon": "coins",
                                "context": f"{number(women, 1)} % para mujeres" if women else ""})
@@ -435,6 +446,11 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     # The order of the report: coverage first, then El Niño and the brigades, then credit, contingencies, youth and employment.
     order = ["transferencias", "servicios", "riesgos", "brigadas", "cdh", "jovenes", "jovenes_fase4", "laboral", "ferias", "contingencias", "presupuesto"]
     blocks.sort(key=lambda b: order.index(b["key"]) if b["key"] in order else len(order))
+    for block in blocks:
+        previous = block.get("update", {})
+        revision = (risk.update_stamp() if block["key"] == "riesgos" else
+                    corte.stamp(block["key"], cut_text=previous.get("cut") or block["period"]))
+        block["update"] = {**revision, **previous}
     by_key = {b["key"]: b for b in blocks}
     picks = [("transferencias", 0), ("servicios", 0), ("brigadas", 0), ("cdh", 0), ("contingencias", 0)]
     highlights = [*highlights, *[by_key[k]["findings"][i] for k, i in picks if k in by_key and len(by_key[k]["findings"]) > i]][:4]

@@ -72,7 +72,7 @@ def read_bases(version: int) -> dict:
 
 def bases_version() -> int:
     """Latest change of any base (processed bases and monthly series)."""
-    folders = [DEFAULT_DATA_DIR, DEFAULT_DATA_DIR.parent / "series", DEFAULT_DATA_DIR.parent / "series" / "laboral",
+    folders = [DEFAULT_DATA_DIR, DEFAULT_DATA_DIR.parent / "enos_excel", DEFAULT_DATA_DIR.parent / "series", DEFAULT_DATA_DIR.parent / "series" / "laboral",
                DEFAULT_DATA_DIR.parent / "source" / "Acumulado_VIS_VIE"]
     return max(path.stat().st_mtime_ns for folder in folders if folder.exists() for path in folder.glob("*") if path.is_file())
 
@@ -222,11 +222,11 @@ def report_center() -> None:
             st.caption({"mes": "Resumen nacional: cada sección con su último corte, cuatro cifras clave, un "
                                "gráfico propio y dos hallazgos. Las secciones no se suman entre sí.",
                         "anual": "Cifras clave de enero al último mes, cobertura de cada sección, gráficos mensuales y cuadros.",
-                        "gobierno": "Gestión desde noviembre de 2023: cifras clave, desde y hasta cuándo hay información en cada "
+                        "gobierno": "Gestión desde diciembre de 2023: cifras clave, desde y hasta cuándo hay información en cada "
                                     "sección, gráficos por año o mes y cuadros."}[span_mode])
             title = st.text_input("Título", value=default, max_chars=80, key=f"report_title_all_{span_mode}").strip() or default
             ui.scope_chips([("Secciones", "Todas"), ("Territorio", "Nacional"),
-                            ("Periodo", {"mes": "Último corte de cada sección", "anual": "Enero a la fecha", "gobierno": "Desde noviembre de 2023"}[span_mode])])
+                            ("Periodo", {"mes": "Último corte de cada sección", "anual": "Enero a la fecha", "gobierno": "Desde diciembre de 2023"}[span_mode])])
         else:
             st.caption(view.products_notes()[spec["kind"]])
             title = st.text_input("Título", value=view.label, max_chars=80, key=f"report_title_{file_id}").strip() or view.label
@@ -234,8 +234,9 @@ def report_center() -> None:
                 view.report_options()
             ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
-        selection = f"todas-periodos-v8-{span_mode}-{version}" if everything else view.digest()
-        digest = hashlib.sha256((selection + json.dumps({"title": title, "product": product, "area": file_id},
+        selection = f"todas-periodos-v9-{span_mode}-{version}" if everything else view.digest()
+        digest = hashlib.sha256((selection + json.dumps({"title": title, "product": product, "area": file_id,
+                                                         "update": None if everything else stamp},
                                                          sort_keys=True)).encode("utf-8")).hexdigest()
         name = product.lower()
         if st.button(f"Generar {name}", type="primary", icon=":material/auto_awesome:", width="stretch", key="generate_report"):

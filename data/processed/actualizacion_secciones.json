@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "criterio": "Último cambio de contenido por sección; consulta y generación no alteran la fecha.",
+  "areas": {
+    "transferencias": {
+      "actualizado_utc": "2026-10-30T14:45:58+00:00",
+      "huella_datos": "2117302105b94c95ab981d30034da21879fd69b9a5d6c57bff3efd491fcff737",
+      "origen_fecha": "deb30f99e9343d8c417dc3519052b3c1aaafb99f",
+      "fuentes": {
+        "data/processed/indicadores.parquet": "6bcd2ab7484950031a00d2ac281f0d1ad688b99bc160f908ba9a58338c835189",
+        "data/processed/historico_referencia.parquet": "aeec7d9b383cacbdf4b6bb7e2a260afe89cdec957619549709f71150a4a49150",
+        "data/processed/cobertura_territorial.parquet": "dd1c3a2b87007a541d03aa7b473ea09211e5292f21f55f2dd36c9d61113c75cc",
+        "data/processed/presupuesto_territorial.parquet": "0d3c5a684c54f53a81700c6077f0b3bc0eb366bfb8efeb574f6507f4da118d7e",
+        "data/series/bonos_vie.parquet": "bd1ea7c1662de7429350e0d739b0ac63fee967e8989ed0ecb0b44a910fdfac93",
+        "data/series/bonos_vie_territorial.parquet": "086e300cb6ef13ba39af45d811897f0ce98e8fe81dcbcf85aef7eb6250e0e0fb",
+        "data/series/presupuesto_social_mensual.parquet": "3a35cd3473bee99e46e9710f3dd88385aeac3a73ea701a0213cb62311fc5e6f7"
+      }
+    },
+    "servicios": {
+      "actualizado_utc": "2026-10-30T14:45:58+00:00",
+      "huella_datos": "f7cbe5b344c2116a3a5c17d9e73ba0ff63a57816da2c87caf12a18d89abb7dcc",
+      "origen_fecha": "deb30f99e9343d8c417dc3519052b3c1aaafb99f",
+      "fuentes": {
+        "data/processed/indicadores.parquet": "423bcdb44e6b12b7efa825ea79da38f391480fe9d4c800be3421dca880543327",
+        "data/processed/historico_referencia.parquet": "4919f17ca7be90109bf277c2012b6e0aa4d630d8742f38d352bfe78f6cc0e130",
+        "data/processed/cobertura_territorial.parquet": "cdba2d9e0469dfa4a35e70b23437ceaf125cf98aeced0d40f6f003f746ba6498",
+        "data/processed/presupuesto_territorial.parquet": "ca7ca7a7f1b32cd6357bee2232cbfd520b91f67487e6f657801fd0b4b7096f7c",
+        "data/series/cobertura_vis.parquet": "2ef7a8c324228c859a9c74d197f394ef0681e29fb80152851996a72be459f24b",
+        "data/series/cobertura_vis_territorial.parquet": "6c11cfe760fba4658a60e554c9b08977089cdf92060ae68852e92815a85d0cf0",
+        "data/series/cobertura_vis_administracion.parquet": "7fa705d15cebba3a5af192567af6432757289c7ba35414bb63e77492645d3422"
+      }
+    },
+    "contingencias": {
+      "actualizado_utc": "2026-10-30T02:40:39+00:00",
+      "huella_datos": "19e8fd1a11e26eaa101f7486ca1ecbc01ab2deacf16a0113fd2a80700453be50",
+      "origen_fecha": "dd182de13e5605a803637ef481e7869fa9e0818b",
+      "fuentes": {
+        "data/series/beneficiarios_orfandad.parquet": "d598a140d369bac5126d026888d84a91e161d950f064785434e1de9d8565af14",
+        "data/series/contingencias_mensuales.parquet": "54f9c2f8c9857e8c6db9193ab0a6c0b47fc992cc12802939bda45ac0321e335f",
+        "data/series/contingencias_territorial.parquet": "7519a41403f8cee97ec184c671d2e5b80c34ee5e4cae70936739cd80b95c1850",
+        "data/series/antropicos_mensuales.parquet": "dfe5513340542d853e285a56adfe921aaeec4d83d74aa04d7ffbddb18003bfe7",
+        "data/series/antropicos_territorial.parquet": "bf0c9c4a8e0daa2338962878e473ccc3b14abadcb43d026b79de48930076bb1d",
+        "data/series/incentivos_mensuales.parquet": "0c811d0aed1c16adf475682d31acc0946fb00c3551db2115f0789ff6c7cfd621",
+        "data/series/presupuesto_social_mensual.parquet": "d5d25f15a9f40131197d6527ed1c1b05857bc28b178130f14d87afc96514b295",
+        "data/series/presupuesto_social_asignado.parquet": "cd3c9734743515c409f208292930426425cfeb1a032411f71ea0f6895a866b38"
+      }
+    },
+    "jovenes": {
+      "actualizado_utc": "2026-10-30T02:40:39+00:00",
+      "huella_datos": "bbdc3781c2a2c9ddb05ed124b1ba0edf5c1493ca14d35d83e136e227e8327905",
+      "origen_fecha": "dd182de13e5605a803637ef481e7869fa9e0818b",
+      "fuentes": {
+        "data/series/jovenes_accion_fases.parquet": "0684ded42c6e7a7d24b4b1215e3da5635128c110d794281afd5c6dca57679037",
+        "data/series/jovenes_accion_fase3.parquet": "bc00c5d0a23543a93957e8e076ff3795c4f2efea7a7c7379dbaca6785a82b596",
+        "data/series/incentivos_mensuales.parquet": "cd1d4ebbd045a02273e9a6753a73e57c4ac93112e643fa96458693daa66d1c75",
+        "data/series/presupuesto_social_mensual.parquet": "5d7675b32410a8ac8693bf8c760d3529068f3f8f26aae88a6e15aaa26b192580",
+        "data/series/presupuesto_social_asignado.parquet": "e7f1577820e46c13432e99b21853c6b79f1343d9dce65e325f9712cb720482b2"
+      }
+    },
+    "jovenes_fase4": {
+      "actualizado_utc": "2026-10-30T15:41:50+00:00",
+      "huella_datos": "80fcc31d36bb0a8d0ca80904b6db126ef4d5b61a5faad5e1ad870b1174aaa09d",
+      "origen_fecha": "1c20c94d17c0884bb11fe2e00590215d294234ee",
+      "fuentes": {
+        "data/processed/jovenes_fase4.json": "4b9c9f0124cc562777d26e3fdf7e87fd1474b2aab3c4e91d85332954305f36c1"
+      }
+    },
+    "presupuesto_social": {
+      "actualizado_utc": "2026-10-30T02:40:39+00:00",
+      "huella_datos": "82dd17141c5e0913ed720186cfa8c7578e2f47175bf9fff3afd7b1bbf966bd95",
+      "origen_fecha": "dd182de13e5605a803637ef481e7869fa9e0818b",
+      "fuentes": {
+        "data/series/presupuesto_social_mensual.parquet": "eefcaceb17b8afd21193831ff1ba162d32c29a9e5b88ad8cf0871fefd5418175",
+        "data/series/presupuesto_social_asignado.parquet": "546fb372ea376c58608446f298c281a6ca955adab1da81313a76974a8ab6f4fb"
+      }
+    },
+    "presupuesto_fiscal": {
+      "actualizado_utc": "2026-10-30T02:40:39+00:00",
+      "huella_datos": "2ca8b12c8efdb8ba92a0eade08753208e71604f830be3a09d29b91c4cc149963",
+      "origen_fecha": "dd182de13e5605a803637ef481e7869fa9e0818b",
+      "fuentes": {
+        "data/processed/presupuesto_fiscal_2026-09.json": "15f1ff59e155bdc5cf0e37ecd8ef6363bc4cfb97c8ececd007d3c5b208a0ceb9"
+      }
+    },
+    "presupuesto_gobierno": {
+      "actualizado_utc": "2026-10-30T02:40:39+00:00",
+      "huella_datos": "f4eb9888e211846049dea746bdd6d69dd9de8dcb4625f153739413b9110ed6a1",
+      "origen_fecha": "dd182de13e5605a803637ef481e7869fa9e0818b",
+      "fuentes": {
+        "data/source/Acumulado_VIS_VIE/01_provincial.parquet": "a980b64321a20e687c51982339235e2eb18a85366a026bc3cb7c4875cc2a11af",
+        "data/processed/manifest.json": "fe1457d8f8c5911fca219c2ab9d7bf2bfbf4f72cc8920718487bff31a343b43c"
+      }
+    },
+    "cdh": {
+      "actualizado_utc": "2026-10-30T20:55:17.073206+00:00",
+      "huella_datos": "9bfee31b89d3df7d5c1e140a33ea730b3c6ffabdf29fbbf9ff242033412d2773",
+      "origen_fecha": "Cambio de datos en la publicación actual",
+      "fuentes": {
+        "data/processed/cdh_territorio.parquet": "0e0d39f6ce116c25694ad51022c4dabae1b21f0aecb867dcc9c2b5b14bde488d",
+        "data/processed/cdh_perfil.parquet": "4f8a0a95037f2fdf42d8f9d4c6ee4312ab11611e3cb04823ad39772b1ad31fc5",
+        "data/processed/cdh_desembolsos_fechados.parquet": "914f9cb1dc8eaa62aec0b84f45715b153ba907671b5508b63d4b95638f5be3f1",
+        "data/processed/cdh_brigadas.json": "1520cf50c8516d4667daf0c5d3bed01c2b1930da444d8b719210bb853ff2858d"
+      }
+    },
+    "brigadas": {
+      "actualizado_utc": "2026-10-30T02:40:39+00:00",
+      "huella_datos": "2fab34bdf0a51a1b8aa1264cbc3f546296e3e3e8df417c4406b623678cc39db0",
+      "origen_fecha": "dd182de13e5605a803637ef481e7869fa9e0818b",
+      "fuentes": {
+        "data/processed/brigadas.parquet": "6845e466cebbb4fd7112ad07a558215efb956dbe3ea01d4e6de993985a3fe353",
+        "data/processed/cdh_brigadas.json": "df064fd9bbdf17302f42702975f62ca115867cc671e1fb26be431b210810c9c8"
+      }
+    },
+    "ferias": {
+      "actualizado_utc": "2026-10-30T14:47:40+00:00",
+      "huella_datos": "2fd67812683d1a150ace7c10c9f157f034e708714478908751c9dfcf77575ba5",
+      "origen_fecha": "641cc82c0ada24104f548327278c054e92d60aeb",
+      "fuentes": {
+        "data/processed/ferias_participaciones.parquet": "92c7f264b892abe770e2585a1fb2325efbd85bab7edb0cbc3c99c27fff009f66",
+        "data/processed/ferias_perfil.parquet": "eb800585daf79b57fca2c44c26a3b3422a7fb6afde3eeb0c1b837acf685f4072",
+        "data/processed/ferias.json": "3106ec490791615d8deaa8fff488ba0fa0e9a7a7852c302d01e774c084b53bb4"
+      }
+    }
+  }
+}

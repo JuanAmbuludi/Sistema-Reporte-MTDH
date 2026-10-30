@@ -22,7 +22,7 @@ jobs:
       - run: python -m pip install pandas==2.2.3 openpyxl==3.1.5
       - run: python scripts/validar_enos_excel.py
       - run: python -m unittest discover -s tests -p test_enos_excel.py
-      - name: Actualizar fecha y hora de publicación de los Excel
+      - name: Publicar datos validados y conservar la fecha si no cambió su contenido
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           python scripts/actualizar_sello_enos.py
@@ -30,7 +30,7 @@ jobs:
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Actualizar fecha y hora de publicación ENOS"
+            git commit -m "Publicar validación y trazabilidad de fuentes ENOS"
             git pull --rebase origin main
             git push origin HEAD:main
           fi

@@ -1,6 +1,7 @@
 """Undated phase-four monitoring remains separate from dated youth payments."""
 from __future__ import annotations
 
+from src import corte
 from src.reports.context import number
 
 TITLE = "Jóvenes en Acción · Fase 4: monitoreo de transferencias"
@@ -35,7 +36,8 @@ def block() -> dict | None:
     reason_rows.append({"motivo": "Total no acreditado", "transferencias": stats["no_acreditadas"],
                         "participacion": 100.0 if failed else None, "selected": True})
     return {
-        "key": "jovenes_fase4", "label": TITLE, "icon": "graduation", "period": SCOPE, "update": {"label": SCOPE},
+        "key": "jovenes_fase4", "label": TITLE, "icon": "graduation", "period": SCOPE,
+        "update": {**corte.stamp("jovenes_fase4", cut_text=SCOPE), "label": SCOPE, "frequency": "Según la fuente"},
         "kpis": kpis, "stats": stats, "body_h": 168,
         "visual": {"kind": "bars", "title": "Motivos de no acreditación", "note": "Cinco principales",
                    "rows": [{"name": row.motivo, "value": float(row.transferencias),

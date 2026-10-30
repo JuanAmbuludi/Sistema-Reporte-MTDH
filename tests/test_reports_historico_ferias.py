@@ -22,7 +22,7 @@ def bases():
             "social_groups": groups, "social_programs": programs, "government_budget": finanzas.load_government()}
 
 
-@pytest.mark.parametrize("start,yearly", [("2023-11", True), ("2026-01", False), ("2026-09", False)])
+@pytest.mark.parametrize("start,yearly", [("2023-12", True), ("2026-01", False), ("2026-09", False)])
 def test_each_training_source_reconciles_to_its_period(start, yearly):
     block = period_block(start, "2026-09", "Período", yearly=yearly)
     rows = ferias.load()
@@ -40,17 +40,22 @@ def test_government_report_uses_observed_stocks_and_historic_credit(bases):
     for section, key in [("bonos_pensiones", "transferencias"), ("proteccion_integral", "servicios")]:
         data = bases["data"]
         rows = data.loc[data.seccion.eq(section) & data.periodo_id.astype(str).str.len().eq(7)
-                        & data.periodo_id.between("2023-11", "2026-09")]
+                        & data.periodo_id.between("2023-12", "2026-09")]
         monthly = rows.groupby("periodo_id").usuarios.sum()
         periods = list({p[:4]: p for p in sorted(monthly.index)}.values())
         assert blocks[key]["visual"]["values"] == [monthly[p] for p in periods]
         assert len(blocks[key]["visual"]["values"]) == 4
-    credits = pd.read_parquet(PROCESSED / "cdh_territorio.parquet")
-    selected = credits.loc[credits.fuente.eq("desembolso") & credits.periodo.between("2023-11", "2026-09")]
-    assert blocks["cdh"]["kpis"][0]["value"] == selected.creditos.sum() == 152517
+    assert report["period_label"] == "Diciembre de 2023 a septiembre de 2026"
+    credits = pd.read_parquet(PROCESSED / "cdh_desembolsos_fechados.parquet")
+    selected = credits.loc[credits.periodo.between("2023-12", "2026-09")]
+    assert blocks["cdh"]["kpis"][0]["value"] == selected.creditos.sum() == 151629
+    assert blocks["cdh"]["kpis"][1]["value"] == pytest.approx(143733886.03)
+    assert selected.loc[selected.fecha_precision.eq("mes_reporte"), "creditos"].sum() == 55
+    assert "55 operaciones sin fecha diaria" in " ".join(f["text"] for f in blocks["cdh"]["findings"])
     assert sum(blocks["cdh"]["visual"]["values"]) == selected.creditos.sum()
     assert {r["fuente"]: r["participaciones"] for r in blocks["ferias"]["source_totals"]} == {
-        "inclusion_economica": 176661, "empleabilidad_autoempleo": 11756}
+        "inclusion_economica": 173010, "empleabilidad_autoempleo": 10832}
+    assert "Noviembre de 2023" not in " ".join(f["text"] for f in blocks["ferias"]["findings"])
 
 
 def test_both_institutional_export_paths_include_new_section(bases):
@@ -70,7 +75,7 @@ def test_both_institutional_export_paths_include_new_section(bases):
     assert risks["period"] == f"Del {enos.day(operative['desde']):%d/%m/%Y} al {enos.day(operative['hasta']):%d/%m/%Y}"
 
 
-@pytest.mark.parametrize("mode,start", [("gobierno", "2023-11-01"), ("anual", "2026-01-01")])
+@pytest.mark.parametrize("mode,start", [("gobierno", "2023-12-01"), ("anual", "2026-01-01")])
 def test_management_alerts_are_event_dated_without_later_fallback(bases, mode, start):
     from src import enos
 
@@ -118,6 +123,6 @@ def test_bonus_reference_uses_its_full_cut_without_expanding_dated_actions(bases
     assert "25/09/2026 al 29/10/2026" in findings
     assert "no acredita el acumulado de toda la gestión" in findings
     # The underlying dashboard query must still honor the actual habilitation dates.
-    dated = response_view("2023-11", "2026-09").response
+    dated = response_view("2023-12", "2026-09").response
     assert dated.articulation.personas.sum() == dated.managed.personas.sum() == 1
     assert dated.articulation.monto.sum() == pytest.approx(302.94)

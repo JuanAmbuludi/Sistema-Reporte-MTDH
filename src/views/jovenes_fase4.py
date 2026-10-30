@@ -6,7 +6,7 @@ from textwrap import wrap
 import pandas as pd
 import streamlit as st
 
-from src import charts, jovenes_fase4 as source, theme, ui
+from src import charts, corte, jovenes_fase4 as source, theme, ui
 from src.indicators import Indicator
 from src.views.area import AreaView
 from src.views.common import compact, download_table, fingerprint, show_chart
@@ -84,8 +84,11 @@ class PhaseFourView(AreaView):
 
     def update_stamp(self) -> dict:
         note = "Fuente sin fecha de corte"
-        return {"cut": note, "updated": "", "updated_short": "", "frequency": note,
-                "frequency_word": "según la fuente", "line": note, "short": note}
+        stamp = corte.stamp(self.id, self.period, cut_text=note)
+        stamp.update(frequency="Según la fuente", frequency_word="según la fuente")
+        stamp["line"] = note + (f" · Actualizado el {stamp['updated']}" if stamp["updated"] else "")
+        stamp["short"] = note + (f" · Actualizado: {stamp['updated_short']}" if stamp["updated_short"] else "")
+        return stamp
 
     def series_svg(self, night: bool = True, width: int = 640, height: int = 360) -> str:
         s = self.stats

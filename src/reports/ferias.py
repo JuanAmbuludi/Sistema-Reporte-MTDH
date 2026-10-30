@@ -1,6 +1,7 @@
 """The two training sources remain separate in every institutional bulletin."""
 from __future__ import annotations
 
+from src import corte
 from src.data import MONTHS
 
 TITLE = "Ferias de Inclusión Económica, Empleabilidad y Autoempleo"
@@ -42,7 +43,7 @@ def period_block(start: str, end: str, span: str, *, yearly: bool = False) -> di
                                                else int(values[source]) for source in SOURCE_LABELS}})
     summary = "; ".join(f"{number(item['participaciones'])} registros de {item['label'].lower()}" for item in totals)
     source_note = "Cada base conserva su propio conteo. Las cifras son participaciones en capacitación; una persona puede tener varios registros."
-    if yearly:
+    if yearly and start <= "2023-11" <= end:
         source_note += " Noviembre de 2023 tiene resolución mensual."
     return {
         "key": "ferias", "label": TITLE, "icon": "graduation", "period": span, "kpis": kpis,
@@ -55,7 +56,7 @@ def period_block(start: str, end: str, span: str, *, yearly: bool = False) -> di
                               ("Inclusión económica", "inclusion_economica", 146, "int")], "rows": table_rows},
         "findings": [{"icon": "graduation", "text": summary[:1].upper() + summary[1:] + "."},
                      {"icon": "calendar", "text": source_note}],
-        "update": {"label": span}, "source_totals": totals,
+        "update": {**corte.stamp("ferias", cut_text=span), "label": span}, "source_totals": totals,
     }
 
 

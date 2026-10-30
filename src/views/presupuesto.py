@@ -349,7 +349,7 @@ class SocialBudgetView:
 
     def update_stamp(self) -> dict:
         from src import corte
-        return corte.stamp(self.id, self.period)
+        return corte.stamp(self.file_id, self.period)
 
     def series_svg(self, night: bool = True, width: int = 640, height: int = 360) -> str:
         series = self.series

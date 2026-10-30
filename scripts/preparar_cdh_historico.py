@@ -37,6 +37,38 @@ def totals(frame):
     return frame.groupby('periodo')[['creditos', 'monto']].sum().sort_index()
 
 
+def prepare_dated(source):
+    """Monthly flows for period reports, using disbursement dates when present.
+
+    The original report-month aggregates stay untouched. Missing daily dates
+    retain their declared report month and an explicit precision flag.
+    """
+    dates = pd.to_datetime(source.FECHA_DESEMBOLSO, errors='coerce')
+    reported = source.PERIODO_ARCHIVO.astype(str)
+    amount = pd.to_numeric(source.MONTO, errors='raise')
+    frame = pd.DataFrame({
+        'periodo': dates.dt.strftime('%Y-%m').fillna(reported),
+        'periodo_reporte': reported,
+        'fecha_precision': dates.notna().map({True: 'fecha_desembolso', False: 'mes_reporte'}),
+        'bono': source.TIPO_SUBSIDIO.map(depuracion.key).map(BONUS).fillna(source.TIPO_SUBSIDIO.map(_title)),
+        'sexo': source.GENERO.map(depuracion.key).map({'FEMENINO': 'Mujeres', 'MASCULINO': 'Hombres'}).fillna('Sin dato'),
+        'centavos': (amount * 100).round().astype('int64'),
+    })
+    keys = ['periodo', 'periodo_reporte', 'fecha_precision', 'bono', 'sexo']
+    grouped = frame.groupby(keys, as_index=False, dropna=False).agg(creditos=('centavos', 'size'), centavos=('centavos', 'sum'))
+    grouped['monto'] = grouped.pop('centavos') / 100
+    info = {
+        'criterio_periodo': 'Mes de FECHA_DESEMBOLSO; cuando falta la fecha diaria se conserva PERIODO_ARCHIVO y se identifica como mes_reporte.',
+        'filas_fuente': int(len(source)), 'creditos': int(grouped.creditos.sum()),
+        'monto': round(float(grouped.monto.sum()), 2),
+        'sin_fecha_diaria': int(dates.isna().sum()),
+        'fecha_desembolso_desde': dates.min().strftime('%Y-%m-%d'),
+        'fecha_desembolso_hasta': dates.max().strftime('%Y-%m-%d'),
+        'periodo_desde': str(grouped.periodo.min()), 'periodo_hasta': str(grouped.periodo.max()),
+    }
+    return grouped, info
+
+
 def reconcile_merge(existing, incoming):
     """Preserve matching published months; add only new months; never sum overlap."""
     old = existing.loc[existing.fuente.eq('desembolso')]
@@ -112,6 +144,7 @@ def main():
     args = parser.parse_args()
     source = pd.read_parquet(args.fuente)
     incoming_t, incoming_p, stats = prepare(source)
+    dated, dated_info = prepare_dated(source)
     territory, overlap, added = reconcile_merge(pd.read_parquet(OUT / 'cdh_territorio.parquet'), incoming_t)
     profile, profile_overlap, profile_added = reconcile_merge(pd.read_parquet(OUT / 'cdh_perfil.parquet'), incoming_p)
     if overlap != profile_overlap or added != profile_added:
@@ -122,6 +155,8 @@ def main():
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
     manifest['generado_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
     info = manifest['cdh']
+    info['desembolsos_fechados'] = {**dated_info, 'archivo': args.fuente.name,
+                                  'sha256': hashlib.sha256(args.fuente.read_bytes()).hexdigest()}
     info['fuentes']['historico_gobierno'] = args.fuente.name
     info['historico_gobierno'] = {**stats, 'sha256':hashlib.sha256(args.fuente.read_bytes()).hexdigest(),
         'meses_conciliados_sin_duplicar':overlap,
@@ -136,6 +171,7 @@ def main():
         info['control'][kind] = {'creditos':int(rows.creditos.sum()), 'monto':round(float(rows.monto.sum()),2), 'periodos':sorted(rows.periodo.unique().tolist())}
     territory.to_parquet(OUT / 'cdh_territorio.parquet', index=False, compression='zstd')
     profile.to_parquet(OUT / 'cdh_perfil.parquet', index=False, compression='zstd')
+    dated.to_parquet(OUT / 'cdh_desembolsos_fechados.parquet', index=False, compression='zstd')
     manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'agregados':added, 'conciliados':overlap,'control':info['control'],'fuente':stats},ensure_ascii=False,indent=2))
 

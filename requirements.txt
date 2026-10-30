@@ -1,4 +1,4 @@
-# Deployment refresh 2026-10-30: refresh rejection labels and the program budget display name.
+# Deployment refresh 2026-10-30: December government scope and source-specific data revision clocks.
 streamlit==1.66.1
 pandas==2.2.3
 pyarrow==26.0.0
