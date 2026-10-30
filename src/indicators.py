@@ -106,8 +106,9 @@ class Module:
         if self.people == "Beneficiarios":
             return ("Personas distintas que reciben cada bono o pensión en el mes; el total suma los beneficiarios de cada programa. "
                     "Pensión Toda Una Vida incluye a las personas adultas y a los menores de edad.")
-        return (f"Personas distintas atendidas en cada modalidad de cada {self.item} en el mes; el total suma los usuarios de cada "
-                "modalidad. Cada territorio cuenta a sus propios usuarios.")
+        return (f"Usuarios reportados por modalidad de cada {self.item} y territorio en el mes. Los cortes de 2026 conservan "
+                "los conteos depurados publicados; el histórico anterior proviene de resúmenes agrupados que no permiten "
+                "acreditar personas únicas. La suma de meses representa coberturas mensuales, no personas distintas del período.")
 
 
 EXTRA_DEFINITIONS = {"unidades": "Unidades de atención que prestan cada servicio, propias y en convenio, en el corte."}

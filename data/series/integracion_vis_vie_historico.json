@@ -1,0 +1,260 @@
+{
+  "generado_utc": "2026-10-30T14:38:30+00:00",
+  "criterio": "Cortes mensuales. Los meses existentes conservan las tabulaciones deduplicadas originales. Los meses agregados desde resúmenes VIS/VIE suman los conteos de sus grupos de origen; no acreditan personas únicas entre grupos, modalidades, territorios o meses. En VIS 2026 se conserva el conteo deduplicado anterior porque el resumen nuevo casi coincide con registros. No se imputan presupuestos a meses sin fuente financiera.",
+  "fuentes": {
+    "VIS": {
+      "archivo": "VIS_inforeport_resumen_2023-11_2026-10.parquet",
+      "sha256": "9b849890a9e260c5a85dd5fe2ec2fdca20dafeb7fdac58d7ccf046314c9f7fea",
+      "filas": 150483,
+      "filas_jerarquia_dpa_discordante": 0,
+      "desde": "2023-11",
+      "hasta": "2026-09",
+      "meses": 35
+    },
+    "VIE": {
+      "archivo": "VIE_inforeport_resumen_2023-11_2026-10.parquet",
+      "sha256": "2eacb81e824976baecb13f62db44b9ec1f1fecf2136467d2eb95dde129cd34ae",
+      "filas": 225927,
+      "filas_jerarquia_dpa_discordante": 11,
+      "desde": "2023-11",
+      "hasta": "2026-09",
+      "meses": 35
+    }
+  },
+  "series": {
+    "VIS": {
+      "meses_incorporados": [
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12"
+      ],
+      "meses_existentes_conservados": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "desde_resultado": "2023-11",
+      "hasta_resultado": "2026-09",
+      "conciliacion_superposicion": [
+        {
+          "periodo": "2026-01",
+          "usuarios_unicos_vigente": 425655,
+          "unidades_unicas_vigente": 10310,
+          "registros_vigente": 428045,
+          "usuarios_unicos_resumen_recibido": 428038,
+          "unidades_unicas_resumen_recibido": 10310,
+          "registros_resumen_recibido": 428045
+        },
+        {
+          "periodo": "2026-02",
+          "usuarios_unicos_vigente": 450792,
+          "unidades_unicas_vigente": 10816,
+          "registros_vigente": 453334,
+          "usuarios_unicos_resumen_recibido": 453329,
+          "unidades_unicas_resumen_recibido": 10816,
+          "registros_resumen_recibido": 453334
+        },
+        {
+          "periodo": "2026-03",
+          "usuarios_unicos_vigente": 459730,
+          "unidades_unicas_vigente": 11038,
+          "registros_vigente": 462251,
+          "usuarios_unicos_resumen_recibido": 462247,
+          "unidades_unicas_resumen_recibido": 11038,
+          "registros_resumen_recibido": 462251
+        },
+        {
+          "periodo": "2026-04",
+          "usuarios_unicos_vigente": 458328,
+          "unidades_unicas_vigente": 11000,
+          "registros_vigente": 460793,
+          "usuarios_unicos_resumen_recibido": 460790,
+          "unidades_unicas_resumen_recibido": 11000,
+          "registros_resumen_recibido": 460793
+        },
+        {
+          "periodo": "2026-05",
+          "usuarios_unicos_vigente": 460526,
+          "unidades_unicas_vigente": 11160,
+          "registros_vigente": 462988,
+          "usuarios_unicos_resumen_recibido": 462985,
+          "unidades_unicas_resumen_recibido": 11160,
+          "registros_resumen_recibido": 462988
+        },
+        {
+          "periodo": "2026-06",
+          "usuarios_unicos_vigente": 462362,
+          "unidades_unicas_vigente": 11184,
+          "registros_vigente": 464795,
+          "usuarios_unicos_resumen_recibido": 464792,
+          "unidades_unicas_resumen_recibido": 11184,
+          "registros_resumen_recibido": 464795
+        },
+        {
+          "periodo": "2026-07",
+          "usuarios_unicos_vigente": 463825,
+          "unidades_unicas_vigente": 11197,
+          "registros_vigente": 466229,
+          "usuarios_unicos_resumen_recibido": 466225,
+          "unidades_unicas_resumen_recibido": 11197,
+          "registros_resumen_recibido": 466229
+        },
+        {
+          "periodo": "2026-08",
+          "usuarios_unicos_vigente": 453859,
+          "unidades_unicas_vigente": 11158,
+          "registros_vigente": 456239,
+          "usuarios_unicos_resumen_recibido": 456235,
+          "unidades_unicas_resumen_recibido": 11158,
+          "registros_resumen_recibido": 456239
+        },
+        {
+          "periodo": "2026-09",
+          "usuarios_unicos_vigente": 453994,
+          "unidades_unicas_vigente": 11215,
+          "registros_vigente": 456356,
+          "usuarios_unicos_resumen_recibido": 456353,
+          "unidades_unicas_resumen_recibido": 11215,
+          "registros_resumen_recibido": 456356
+        }
+      ]
+    },
+    "VIE": {
+      "meses_incorporados": [
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12"
+      ],
+      "meses_existentes_conservados": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09"
+      ],
+      "desde_resultado": "2023-11",
+      "hasta_resultado": "2026-09",
+      "conciliacion_superposicion": [
+        {
+          "periodo": "2026-01",
+          "beneficiarios_unicos_vigente": 1573931,
+          "registros_vigente": 1573931,
+          "beneficiarios_unicos_resumen_recibido": 1573931,
+          "registros_resumen_recibido": 1573931
+        },
+        {
+          "periodo": "2026-02",
+          "beneficiarios_unicos_vigente": 1543691,
+          "registros_vigente": 1543691,
+          "beneficiarios_unicos_resumen_recibido": 1543691,
+          "registros_resumen_recibido": 1543691
+        },
+        {
+          "periodo": "2026-03",
+          "beneficiarios_unicos_vigente": 1558100,
+          "registros_vigente": 1558100,
+          "beneficiarios_unicos_resumen_recibido": 1558100,
+          "registros_resumen_recibido": 1558100
+        },
+        {
+          "periodo": "2026-04",
+          "beneficiarios_unicos_vigente": 1558982,
+          "registros_vigente": 1558982,
+          "beneficiarios_unicos_resumen_recibido": 1558982,
+          "registros_resumen_recibido": 1558982
+        },
+        {
+          "periodo": "2026-05",
+          "beneficiarios_unicos_vigente": 1552015,
+          "registros_vigente": 1552015,
+          "beneficiarios_unicos_resumen_recibido": 1552015,
+          "registros_resumen_recibido": 1552015
+        },
+        {
+          "periodo": "2026-06",
+          "beneficiarios_unicos_vigente": 1577851,
+          "registros_vigente": 1577851,
+          "beneficiarios_unicos_resumen_recibido": 1577851,
+          "registros_resumen_recibido": 1577851
+        },
+        {
+          "periodo": "2026-07",
+          "beneficiarios_unicos_vigente": 1576926,
+          "registros_vigente": 1576926,
+          "beneficiarios_unicos_resumen_recibido": 1576926,
+          "registros_resumen_recibido": 1576926
+        },
+        {
+          "periodo": "2026-08",
+          "beneficiarios_unicos_vigente": 1577639,
+          "registros_vigente": 1577639,
+          "beneficiarios_unicos_resumen_recibido": 1577639,
+          "registros_resumen_recibido": 1577639
+        },
+        {
+          "periodo": "2026-09",
+          "beneficiarios_unicos_vigente": 1578019,
+          "registros_vigente": 1578019,
+          "beneficiarios_unicos_resumen_recibido": 1578019,
+          "registros_resumen_recibido": 1578019
+        }
+      ]
+    }
+  }
+}

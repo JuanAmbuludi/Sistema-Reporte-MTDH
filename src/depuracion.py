@@ -328,12 +328,17 @@ def clean_codes(frame: pd.DataFrame, measures: list[str]) -> tuple[pd.DataFrame,
     log = []
     flagged = out.codigo_ambiguo.astype(bool) if "codigo_ambiguo" in out else pd.Series(False, index=out.index)
     if flagged.any():
+        # groupby(dropna=False) returns NaN for the null lower-level names, while
+        # Parquet reads them as None. Canonical keys keep reassignment logs valid.
+        def territory_key(values):
+            return tuple(None if pd.isna(value) else value for value in values)
+
         combos = out.loc[flagged, ["periodo", "nivel_territorial", "codigo_territorio", "provincia", "canton", "parroquia"]].drop_duplicates()
         targets = {}
         for row in combos.itertuples(index=False):
-            targets[(row.nivel_territorial, row.codigo_territorio, row.provincia, row.canton, row.parroquia)] = _target(
+            targets[territory_key((row.nivel_territorial, row.codigo_territorio, row.provincia, row.canton, row.parroquia))] = _target(
                 gaz, row.nivel_territorial, str(row.codigo_territorio), str(row.provincia or ""), str(row.canton or ""), str(row.parroquia or ""))
-        keys = list(zip(out.nivel_territorial, out.codigo_territorio, out.provincia, out.canton, out.parroquia))
+        keys = [territory_key(values) for values in zip(out.nivel_territorial, out.codigo_territorio, out.provincia, out.canton, out.parroquia)]
         new_codes = [targets.get(k, k[1]) if f else k[1] for k, f in zip(keys, flagged)]
         moved = [f and new != k[1] for k, new, f in zip(keys, new_codes, flagged)]
         if any(moved):
@@ -341,7 +346,7 @@ def clean_codes(frame: pd.DataFrame, measures: list[str]) -> tuple[pd.DataFrame,
             first = measures[0]
             for (period, level, old, province, canton, parish), group in subset.groupby(
                     ["periodo", "nivel_territorial", "codigo_territorio", "provincia", "canton", "parroquia"], dropna=False):
-                new = targets[(level, old, province, canton, parish)]
+                new = targets[territory_key((level, old, province, canton, parish))]
                 log.append({"periodo": period, "nivel_territorial": level, "codigo_origen": old, "codigo_destino": new,
                             "provincia": province, "canton": canton, "parroquia": parish, first: int(group[first].sum())})
         out["codigo_territorio"] = new_codes

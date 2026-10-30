@@ -33,7 +33,7 @@ def test_layers_follow_the_current_division_of_the_data():
 def test_every_parish_of_the_data_finds_its_polygon(parishes):
     index = territory.polygon_index(parishes)
     codes = set(parishes.parroquia_codigo)
-    assert codes - set(index) == {"900651"}, "Solo la zona en estudio queda fuera del mapa"
+    assert codes - set(index) == {"900551", "900651", "900751", "900851"}, "Solo las zonas en estudio quedan fuera del mapa"
     assert index["010101"] == "010150", "Las parroquias urbanas se dibujan en su cabecera cantonal"
     assert index["230250"] == "080850" and index["141350"] == "140157" and index["070256"] == "070250"
     values, members = territory.polygon_values(parishes, "usuarios")

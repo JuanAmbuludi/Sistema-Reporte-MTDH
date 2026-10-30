@@ -1,8 +1,8 @@
 """Monthly coverage of transfers (VIE) and services (VIS) by province, canton and parish, and the monthly budget.
 
-Every month of the series (January to the latest cut) is read from the monthly tabulations, settled territorially
-(:mod:`src.depuracion`), so months compare like for like: beneficiaries and users are the unique people of each
-program, service modality and territory; units of attention are the distinct units.  The September operational base
+Every available month is read from the monthly tabulations and settled territorially (:mod:`src.depuracion`).
+The 2026 cuts retain their original deduplicated counts. Earlier summaries report counts by source group;
+their sums do not establish unique people or units across groups, territories or months. The September operational base
 (``data/processed``) contributes what only it has: the budget by province and parish and the accumulated budget of
 2023–2025.  The approved social budget gives the accrued budget of each transfer program for every month.
 """
@@ -21,18 +21,19 @@ PROCESSED = ROOT / "data" / "processed"
 
 # Bono of the VIE series -> program of the dashboard.  The pension for minors belongs to Pensión Toda Una Vida, as
 # in its budget.
-TRANSFER_PROGRAMS = {"BDH": "BDH", "BDHV": "BDHV", "BJGL": "BJGL", "BMD": "BMD", "MMA": "MMA", "PTV": "PTV", "PTV_MENORES": "PTV"}
+TRANSFER_PROGRAMS = {"BDH": "BDH", "BDHV": "BDHV", "BJGL": "BJGL", "BMD": "BMD", "MMA": "MMA", "PTV": "PTV", "PTV_MENORES": "PTV", "PAM": "PAM", "PCD": "PCD"}
 SERVICE_PROGRAMS = {"DESARROLLO INFANTIL INTEGRAL": "DII", "PERSONAS ADULTOS MAYORES - PEJ": "PAM_SERV",
                     "PERSONAS CON DISCAPACIDAD": "PCD_SERV", "PROTECCION ESPECIAL": "PE"}
 PROGRAM_NAMES = {
     "BDH": "Bono de Desarrollo Humano", "BDHV": "Bono de Desarrollo Humano Variable", "BJGL": "Bono Joaquín Gallegos Lara",
     "BMD": "Bono 1.000 Días", "MMA": "Pensión Mis Mejores Años", "PTV": "Pensión Toda Una Vida",
+    "PAM": "Pensión para Adultos Mayores", "PCD": "Pensión para Personas con Discapacidad",
     "DII": "Desarrollo Infantil Integral", "PAM_SERV": "Personas adultas mayores", "PCD_SERV": "Personas con discapacidad",
     "PE": "Protección Especial",
 }
 SECTION = {"BDH": "bonos_pensiones", "BDHV": "bonos_pensiones", "BJGL": "bonos_pensiones", "BMD": "bonos_pensiones",
            "MMA": "bonos_pensiones", "PTV": "bonos_pensiones", "DII": "proteccion_integral", "PAM_SERV": "proteccion_integral",
-           "PCD_SERV": "proteccion_integral", "PE": "proteccion_integral"}
+           "PCD_SERV": "proteccion_integral", "PE": "proteccion_integral", "PAM": "bonos_pensiones", "PCD": "bonos_pensiones"}
 LEVEL = {"provincia": "Provincia", "canton": "Cantón", "parroquia": "Parroquia"}
 
 
@@ -87,7 +88,7 @@ def coverage() -> pd.DataFrame:
 
 
 def months() -> list[str]:
-    """Months of the coverage series, oldest first (``2026-01`` …)."""
+    """Months of the coverage series, oldest first (``2023-11`` …)."""
     frame = coverage()
     return sorted(frame.periodo_id.unique()) if not frame.empty else []
 

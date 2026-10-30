@@ -85,11 +85,15 @@ class DeliveredSourceTests(unittest.TestCase):
 
     def test_periods_catalog_keeps_each_cut_apart(self):
         data, catalog = load_periods()
-        months = ["2026-09", "2026-08", "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
-        self.assertEqual([p["id"] for p in catalog], months + ["2025", "2024"])
-        self.assertEqual([p["label"] for p in catalog][:2] + [p["label"] for p in catalog][-3:],
-                         ["Septiembre 2026", "Agosto 2026", "Enero 2026", "Año 2025", "Año 2024"])
-        self.assertEqual(len(data), 2826)
+        months = pd.period_range("2023-11", "2026-09", freq="M").astype(str).tolist()[::-1]
+        self.assertEqual([p["id"] for p in catalog if p["month"]], months)
+        self.assertEqual([p["id"] for p in catalog if not p["month"]], ["2025", "2024"])
+        self.assertEqual([p["label"] for p in catalog][:2] + [p["label"] for p in catalog][-2:],
+                         ["Septiembre 2026", "Agosto 2026", "Diciembre 2023", "Noviembre 2023"])
+        self.assertEqual(summarize(data[data.periodo_id == "2023-11"])["beneficiarios"], 1434699)
+        historical_months = data[data.periodo_id.isin(months[9:])]
+        self.assertTrue(historical_months.presupuesto_ejecutado.isna().all())
+        self.assertTrue(historical_months.monto_gobierno.isna().all())
         self.assertEqual(summarize(data[data.periodo_id == "2026-05"])["beneficiarios"], 1552015)
         with self.assertRaisesRegex(ValueError, "un solo corte"):
             summarize(data)
