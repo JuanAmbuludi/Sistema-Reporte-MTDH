@@ -323,9 +323,15 @@ class RiskView:
             start = self._default_since(first, last)
             if old_bounds is not None and previous == tuple(old_bounds):
                 self._all_history(first, last)
-            elif old_bounds is not None and previous == (self._default_since(*old_bounds), old_bounds[1]):
-                # The default window follows the new cut: from 28/09/2026 to the latest record.
+            elif (st.session_state.get("risk_period_default_version") != "2026-08-28"
+                  and previous[0] in (date(2026, 9, 28), date(2026, 9, 29))
+                  and previous[1] == (old_bounds[1] if old_bounds is not None else last)):
+                # Migrate the previous default once, before creating the date widgets.
                 self._period(start, last)
+            elif old_bounds is not None and previous == (self._default_since(*old_bounds), old_bounds[1]):
+                # The default window follows the new cut: from 28/08/2026 to the latest record.
+                self._period(start, last)
+            st.session_state["risk_period_default_version"] = "2026-08-28"
             st.session_state["risk_history_bounds"] = (first, last)
             for i, (key, default) in enumerate(zip(keys, (start, last))):
                 value = st.session_state.get(key, saved[i])
@@ -376,8 +382,8 @@ class RiskView:
 
     @staticmethod
     def _default_since(first: date, last: date) -> date:
-        """The dashboard opens on the reporting period of the Plan (28/09/2026) up to the latest record; the filter widens it."""
-        return max(first, min(enos.day(enos.START).date(), last))
+        """The dashboard opens from 28/08/2026 up to the latest record; the filter can widen it."""
+        return max(first, min(date(2026, 8, 28), last))
 
     def _alert_types(self) -> list[str]:
         """Types of alert in the records consulted: emergency first, then the most frequent."""
