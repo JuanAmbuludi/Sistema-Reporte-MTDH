@@ -1,8 +1,7 @@
-"""Jóvenes en Acción: the three phases of the program, the registration and enabling of the current phase, the
-accredited payments month by month and the budget of 2026.
+"""Jóvenes en Acción: documented phases and separate fourth-phase monitoring.
 
 The information of the program comes from the phases published by SGDE, the accredited transfers and the approved
-social budget; it reaches the third phase (the latest with documented execution).
+social budget for phases 1–3. The fourth-phase aggregate snapshot retains its own scope and undated source.
 """
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ from src.views.common import compact, download_table, fingerprint, show_chart
 MONTHS = source.MONTHS
 
 
-class YouthView:
+class YouthPhasesView:
     kind = "jovenes"
     id = "jovenes"
     summary_pages = 1
@@ -244,3 +243,41 @@ class YouthView:
 def _count():
     from src.indicators import Indicator
     return Indicator("participantes", "Jóvenes", "count", "graduation", "jóvenes")
+
+
+class YouthView:
+    """Choose documented phases or the separate, undated fourth-phase monitor.
+
+    A fresh view defaults to phases 1–3. Only the dashboard's pre-controls apply
+    the saved subsection, so institutional report builders retain their scope.
+    """
+
+    SECTIONS = {"fases": "Fases 1–3", "fase4": "Fase 4 · Monitoreo"}
+
+    def __init__(self):
+        from src.views.jovenes_fase4 import PhaseFourView
+
+        phases, monitoring = YouthPhasesView(), PhaseFourView()
+        self.views = {key: view for key, view in (("fases", phases), ("fase4", monitoring)) if view.catalog()}
+        self.active = next(iter(self.views.values()), phases)
+
+    def pre_controls(self) -> None:
+        if len(self.views) < 2:
+            return
+        if st.session_state.get("youth_section") not in self.views:
+            st.session_state["youth_section"] = next(iter(self.views))
+        selected = st.segmented_control("Seguimiento del programa", list(self.views), format_func=self.SECTIONS.get,
+                                        key="youth_section", required=True, width="stretch")
+        self.active = self.views[selected]
+
+    def period_controls(self) -> dict:
+        if hasattr(self.active, "period_controls"):
+            return self.active.period_controls()
+        from src.views.common import period_controls
+
+        return period_controls(self.active.catalog())
+
+    def __getattr__(self, name):
+        if name.startswith("__") or name in ("views", "active"):
+            raise AttributeError(name)
+        return getattr(self.active, name)

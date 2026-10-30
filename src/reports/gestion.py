@@ -305,6 +305,21 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     except Exception:  # noqa: BLE001
         LOG.exception("Jóvenes en Acción sin datos para el informe de gestión")
 
+    # The fourth-phase workbook is a separate, undated operational snapshot.
+    # Its amounts never enter the dated youth payments or the period totals.
+    from .jovenes_fase4 import block as phase_four_block
+    phase_four = phase_four_block()
+    if phase_four:
+        blocks.append(phase_four)
+        phase_stats = phase_four["stats"]
+        for count, amount, detail, money_word in (
+            ("acreditadas", "monto_acreditado", "transferencias acreditadas", "acreditados"),
+            ("no_acreditadas", "monto_no_acreditado", "transferencias no acreditadas", "no acreditados"),
+        ):
+            deliveries.append({"what": "Jóvenes en Acción · Fase 4", "detail": detail,
+                               "amount_people": phase_stats[count], "money": phase_stats[amount], "money_word": money_word,
+                               "icon": "graduation", "context": "Corte sin fecha · referencia independiente"})
+
     # ------------------------------------------------------------------ credit and brigades
     from src.views.area import PROCESSED
     cdh_path = PROCESSED / "cdh_territorio.parquet"
@@ -400,7 +415,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     cover.insert(2, _kpi("Presupuesto acumulado de gobierno" if yearly else f"Presupuesto devengado {end[:4]}",
                          accrued_total, "money", note="Transferencias y servicios", icon="banknote"))
     # The order of the report: coverage first, then El Niño and the brigades, then credit, contingencies, youth and employment.
-    order = ["transferencias", "servicios", "riesgos", "brigadas", "cdh", "jovenes", "laboral", "ferias", "contingencias", "presupuesto"]
+    order = ["transferencias", "servicios", "riesgos", "brigadas", "cdh", "jovenes", "jovenes_fase4", "laboral", "ferias", "contingencias", "presupuesto"]
     blocks.sort(key=lambda b: order.index(b["key"]) if b["key"] in order else len(order))
     by_key = {b["key"]: b for b in blocks}
     picks = [("transferencias", 0), ("servicios", 0), ("brigadas", 0), ("cdh", 0), ("contingencias", 0)]
@@ -409,7 +424,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
     label = TITLES[mode]
     return {"kind": "gestion", "title": (title or label)[:100], "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}",
             "generated_at": generated_at, "generated_label": generated_label, "period_label": span, "territory_label": "Nacional",
-            "programs_label": f"{len(blocks)} secciones del Ministerio", "module_label": label, "share_word": "",
+            "programs_label": f"{len({b['key'].split('_fase')[0] for b in blocks})} secciones del Ministerio", "module_label": label, "share_word": "",
             "update": {"line": f"Información de {span.lower()} · referencias con corte propio"},
             "kpis": cover[:8], "deliveries": deliveries, "blocks": blocks, "highlights": highlights, "mode": mode}
 
@@ -424,7 +439,7 @@ def _money(value) -> str:
     return f"USD {millions(value, 1)} M" if value >= 1e6 else f"USD {number(value, 2)}"
 
 
-def _deliveries(c, items: list[dict], x: float, top: float, width: float, height: float = 98, gap: float = 11) -> float:
+def _deliveries_wide(c, items: list[dict], x: float, top: float, width: float, height: float = 98, gap: float = 11) -> float:
     """What was delivered, as an infographic: one card per delivery with its icon, its figure, what it counts and its amount."""
     from reportlab.lib.colors import HexColor as C
     from .pdf import _badge
@@ -477,6 +492,58 @@ def _deliveries(c, items: list[dict], x: float, top: float, width: float, height
     return top - rows * (height + gap)
 
 
+def _deliveries(c, items: list[dict], x: float, top: float, width: float) -> float:
+    """All delivery cards on one cover, preserving every figure, amount and scope."""
+    if len(items) <= 10:
+        return _deliveries_wide(c, items, x, top, width)
+    from math import ceil
+    from xml.sax.saxutils import escape
+    from reportlab.lib.colors import HexColor as C
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph
+    from .pdf import BOTTOM, _badge, _fit
+
+    columns, gap = max(3, ceil(len(items) / 5)), 10
+    rows = ceil(len(items) / columns)
+    w = (width - gap * (columns - 1)) / columns
+    height = min(110, (top - BOTTOM - gap * (rows - 1)) / rows)
+    scale = height / 110
+
+    def text(value, left, at, room, max_h, size, font, color):
+        if not value:
+            return
+        while True:
+            style = ParagraphStyle("delivery", fontName=font, fontSize=size, leading=size * 1.18, textColor=C(color))
+            para = Paragraph(escape(str(value)), style)
+            _, used = para.wrap(room, max_h)
+            if used <= max_h or size <= 5.8:
+                break
+            size -= 0.2
+        para.drawOn(c, left, at - used)
+
+    for index, item in enumerate(items):
+        row, col = divmod(index, columns)
+        bx, by = x + col * (w + gap), top - row * (height + gap)
+        tone = TONES[index % len(TONES)]
+        c.setFillColor(C(theme.LILA_50))
+        c.roundRect(bx, by - height, w, height, 9, stroke=0, fill=1)
+        c.setFillColor(C(tone))
+        c.roundRect(bx, by - height, 3.2, height, 1.6, stroke=0, fill=1)
+        _badge(c, item.get("icon", "chart"), bx + 20, by - 20 * scale, 11 * scale, fill=C(tone))
+        text(item["what"], bx + 38, by - 9 * scale, w - 48, 22 * scale, 7.0 * scale, "Text-Semi", theme.PIZARRA)
+        room = w - 24
+        figure = number(item["amount_people"])
+        c.setFillColor(C(theme.MORADO_900))
+        c.setFont("Display-Bold", _fit(figure, "Display-Bold", 22 * scale, room, 16))
+        c.drawString(bx + 12, by - 50 * scale, figure)
+        text(item["detail"], bx + 12, by - 58 * scale, room, 19 * scale, 7.2 * scale, "Text", theme.TINTA)
+        money = _money(item.get("money"))
+        amount = " ".join(part for part in (money, item.get("money_word", "") if money else "") if part)
+        text(amount, bx + 12, by - 80 * scale, room, 10 * scale, 7.1 * scale, "Text-Semi", theme.ORO_700)
+        text(item.get("context", ""), bx + 12, by - 94 * scale, room, 15 * scale, 6.2 * scale, "Text", "#6E6880")
+    return top - rows * height - (rows - 1) * gap
+
+
 def _highlights(c, items: list[dict], x: float, top: float, width: float, gap: float = 10, measure: bool = False) -> float:
     """The highlights of the period in two columns of boxes, each with its icon."""
     from reportlab.lib.colors import HexColor as C
@@ -517,16 +584,8 @@ def generate(ctx: dict) -> bytes:
     width = W - 2 * M
     highlights_h = 30 - _highlights(c, ctx["highlights"], M, 0, width, measure=True)
     # Plan: the cover tells what was delivered; the sections follow; the highlights close the report.
-    first_cards = ctx["deliveries"][:10]
-    pages = [{"cover": True, "deliveries": first_cards, "blocks": []}]
-    remaining = ctx["deliveries"][10:]
+    pages = [{"cover": True, "deliveries": ctx["deliveries"], "blocks": []}]
     room = 0
-    # Keep the established cards and their size. Additional deliveries flow onto
-    # the next page, where the section blocks can use the remaining space.
-    for offset in range(0, len(remaining), 10):
-        cards = remaining[offset:offset + 10]
-        pages.append({"cover": False, "deliveries": cards, "blocks": []})
-        room = H - 78 - 20 - BOTTOM - 22 - ((len(cards) + 1) // 2) * 109
     for block in ctx["blocks"]:
         height = _block_height(block, width)
         if height > room:
@@ -550,9 +609,6 @@ def generate(ctx: dict) -> bytes:
             y = _deliveries(c, page["deliveries"], M, y - 22, width)
         else:
             y = _slim_band(c, ctx, ctx["title"], ctx["period_label"]) - 20
-            if page["deliveries"]:
-                _heading(c, "Gestión realizada en el periodo", M, y, width, "Continuación de las entregas")
-                y = _deliveries(c, page["deliveries"], M, y - 22, width)
         for block in page["blocks"]:
             y = _draw_block(c, block, M, y, width)
         if number_ == len(pages) and not closing_page:

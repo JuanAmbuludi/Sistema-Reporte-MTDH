@@ -24,7 +24,7 @@ from .context import INSTITUTION, PRODUCT, stamp
 LOG = logging.getLogger(__name__)
 SHORT = {"transferencias": "Transferencias", "servicios": "Servicios sociales", "riesgos": "ENOS", "contingencias": "Contingencias",
          "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto", "cdh": "Crédito de Desarrollo Humano",
-         "brigadas": "Brigadas sociales", "ferias": "Ferias"}
+         "brigadas": "Brigadas sociales", "ferias": "Ferias", "jovenes_fase4": "Jóvenes · Fase 4"}
 TITLE = "Informe ejecutivo institucional"
 SECTIONS = [
     ("transferencias", "Transferencias monetarias no contributivas", "hand-coins"),
@@ -33,6 +33,7 @@ SECTIONS = [
     ("brigadas", "Brigadas sociales", "users"),
     ("cdh", "Crédito de Desarrollo Humano", "coins"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
+    ("jovenes_fase4", "Jóvenes en Acción · Fase 4", "graduation"),
     ("laboral", "Empleo", "briefcase"),
     ("ferias", "Ferias de Inclusión Económica, Empleabilidad y Autoempleo", "graduation"),
     # Contingencies and the budget close the report.
@@ -300,12 +301,15 @@ def build_panorama(bases: dict, title: str) -> dict:
     blocks = []
     for key, label, icon in SECTIONS:
         view = views.get(key)
-        if view is None and key != "ferias":
+        if view is None and key not in ("ferias", "jovenes_fase4"):
             continue
         try:
             if key == "ferias":
                 from .ferias import latest_block
                 block = latest_block()
+            elif key == "jovenes_fase4":
+                from .jovenes_fase4 import block as phase_four_block
+                block = phase_four_block()
             else:
                 block = _budget_block(views) if key == "presupuesto" else _block(key, label, icon, view)
         except Exception:  # noqa: BLE001 - one section without its data never stops the others
@@ -319,7 +323,7 @@ def build_panorama(bases: dict, title: str) -> dict:
     return {"kind": "panorama", "title": str(title or TITLE)[:100], "blocks": blocks,
             "institution": INSTITUTION, "source": f"Fuente: {INSTITUTION}", "generated_at": generated_at,
             "generated_label": generated_label, "period_label": "Último corte de cada sección", "territory_label": "Nacional",
-            "programs_label": f"{len(blocks)} secciones", "module_label": "Informe ejecutivo", "update": {}}
+            "programs_label": f"{len({b['key'].split('_fase')[0] for b in blocks})} secciones", "module_label": "Informe ejecutivo", "update": {}}
 
 
 # ------------------------------------------------------------------------------------------------- drawing
@@ -432,8 +436,11 @@ def _finding_width(block: dict, width: float) -> float:
 
 
 def _table_height(block: dict) -> float:
-    table = block.get("table")
-    return 16 + 16 + 12.4 * len(table["rows"]) + 6 if table and table["rows"] else 0
+    return sum(16 + 16 + 12.4 * len(table["rows"]) + 6 for table in _block_tables(block) if table["rows"])
+
+
+def _block_tables(block: dict) -> list[dict]:
+    return ([block["table"]] if block.get("table") else []) + block.get("tables", [])
 
 
 def _block_height(block: dict, width: float) -> float:
@@ -488,8 +495,9 @@ def _draw_block(c, block: dict, x: float, top: float, width: float) -> float:
         _kpi_list(c, block["kpis"][:2], x, body, half, body_h / 2)
         _kpi_list(c, block["kpis"][2:4], x + half + 14, body, half, body_h / 2)
     y = body - body_h - 2
-    table = block.get("table")
-    if table and table["rows"]:
+    for table in _block_tables(block):
+        if not table["rows"]:
+            continue
         from .pdf import _table
         c.setFillColor(NIGHT)
         c.setFont("Display-Bold", 8.2)

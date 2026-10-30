@@ -1,0 +1,538 @@
+{
+  "version": 1,
+  "fase": 4,
+  "titulo": "Jóvenes en Acción · Cuarto período",
+  "periodo": "Cuarto período",
+  "corte": null,
+  "fecha_disponible": false,
+  "nota_temporal": "La fuente no informa fecha de corte ni meses de pago. Se presenta como referencia operativa del cuarto período, separada de las series mensuales y del acumulado por fechas.",
+  "fuente": {
+    "nombre": "Transferencia rechazadas(1).xlsx",
+    "sha256": "662115dfe8f6789bbd6532460e4756451d04d37ff2a079508867ce51d05e386e",
+    "hojas": [
+      "Pagos",
+      "Rechazos"
+    ],
+    "titulo_original": "CUARTO PERÍODO JÓVENES EN ACCIÓN"
+  },
+  "pagos": [
+    {
+      "entidad": "MIT",
+      "seleccionados": 179820,
+      "autorizados": 179785,
+      "monto_autorizado": 71914000.0,
+      "acreditadas": 176526,
+      "monto_acreditado": 70610400.0,
+      "no_acreditadas": 3259,
+      "monto_no_acreditado": 1303600.0
+    },
+    {
+      "entidad": "MINEDEC",
+      "seleccionados": 49950,
+      "autorizados": 49949,
+      "monto_autorizado": 19979600.0,
+      "acreditadas": 49440,
+      "monto_acreditado": 19776000.0,
+      "no_acreditadas": 509,
+      "monto_no_acreditado": 203600.0
+    },
+    {
+      "entidad": "MSP",
+      "seleccionados": 49950,
+      "autorizados": 49950,
+      "monto_autorizado": 19980000.0,
+      "acreditadas": 49374,
+      "monto_acreditado": 19749600.0,
+      "no_acreditadas": 576,
+      "monto_no_acreditado": 230400.0
+    },
+    {
+      "entidad": "SNGR",
+      "seleccionados": 197100,
+      "autorizados": 197060,
+      "monto_autorizado": 78824000.0,
+      "acreditadas": 193249,
+      "monto_acreditado": 77299600.0,
+      "no_acreditadas": 3811,
+      "monto_no_acreditado": 1524400.0
+    },
+    {
+      "entidad": "MAE",
+      "seleccionados": 59940,
+      "autorizados": 59936,
+      "monto_autorizado": 23974400.0,
+      "acreditadas": 58900,
+      "monto_acreditado": 23560000.0,
+      "no_acreditadas": 1036,
+      "monto_no_acreditado": 414400.0
+    },
+    {
+      "entidad": "MDEP",
+      "seleccionados": 142760,
+      "autorizados": 142731,
+      "monto_autorizado": 57092400.0,
+      "acreditadas": 138134,
+      "monto_acreditado": 55253600.0,
+      "no_acreditadas": 4597,
+      "monto_no_acreditado": 1838800.0
+    },
+    {
+      "entidad": "MDG",
+      "seleccionados": 20480,
+      "autorizados": 20477,
+      "monto_autorizado": 8190800.0,
+      "acreditadas": 20244,
+      "monto_acreditado": 8097600.0,
+      "no_acreditadas": 233,
+      "monto_no_acreditado": 93200.0
+    }
+  ],
+  "rechazos": [
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 67
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 15
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 10
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 102
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 19
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 76
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 2,
+      "motivo": "CUENTA CERRADA",
+      "transferencias": 5
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 1541
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 244
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 290
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 1945
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 542
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 2094
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 3,
+      "motivo": "CUENTA NO EXISTE",
+      "transferencias": 124
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 32
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 9
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 7
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 44
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 7
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 26
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 4,
+      "motivo": "CUENTA BLOQUEADA",
+      "transferencias": 2
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 5
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 2
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 1
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 3
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 1
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 7
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 5,
+      "motivo": "ORDEN BENEFICIARIO",
+      "transferencias": 0
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 22
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 10
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 5
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 41
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 8
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 64
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 6,
+      "motivo": "POR NO CONFIRMACIÓN (SOLO PARA USO DEL BCE)",
+      "transferencias": 5
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 56
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 14
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 13
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 56
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 19
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 82
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 7,
+      "motivo": "CUENTA INACTIVA",
+      "transferencias": 5
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 1
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 0
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 0
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 0
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 0
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 1
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 8,
+      "motivo": "ARCHIVO SIN BENEFICIARIO",
+      "transferencias": 0
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 12
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 5
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 5
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 26
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 7
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 10
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 15,
+      "motivo": "CREDITO NO AUTORIZADO",
+      "transferencias": 2
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 1505
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 204
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 239
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 1572
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 429
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 2215
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 16,
+      "motivo": "NUMERO DE CEDULA O RUC NO CORRESPONDE",
+      "transferencias": 89
+    },
+    {
+      "entidad": "MIT",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 18
+    },
+    {
+      "entidad": "MINEDEC",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 6
+    },
+    {
+      "entidad": "MSP",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 6
+    },
+    {
+      "entidad": "SNGR",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 22
+    },
+    {
+      "entidad": "MAE",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 4
+    },
+    {
+      "entidad": "MDEP",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 22
+    },
+    {
+      "entidad": "MDG",
+      "codigo_rechazo": 25,
+      "motivo": "TIPO DE CUENTA NO CORRESPONDE",
+      "transferencias": 1
+    }
+  ],
+  "totales": {
+    "seleccionados": 700000,
+    "autorizados": 699888,
+    "monto_autorizado": 279955200.0,
+    "acreditadas": 685867,
+    "monto_acreditado": 274346800.0,
+    "no_acreditadas": 14021,
+    "monto_no_acreditado": 5608400.0
+  },
+  "control": {
+    "entidades": 7,
+    "motivos_rechazo": 10,
+    "celdas_entidad_motivo": 70,
+    "pagos_conciliados": true,
+    "rechazos_conciliados_por_entidad": true,
+    "porcentajes_fuente_verificados": true
+  },
+  "notas": {
+    "unidad": "La fuente cuenta jóvenes seleccionados y autorizados, y transferencias acreditadas y no acreditadas. No contiene identificadores para verificar personas únicas entre entidades o fases.",
+    "entidades": "Las siglas corresponden a entidades ejecutoras según la fuente; no son entidades financieras.",
+    "autorizacion": "Porcentaje de autorización: jóvenes autorizados / jóvenes seleccionados.",
+    "acreditacion": "Porcentajes de acreditación y no acreditación: transferencias de cada estado / jóvenes autorizados.",
+    "diferencia": "La diferencia entre seleccionados y autorizados se mantiene separada de las transferencias no acreditadas.",
+    "montos": "Montos en USD tomados de la fuente; no representan devengado presupuestario.",
+    "fases": "Este seguimiento del cuarto período no se suma a las fases 1–3 ni a meses sin fecha documentada."
+  }
+}

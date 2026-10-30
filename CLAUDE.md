@@ -21,3 +21,11 @@
 - La matriz 2024 incluye fechas exactas, un intervalo explícito de dos días y registros con solo mes de reporte. Los intervalos se incluyen únicamente cuando la consulta abarca su rango completo. No se presentan como alertas ocurridas el primer día del mes ni se añaden a una evolución diaria con fecha inventada.
 - Los nudos críticos de 2023 tienen fechas previstas de ejecución de planes, no fechas de registro de alertas. Se conservan como antecedente agregado, fuera del conteo fechado de gobierno. Las fechas malformadas o ambiguas de 2024 quedan documentadas para revisión y no se imputan.
 - La sección ENOS del boletín de gobierno cuenta las alertas dentro del período solicitado; no sustituye un período vacío por alertas posteriores. El boletín mensual conserva la ventana operativa previa a la incorporación del archivo histórico.
+
+## Jóvenes en Acción: monitoreo de fase 4
+
+- `data/processed/jovenes_fase4.json` se reconstruye con `scripts/preparar_jovenes_fase4.py` desde las hojas Pagos y Rechazos del cuarto período. Se consulta mediante `src/jovenes_fase4.py`, separado de las bases y los acumulados de las fases 1–3.
+- La fuente no declara fecha de corte. El monitoreo y los boletines lo identifican como referencia sin fecha; las propiedades del Excel y la fecha de recepción no se convierten en fecha de pago.
+- Seleccionados y autorizados son las magnitudes de jóvenes reportadas por la fuente. Acreditadas y no acreditadas cuentan transferencias; no se infieren personas únicas. Los seleccionados sin autorización son distintos de las transferencias no acreditadas.
+- Las tasas de acreditación y no acreditación se calculan sobre autorizados, incluso al filtrar entidades. El monto autorizado no equivale a presupuesto codificado, devengado ni ejecución fiscal. Cada entidad debe conciliar autorizados con acreditadas más no acreditadas, en número y monto; la matriz de motivos concilia con las no acreditadas.
+- Todos los indicadores de portada del boletín de gobierno deben caber en la primera página. La cuadrícula adapta la distribución sin omitir indicadores ni continuar sus tarjetas en otra página.

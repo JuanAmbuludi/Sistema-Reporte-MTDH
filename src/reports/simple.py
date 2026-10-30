@@ -55,7 +55,7 @@ def render_pdf(c, ctx, pages):
         widths = {"int": 74, "usd": 96, "pct": 64}
         formatted = [{k: _text(r.get(k), kind) for _h, k, kind in table["columns"]} for r in rows]
         columns = [(h, k, None if kind == "text" else widths[kind], "text") for h, k, kind in table["columns"]]
-        _heading(c, f"Por {table['label'].lower()}", M, y, full, "Año a la fecha de la consulta")
+        _heading(c, f"Por {table['label'].lower()}", M, y, full, ctx.get("tables_note", "Año a la fecha de la consulta"))
         y = _table(c, M, y - 13, full, columns, formatted, row_h=14.2) - 26
         if y < 140:
             break
