@@ -58,6 +58,9 @@ class CreditView(AreaView):
                       "women": women / profile.creditos.sum() * 100 if profile.creditos.sum() else None,
                       "share": credits / whole.creditos.sum() * 100 if (self.provinces or self.categories) and whole.creditos.sum() else None}
         self.labels()
+        first_month = int(year.periodo.min()[5:7])
+        self.span = (f"{MONTHS[first_month - 1]} a {MONTHS[p['month'] - 1]} de {p['year']}"
+                     if first_month != p['month'] else f"{MONTHS[first_month - 1]} de {p['year']}")
         return True
 
     def hero_copy(self) -> tuple[str, str, str]:
@@ -103,7 +106,7 @@ class CreditView(AreaView):
             show_chart(charts.ranked_bars(list(bonus.bono), list(bonus.creditos), CREDITS, share_total=float(bonus.creditos.sum()),
                                           share_label="de los créditos", height=max(170, len(bonus) * 40 + 40)), "cdh_bonus")
             terms = self.by("plazo")
-            ui.chart_title("Plazo del crédito", "Participación en los créditos del año")
+            ui.chart_title("Plazo o tipo de crédito", "Participación en los créditos del año")
             show_chart(charts.part_of_whole([(f"{r.plazo}", r.creditos) for r in terms.itertuples()], unit="créditos"), "cdh_terms")
         ui.section_heading("Perfil y actividad productiva", f"{self.context_label} · personas con crédito en el año", "users")
         left, right = st.columns(2, gap="medium")
