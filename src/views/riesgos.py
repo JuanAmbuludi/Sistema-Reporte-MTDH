@@ -621,10 +621,14 @@ class RiskView:
         bonus_note = r.data.get("bonos_presentacion", {}).get("estado", "En articulación para el pago")
         amount_note = f"Corte del bono: {r.cut_text('bonos')}"
         if r.data.get("bonos_presentacion", {}).get("cobro_confirmado"):
-            provinces = set(r.articulation.provincia)
-            collected = [row for row in r.data["bonos"]["gestionados"] if row["provincia"] in provinces]
-            collected_count = sum(row["personas"] for row in collected)
-            collected_amount = sum(row["monto"] for row in collected)
+            if r.data.get("bonos_con_fecha_individual"):
+                collected_count = r.managed.personas.sum()
+                collected_amount = r.managed.monto.sum()
+            else:
+                provinces = set(r.articulation.provincia)
+                collected = [row for row in r.data["bonos"]["gestionados"] if row["provincia"] in provinces]
+                collected_count = sum(row["personas"] for row in collected)
+                collected_amount = sum(row["monto"] for row in collected)
             bonus_note = f"{ui.number(collected_count)} familias cobraron"
             amount_note = f"Cobrado: USD {ui.number(collected_amount, 2)}"
         return [

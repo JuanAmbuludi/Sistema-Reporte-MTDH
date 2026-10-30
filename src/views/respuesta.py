@@ -124,7 +124,7 @@ class Response:
                 national[key] = national[key].iloc[0:0].copy()
             elif data.get("bonos_con_fecha_individual"):
                 # Records with a date of their own (when a source gives them) are cut by it.
-                dates = enos.dates(pd.Series([r.get("fecha") for r in data["bonos"][key]]).reindex(national[key].index))
+                dates = enos.dates(national[key].fecha)
                 national[key] = national[key].loc[dates.between(self.start, self.end)].copy()
         self.bonus_period_available = self.available["articulacion"]
         # The type of alert (emergency, agreements, staff…) applies to the alerts only.
@@ -225,6 +225,12 @@ class Response:
                 "según la fecha de cada registro.")
 
     def period_note(self) -> str:
+        if self.data.get("bonos_con_fecha_individual"):
+            return (f"Periodo del {_date(self.start)} al {_date(self.end)}, ambos días incluidos. Alertas por fecha de registro o reporte; "
+                    "kits por fecha de entrega; brigadas por fecha de realización. Bono por fecha de habilitación; "
+                    "lo cobrado es el estado de esas habilitaciones al corte de la fuente, no la fecha del pago. "
+                    "Unidades suspendidas: último corte territorial disponible hasta la fecha final, sin sumar cortes. "
+                    + self.publication_text() + " " + self.missing_text()).strip()
         if self.by_period:
             text = (f"Periodo del {_date(self.start)} al {_date(self.end)}, ambos días incluidos. Alertas por fecha de registro o reporte; "
                     "kits por fecha de entrega; brigadas por fecha de realización. Unidades suspendidas: último corte territorial "

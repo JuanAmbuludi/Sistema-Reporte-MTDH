@@ -1,9 +1,9 @@
 # Actualizar ENOS: completar y subir el Excel
 
-La operación habitual es **descargar la versión vigente, completar Datos y subir el archivo con el mismo nombre**. No hay que editar Control, escribir la hora de actualización, generar Parquet ni ejecutar scripts.
+La operación habitual es **descargar la versión vigente, completar la hoja de registros y subir el archivo con el mismo nombre**. No hay que editar Control, escribir la hora de actualización, generar Parquet ni ejecutar scripts.
 
 1. Descargue de esta carpeta el Excel vigente. En GitHub, abra el archivo y pulse **Download raw file**.
-2. Complete únicamente la hoja **Datos**, conservando sus columnas y los registros anteriores. Las fechas de las filas son las fechas reales de las entregas o reportes recibidos.
+2. Complete únicamente la hoja **Datos** (en contingencias, **Hoja1**), conservando sus columnas y los registros anteriores. Las fechas de las filas son las fechas reales de las entregas o reportes recibidos.
 3. Guarde y súbalo en esta misma carpeta con **Add file → Upload files**. Puede subir solo los archivos modificados. El [cargador interno](../../herramientas/README_ENOS_CARGADOR.md) es otra opción para revisar las cifras antes de enviarlas.
 
 Al subir los archivos, GitHub valida el conjunto y publica automáticamente la nueva versión del tablero. El sello **Actualizado el** toma la fecha y hora real de publicación en horario de Ecuador. Guardar un archivo solamente en la computadora no lo sube al sistema.
@@ -15,9 +15,9 @@ Al subir los archivos, GitHub valida el conjunto y publica automáticamente la n
 | [alertas.xlsx](alertas.xlsx) | Una fila por `codigo`. Cambie el estado en su misma fila. Agregue solo códigos nuevos, con su fecha real. |
 | [kits.xlsx](kits.xlsx) | Una fila por `id_kobo`. Corrija una entrega en su misma fila o agregue una nueva. Conserve todo el histórico. |
 | [unidades_suspendidas.xlsx](unidades_suspendidas.xlsx) | Para un reporte nuevo, agregue solo las filas de las unidades que cambiaron. Conserve `id_unidad`, escriba la fecha real en `corte_fuente` y seleccione el estado. |
-| [contingencias.xlsx](contingencias.xlsx) | Para un reporte nuevo, agregue las provincias que tienen cifras nuevas. Registre su fecha real en `corte` y los saldos provinciales completos habilitado y cobrado. |
+| [contingencias.xlsx](contingencias.xlsx) | Una fila por FECHA HAB + PROVINCIA + CANTON + TIPO EVENTO en Hoja1. Corrija esa misma fila o agregue una nueva habilitación. Conserve el histórico y los encabezados de la fila 3. |
 
-**No necesita copiar un inventario completo ni repetir todas las provincias.** El sistema conserva el último estado de las unidades sin cambios y el último saldo de cada provincia. Los reportes de fechas diferentes no se suman.
+**Unidades suspendidas:** el sistema conserva el último estado de las unidades sin cambios; los cortes no se suman. **Contingencias:** se suman las habilitaciones dentro del período consultado, sin sumar nuevamente la fila Total general.
 
 ## Unidades suspendidas
 
@@ -29,9 +29,11 @@ Catálogo de `servicio` / `programa_id`: `CNH` y `CDI` → `DII`; `PAM` → `PAM
 
 ## Contingencias
 
-Si solo cambia El Oro, agregue únicamente el nuevo reporte de El Oro. El sistema conservará los últimos saldos de las demás provincias. Escriba los saldos completos de esa provincia, no solo el aumento del día. Para corregir un corte existente, modifique su fila.
+La base vigente reemplaza el saldo provincial sin fecha por el reporte **Bono contingecias al 29 de octubre.xlsx**: 32 filas, 1.720 habilitados / USD 521.322,45 y 692 cobrados / USD 209.776,23. El archivo conserva exactamente el reporte recibido.
 
-Use `evento=Todos los eventos` mientras la fuente entregue un total provincial. No mezcle ese total con sus eventos detallados. Si la fuente entrega detalle por eventos, el reporte nuevo debe contener el desglose completo de esa provincia. Conserve las provincias anteriores, incluso con saldo cero. Lo cobrado no puede superar lo habilitado.
+`FECHA HAB` es la fecha de habilitación. El filtro Desde/Hasta es inclusivo y se aplica también al estado de cobro de esas habilitaciones; no equivale a fecha de pago. Las fechas abreviadas del reporte recibido se interpretan explícitamente en **2026**. Para nuevas fechas use fechas completas de Excel o `AAAA-MM-DD` (obligatorio si cambia el año).
+
+La clave es fecha + provincia + cantón + evento: si cambia el cobro, actualice la misma fila. No agregue un segundo saldo de esa clave. Los dos campos de cobro vacíos del reporte significan sin cobro registrado; si solo uno está vacío, se rechaza. Lo cobrado no puede superar lo habilitado. Si mantiene la fila `Total general`, actualice sus valores para que concilien con el detalle; nunca se suma como registro.
 
 Los montos se ingresan como números, sin escribir «USD» en la celda. Los pequeños residuos de precisión de Excel se normalizan a centavos automáticamente. Los importes con más de dos decimales reales requieren corrección.
 

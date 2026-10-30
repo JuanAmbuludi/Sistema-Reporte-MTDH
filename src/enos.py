@@ -215,6 +215,14 @@ def history(*, live=False) -> dict:
             coverage[name] = {"desde": min(days).strftime("%Y-%m-%d"), "hasta": max(days).strftime("%Y-%m-%d"),
                               "registros": len(days)}
             recorded_days.extend(days)
+    if data.get("bonos_con_fecha_individual"):
+        bonus_days = [day(row.get("fecha")) for row in data["bonos"]["articulacion"]]
+        if any(pd.isna(moment) for moment in bonus_days):
+            raise ValueError("La base del bono contiene una fecha de habilitación inválida.")
+        if bonus_days:
+            coverage["bonos"] = {"desde": min(bonus_days).strftime("%Y-%m-%d"),
+                                 "hasta": max(bonus_days).strftime("%Y-%m-%d"), "registros": len(bonus_days)}
+            recorded_days.extend(bonus_days)
     for _published, path in publications(CONTINUITY):
         cut = continuity_cut(continuity(path))
         if cut is not None:
@@ -231,8 +239,11 @@ def history(*, live=False) -> dict:
         alertas="Alertas del aplicativo, de la matriz Excel y de los reportes sectoriales, de todo tipo (el filtro «Tipo de "
                 "alerta» permite consultar solo las de emergencia). Cada código se cuenta una vez con su estado más reciente; "
                 "no equivale a eventos ni unidades únicas.",
-        bono="El Bono de Contingencia conserva su acumulado confirmado al cambiar el período consultado. "
-             f"Corte de la fuente: {cut_text(data['cortes']['bonos'])}.")
+        bono=("Bono de contingencia filtrado por fecha de habilitación. Los cobros corresponden a esas habilitaciones "
+              "y al estado registrado en la fuente; no son pagos ocurridos en el período. "
+              if data.get("bonos_con_fecha_individual") else
+              "El Bono de Contingencia conserva su acumulado confirmado al cambiar el período consultado. ")
+             + f"Corte de la fuente: {cut_text(data['cortes']['bonos'])}.")
     return data
 
 
@@ -355,7 +366,7 @@ def period_confirmed(data, stage, since=None, until=None):
 
 def fixed_bonus(data, stage):
     """The approved articulation balance remains independent of the selected report dates."""
-    if stage != "articulacion":
+    if data.get("bonos_con_fecha_individual") or stage != "articulacion":
         return False
     return any(data.get(key, {}).get(stage, {}).get("confirmacion")
                for key in ("bonos_periodos_confirmados", "bonos_referencia_confirmada"))
@@ -369,13 +380,15 @@ def frames(data, provinces=()):
             # history() already evaluated the winning record using its own source's criteria.
             rows = [r for r in rows if included(r, data)]
         columns = ALERT_COLUMNS if name == 'alertas' else ['fecha','provincia','canton','kits','familias','id_kobo'] if name == 'kits' else ['provincia','evento','personas','monto']
+        if name in ('gestionados', 'articulacion') and data.get('bonos_con_fecha_individual'):
+            columns = ['fecha', 'provincia', 'canton', 'evento', 'personas', 'monto']
         frame = pd.DataFrame(rows, columns=columns)
         if name == 'alertas':
             frame['tipo_alerta'] = frame.tipo_alerta.fillna(DEFAULT_ALERT_TYPE).replace('', DEFAULT_ALERT_TYPE)
         if name in ('alertas', 'kits'):
             recorded = dates(frame.fecha)
             frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]
-        elif data.get('filtro_temporal_estricto') and not (fixed_bonus(data, name) or period_confirmed(data, name)):
+        elif data.get('bonos_con_fecha_individual') or (data.get('filtro_temporal_estricto') and not (fixed_bonus(data, name) or period_confirmed(data, name))):
             recorded = dates(pd.Series([r.get('fecha') for r in rows], index=frame.index))
             frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]
         if provinces:

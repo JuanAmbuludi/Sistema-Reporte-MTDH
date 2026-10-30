@@ -13,6 +13,8 @@ def row_keys(kind, rows):
         return {excel._identifier(row[field]) for _, row in rows}
     if kind == 'unidades_suspendidas':
         return {excel._identifier(row['id_unidad']) for _, row in rows}
+    if rows and 'fecha_habilitacion' in rows[0][1]:
+        return {(row['fecha_habilitacion'], row['provincia'], row['canton'], row['evento']) for _, row in rows}
     return {(excel._text(row['provincia']), excel._text(row['evento'])) for _, row in rows}
 
 

@@ -16,6 +16,7 @@ import openpyxl
 import hashlib
 import json
 import gzip
+import re
 
 FILES = {name: f"{name}.xlsx" for name in ("alertas", "kits", "unidades_suspendidas", "contingencias")}
 FORMAT = "ENOS_EXCEL_1"
@@ -164,11 +165,88 @@ def _bool(value, label, *, optional=False):
     raise ValueError(f"{label}: seleccione Sí o No" + (" o deje en blanco si no está confirmado." if optional else "."))
 
 
+def _dated_contingencies(book):
+    """Read the official ENOS pivot; its dates describe enablement cohorts.
+
+    The October 2026 source omits the year. That source year is explicit here;
+    subsequent years must use full Excel dates or ISO dates (never the clock).
+    """
+    headers = ["FECHA HAB", "PROVINCIA", "CANTON", "TIPO EVENTO",
+               "Cuenta de MONTO HABILITADO", "Suma de MONTO HABILITADO2",
+               "Cuenta de MONTO COBRADO", "Suma de MONTO COBRADO2"]
+    months = dict(zip(('ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'), range(1,13)))
+    table = book.worksheets[0]
+    actual = list(next(table.iter_rows(min_row=3, max_row=3, max_col=8, values_only=True)))
+    if actual != headers:
+        raise ValueError('contingencias.xlsx: se requieren Datos/Control o el reporte ENOS con FECHA HAB en la fila 3.')
+    rows, totals = [], None
+    for line, cells in enumerate(table.iter_rows(min_row=4, max_col=8), 4):
+        values = [c.value for c in cells]
+        if not any(v is not None for v in values):
+            continue
+        if any(c.data_type == 'f' for c in cells):
+            _error('contingencias', line, 'use valores, no fórmulas.')
+        if _text(values[0]).casefold() == 'total general':
+            if totals is not None:
+                _error('contingencias', line, 'Total general duplicado.')
+            totals = values[4:]
+            continue
+        raw = values[0]
+        match = re.fullmatch(r'(\d{1,2})-([a-z]{3})', _text(raw).lower())
+        when = date(2026, months[match[2]], int(match[1])).isoformat() if match else _date(raw, f'fila {line} FECHA HAB')[:10]
+        row = dict(corte=when, fecha_habilitacion=when,
+                   provincia={'MANABI':'Manabí', 'LOS RIOS':'Los Ríos'}.get(_text(values[1]).upper(), _text(values[1]).title()), canton=_text(values[2]).title(), evento=_text(values[3]))
+        if not all(row[k] for k in ('provincia','canton','evento')):
+            _error('contingencias', line, 'provincia, cantón y evento son obligatorios.')
+        # Empty pivot cells mean no collection recorded, only when both are empty.
+        if (values[6] is None) != (values[7] is None):
+            _error('contingencias', line, 'cantidad y monto cobrado deben estar ambos informados o ambos vacíos.')
+        for key, value in zip(BONUS_FIELDS[3:], values[4:]):
+            if key in ('nucleos_cobrados','monto_cobrado') and value is None:
+                value = 0
+            row[key] = _number(value, f'fila {line} {key}', integer=key.startswith('nucleos'))
+        rows.append((line, row))
+    if not rows:
+        raise ValueError('contingencias.xlsx: reporte sin registros.')
+    if totals is not None:
+        for key, expected in zip(BONUS_FIELDS[3:], totals):
+            expected = _number(expected, f'Total general {key}', integer=key.startswith('nucleos'))
+            if round(sum(r[key] for _, r in rows), 2) != expected:
+                raise ValueError(f'contingencias.xlsx: Total general no concilia en {key}.')
+    cut = max(r['corte'] for _, r in rows)
+    return 'contingencias', cut, {'tipo':'contingencias','modalidad':'habilitaciones_fechadas','anio_fuente':2026}, rows
+
+
+def _overlay_dated_bonus(result, cut, rows):
+    seen, detail = set(), []
+    for line, row in rows:
+        when = _check_date(row['fecha_habilitacion'], cut, 'contingencias', line, 'fecha_habilitacion')[:10]
+        _unique(seen, (when, row['provincia'], row['canton'], row['evento']), 'contingencias', line)
+        if row['nucleos_cobrados'] > row['nucleos_habilitados'] or row['monto_cobrado'] > row['monto_habilitado']:
+            _error('contingencias', line, 'lo cobrado supera lo habilitado.')
+        detail.append({**row, 'fecha_habilitacion':when})
+    result['bonos_detalle'] = detail
+    result['bonos_con_fecha_individual'] = True
+    for stage, count, amount in [('articulacion','nucleos_habilitados','monto_habilitado'),
+                                  ('gestionados','nucleos_cobrados','monto_cobrado')]:
+        result['bonos'][stage] = [dict(fecha=r['fecha_habilitacion'], provincia=r['provincia'], canton=r['canton'],
+                                     evento=r['evento'], personas=r[count], monto=r[amount]) for r in detail]
+    result['cortes'].update(bonos=cut, bonos_gestionados=cut, bonos_desde=min(r['fecha_habilitacion'] for r in detail))
+    result['bonos_periodos_confirmados'] = {}
+    result['bonos_referencia_confirmada'] = {}
+    result['bonos_presentacion'] = dict(unidad='Personas habilitadas', estado='Habilitadas en el período seleccionado', cobro_confirmado=True)
+    result.setdefault('notas', {})['bono'] = ('Bono de contingencia filtrado por fecha de habilitación. '
+        f'Cobros registrados al corte {cut} para esas habilitaciones; la fuente no contiene fecha de pago.')
+    return result
+
+
 @lru_cache(maxsize=24)
 def _read(path: str, modified: int, size: int):
     book = openpyxl.load_workbook(path, read_only=True, data_only=False)
     try:
         if not {"Datos", "Control"}.issubset(book.sheetnames):
+            if Path(path).name == FILES['contingencias']:
+                return _dated_contingencies(book)
             raise ValueError(f"{Path(path).name}: faltan las hojas Datos o Control.")
         control = {}
         for row in book["Control"].iter_rows(min_row=2, max_row=8, max_col=2, values_only=True):
@@ -288,6 +366,8 @@ def overlay(data: dict, processed: Path) -> dict:
     workbook = read(processed, 'contingencias')
     if workbook:
         cut, control, rows = workbook
+        if control.get('modalidad') == 'habilitaciones_fechadas':
+            return _overlay_dated_bonus(result, cut, rows)
         groups, seen = {}, set()
         for line, row in rows:
             when = _check_date(row['corte'], cut, 'contingencias', line, 'corte')[:10]
