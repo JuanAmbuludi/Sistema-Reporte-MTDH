@@ -106,6 +106,17 @@ class ExcelRegisters(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'duplicaría'):
             self.overlay()
 
+    def test_excel_binary_residues_are_normalized_to_cents(self):
+        for raw, expected in [(23711.220000000023, 23711.22),
+                              (53923.3200000001, 53923.32),
+                              (98801.49000000028, 98801.49),
+                              (2127.9300000000003, 2127.93), (0.1 + 0.2, 0.30)]:
+            with self.subTest(raw=raw):
+                self.assertEqual(excel._number(raw, 'monto'), expected)
+        for raw in [1.001, 1.999, '1.00000001']:
+            with self.subTest(raw=raw), self.assertRaisesRegex(ValueError, 'dos decimales'):
+                excel._number(raw, 'monto')
+
     def test_new_inventory_uses_full_stock_and_reopened_units_are_zero(self):
         self.rows['unidades_suspendidas'].append({**self.unit, 'corte_fuente':'2026-10-30', 'estado':'Reanudada'})
         observations = self.units()

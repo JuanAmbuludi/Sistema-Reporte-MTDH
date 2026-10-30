@@ -79,8 +79,13 @@ def _number(value, label, *, integer=False, optional=False):
         raise ValueError(f"{label}: se requiere un número.") from exc
     if isinstance(value, bool) or not n.is_finite() or n < 0 or (integer and n != n.to_integral_value()):
         raise ValueError(f"{label}: se requiere un {'entero ' if integer else ''}no negativo.")
-    if not integer and n != n.quantize(Decimal('0.01')):
-        raise ValueError(f"{label}: máximo dos decimales.")
+    if not integer:
+        cents = n.quantize(Decimal('0.01'))
+        # Excel stores numeric cells as binary floats; sums can carry a tiny
+        # residue around an exact cent. Genuine extra decimal places still fail.
+        if n != cents and (not isinstance(value, float) or abs(n - cents) > Decimal('0.0000001')):
+            raise ValueError(f"{label}: máximo dos decimales.")
+        n = cents
     return int(n) if integer else float(n)
 
 
