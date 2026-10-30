@@ -147,7 +147,7 @@ AREAS: dict[str, dict] = {
                            "cartera vigente."},
     "brigadas": {"label": "Brigadas sociales", "short": "Brigadas sociales", "kind": "brigadas",
                  "description": "Brigadas sociales por el Nuevo Ecuador: población alcanzada y atendida por mes, territorio y tipo."},
-    "ferias": {"label": "Ferias de Empleabilidad y Autoempleo", "short": "Ferias", "kind": "ferias",
+    "ferias": {"label": "Ferias de Inclusión Económica, Empleabilidad y Autoempleo", "short": "Ferias", "kind": "ferias",
                "description": "Capacitación para la empleabilidad, el autoempleo y la inclusión económica, por mes, territorio y perfil."},
     "presupuesto": {"label": "Presupuesto institucional", "short": "Presupuesto", "kind": "presupuesto",
                     "description": "Presupuesto codificado, devengado y ejecución del Ministerio, por programa, zona y "

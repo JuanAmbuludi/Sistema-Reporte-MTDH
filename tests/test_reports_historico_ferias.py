@@ -54,12 +54,43 @@ def test_government_report_uses_observed_stocks_and_historic_credit(bases):
 
 
 def test_both_institutional_export_paths_include_new_section(bases):
+    from src import enos
+
     monthly = panorama.build_panorama(bases, "Informe")
     annual = gestion.build(bases, "anual")
     for report in [monthly, annual]:
         blocks = {b["key"]: b for b in report["blocks"]}
         assert {"transferencias", "servicios", "cdh", "ferias"} <= blocks.keys()
-        assert blocks["ferias"]["label"] == "Ferias de Empleabilidad y Autoempleo"
+        assert blocks["ferias"]["label"] == "Ferias de Inclusión Económica, Empleabilidad y Autoempleo"
     fair = next(b for b in monthly["blocks"] if b["key"] == "ferias")
     assert {r["fuente"]: r["participaciones"] for r in fair["source_totals"]} == {
         "inclusion_economica": 5072, "empleabilidad_autoempleo": 309}
+    operative = enos.history()["ventana_operativa"]
+    risks = next(b for b in monthly["blocks"] if b["key"] == "riesgos")
+    assert risks["period"] == f"Del {enos.day(operative['desde']):%d/%m/%Y} al {enos.day(operative['hasta']):%d/%m/%Y}"
+
+
+@pytest.mark.parametrize("mode,start", [("gobierno", "2023-11-01"), ("anual", "2026-01-01")])
+def test_management_alerts_are_event_dated_without_later_fallback(bases, mode, start):
+    from src import enos
+
+    report = gestion.build(bases, mode)
+    block = next(b for b in report["blocks"] if b["key"] == "riesgos")
+    history = enos.history()
+    expected = [row for row in history["alertas"] if start <= row["fecha"] <= "2026-09-30"]
+    kpi = next(k for k in block["kpis"] if k["label"] == "Alertas registradas")
+    assert kpi["value"] == len(expected)
+    assert sum(r["alertas"] or 0 for r in block["table"]["rows"][:-1]) == len(expected)
+    assert block["table"]["rows"][-1]["alertas"] == len(expected)
+    delivery = next(d for d in report["deliveries"] if d["what"].startswith("Alertas de riesgos"))
+    assert delivery["amount_people"] == len(expected)
+    assert "fechas disponibles" in " ".join(item["text"] for item in block["findings"])
+    if mode == "gobierno":
+        assert "sin fechar las alertas" in " ".join(item["text"] for item in block["findings"])
+
+
+def test_alert_caption_preserves_the_end_of_monthly_and_interval_records():
+    rows = pd.DataFrame([{"fecha": "2024-04-01", "fecha_hasta": "2024-04-30"},
+                         {"fecha": "2024-07-15", "fecha_hasta": "2024-07-16"},
+                         {"fecha": "2024-07-12", "fecha_hasta": None}])
+    assert gestion._alert_span(rows) == "del 01/04/2024 al 16/07/2024"

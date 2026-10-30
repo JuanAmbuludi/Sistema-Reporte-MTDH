@@ -67,9 +67,10 @@ def updated_at(processed: Path) -> str | None:
 def source_hashes(processed: Path) -> dict:
     root = Path(processed).parent.parent
     sources = paths(processed) + list(Path(processed).glob('seguimiento_enos_*.json')) + list(Path(processed).glob('continuidad_servicios_*.json'))
-    brigades = Path(processed) / 'brigadas_emergencia.json'
-    if brigades.exists():
-        sources.append(brigades)
+    for filename in ('brigadas_emergencia.json', 'alertas_historicas.json'):
+        source = Path(processed) / filename
+        if source.exists():
+            sources.append(source)
     return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(sources)}
 
 

@@ -89,7 +89,7 @@ def test_registered_ferias_navigation_preserves_enos_default():
     assert app.date_input(key="risk_period_since").value == date(2026, 8, 28)
     app.segmented_control(key="module").set_value("ferias").run()
     assert not app.exception
-    assert "Ferias de Empleabilidad y Autoempleo" in _markdown(app)
+    assert "Ferias de Inclusión Económica, Empleabilidad y Autoempleo" in _markdown(app)
     assert app.segmented_control(key="ferias_source").value == "empleabilidad_autoempleo"
     app.segmented_control(key="period_year").set_value(2023).run()
     app.segmented_control(key="period_month").set_value("2023-11").run()

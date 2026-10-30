@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "data/processed"
 SNAPSHOT = "seguimiento_enos_*.json"
 CONTINUITY = "continuidad_servicios_*.json"
+HISTORICAL_ALERTS = "alertas_historicas.json"
 LEDGER = FOLDER / "cortes_riesgos.json"
 REPORTS = ROOT / "data/reports"
 
@@ -33,7 +34,7 @@ REFERENCE = "Ámbito: alertas y reportes sectoriales y acciones institucionales 
 
 ALERT_COLUMNS = ['codigo','fecha','provincia','canton','estado','prioridad','codigo_ua','unidad',
                  'afectados_fuente','afectacion_servicio_confirmada','servicio','afectacion_servicio','origen','fecha_texto','mes_reporte',
-                 'tipo_alerta']
+                 'tipo_alerta', 'fecha_hasta', 'fecha_precision']
 # Every alert published before the type of alert was recorded is an emergency alert (Fenómeno El Niño).
 DEFAULT_ALERT_TYPE = "Emergencia"
 # Origins whose alerts are included by their source and service (application, sectoral reports and the Excel matrix).
@@ -108,6 +109,16 @@ def dates(values) -> pd.Series:
                      dtype="datetime64[ns]")
 
 
+def period_mask(frame: pd.DataFrame, since, until) -> pd.Series:
+    """An uncertain reporting month belongs only to a range containing that whole month."""
+    starts = dates(frame.fecha)
+    if "fecha_hasta" in frame:
+        ends = dates(frame.fecha_hasta.where(frame.fecha_hasta.notna() & frame.fecha_hasta.ne(""), frame.fecha))
+    else:
+        ends = starts
+    return starts.ge(day(since)) & ends.le(day(until))
+
+
 def ensure_open(path) -> None:
     """Ingestion may write the open publication, never a previously issued day."""
     path = Path(path)
@@ -123,9 +134,85 @@ def history_paths() -> list[Path]:
     from src import enos_excel
     paths = [path for pattern in (SNAPSHOT, CONTINUITY) for _date, path in publications(pattern)]
     brigades = FOLDER / "brigadas_emergencia.json"
+    archive = FOLDER / HISTORICAL_ALERTS
     stamp = enos_excel.directory(FOLDER) / enos_excel.STAMP
     validated = enos_excel.directory(FOLDER) / enos_excel.VALIDATED
-    return paths + ([brigades] if brigades.exists() else []) + enos_excel.paths(FOLDER, strict=False) + [p for p in (stamp, validated) if p.exists()]
+    return paths + [p for p in (brigades, archive) if p.exists()] + enos_excel.paths(FOLDER, strict=False) + [p for p in (stamp, validated) if p.exists()]
+
+
+def _published_alert_ids() -> set[str]:
+    """Every operational decision wins over the older register, including removals."""
+    identifiers = set()
+    for path in snapshots():
+        source = json.loads(path.read_text(encoding="utf-8"))
+        identifiers.update(str(row.get("codigo", "")).strip() for row in source.get("alertas", []))
+        identifiers.update(str(value).strip() for value in source.get("control", {}).get("alertas_excluidas_codigos", []))
+    return identifiers
+
+
+def _with_historical_alerts(data: dict, operational_ids=()) -> dict:
+    """Fill historical gaps after Excel reconciliation; never revive an operational ID.
+
+    The same merge applies to the last validated current register and the live
+    register. Named daily publications are never passed through this adapter.
+    """
+    path = FOLDER / HISTORICAL_ALERTS
+    if not path.exists():
+        return data
+    archive = json.loads(path.read_text(encoding="utf-8"))
+    criteria = {"criterio_alertas": "codigo_ua_y_reportes_sectoriales", **archive}
+    result = deepcopy(data)
+    previous = result.get("alertas_historicas", {})
+    protected = set(operational_ids) | _published_alert_ids()
+    previous_ids = set(previous.get("codigos_integrados", []))
+    current = {row["codigo"]: row for row in result["alertas"]
+               if row["codigo"] not in previous_ids or row["codigo"] in protected}
+    protected.update(current)
+    protected.update(str(value).strip() for value in archive.get("control", {}).get("alertas_excluidas_codigos", []))
+    seen, added = set(), []
+    for source in archive.get("alertas", []):
+        identifier = str(source.get("codigo") or "").strip()
+        if not identifier or identifier in seen:
+            raise ValueError(f"{HISTORICAL_ALERTS}: se requieren códigos únicos y no vacíos.")
+        seen.add(identifier)
+        start = day(source.get("fecha"))
+        end = day(source.get("fecha_hasta") or source.get("fecha"))
+        if pd.isna(start) or pd.isna(end) or start > end:
+            raise ValueError(f"{HISTORICAL_ALERTS}: fecha inválida para {identifier}.")
+        if identifier in protected or not included(source, criteria):
+            continue
+        row = deepcopy(source)
+        row.update(codigo=identifier, fecha=start.strftime("%Y-%m-%d"))
+        if source.get("fecha_hasta"):
+            row["fecha_hasta"] = end.strftime("%Y-%m-%d")
+        current[identifier] = row
+        added.append(identifier)
+    result["alertas"] = sorted(current.values(), key=lambda row: (row["fecha"], row["codigo"]))
+    bounds = previous.get("ventana_operativa", [data["desde"], data["corte"]])
+    starts = [day(row["fecha"]) for row in result["alertas"]]
+    ends = [day(row.get("fecha_hasta") or row["fecha"]) for row in result["alertas"]]
+    result.update(desde=min([day(bounds[0]), *starts]).strftime("%Y-%m-%d"),
+                  corte=max([day(bounds[1]), *ends]).strftime("%Y-%m-%d"))
+    result["ventana_operativa"] = {"desde": bounds[0], "hasta": bounds[1]}
+    if starts:
+        result.setdefault("cobertura_registros", {})["alertas"] = {
+            "desde": min(starts).strftime("%Y-%m-%d"), "hasta": max(ends).strftime("%Y-%m-%d"), "registros": len(starts)}
+    result.setdefault("control", {})["alertas_total"] = len(current)
+    result["alertas_historicas"] = {"archivo": HISTORICAL_ALERTS, "sha256": fingerprint(path),
+        "codigos_integrados": sorted(added), "ventana_operativa": bounds, "registros_integrados": len(added),
+        "registros_por_precision": {str(key): int(value) for key, value in
+            pd.Series([current[key].get("fecha_precision", "dia") for key in added], dtype=object).value_counts().items()},
+        "control_fuente": archive.get("control", {}), "antecedentes": archive.get("antecedentes", []),
+        "sin_fecha_por_anio": {str(source["anio"]): len(source["excluidos_fecha"])
+            for source in archive.get("fuentes", []) if source.get("excluidos_fecha")}}
+    sources = {(item.get("nombre"), item.get("sha256")): item for item in result.get("fuentes", [])}
+    for item in archive.get("fuentes", []):
+        sources[(item.get("nombre"), item.get("sha256"))] = item
+    result["fuentes"] = list(sources.values())
+    result.setdefault("notas", {})["alertas_historicas"] = (
+        "El histórico complementa los registros vigentes; los códigos actualizados o excluidos en la base operativa "
+        "conservan esa decisión. Los meses de reporte y los intervalos se incluyen al consultar su rango completo.")
+    return result
 
 
 def history(*, live=False) -> dict:
@@ -142,7 +229,12 @@ def history(*, live=False) -> dict:
         data = issued['datos']
         if issued['pendiente']:
             data['carga_pendiente'] = True
-        return data
+        try:
+            return _with_historical_alerts(data, issued.get('identificadores', {}).get('alertas', []))
+        except (OSError, ValueError, KeyError, TypeError):
+            # A malformed upload must not take down the last validated register.
+            data['carga_pendiente'] = True
+            return data
     found = publications()
     if not found:
         raise ValueError("No hay bases de seguimiento disponibles.")
@@ -244,7 +336,9 @@ def history(*, live=False) -> dict:
               if data.get("bonos_con_fecha_individual") else
               "El Bono de Contingencia conserva su acumulado confirmado al cambiar el período consultado. ")
              + f"Corte de la fuente: {cut_text(data['cortes']['bonos'])}.")
-    return data
+    workbook = enos_excel.read(FOLDER, 'alertas')
+    operational_ids = [str(row['codigo']).strip() for _, row in workbook[2]] if workbook else []
+    return _with_historical_alerts(data, operational_ids)
 
 
 def history_window(data: dict | None = None) -> tuple[pd.Timestamp, pd.Timestamp]:
@@ -386,8 +480,7 @@ def frames(data, provinces=()):
         if name == 'alertas':
             frame['tipo_alerta'] = frame.tipo_alerta.fillna(DEFAULT_ALERT_TYPE).replace('', DEFAULT_ALERT_TYPE)
         if name in ('alertas', 'kits'):
-            recorded = dates(frame.fecha)
-            frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]
+            frame = frame.loc[period_mask(frame, data['desde'], data['corte'])]
         elif data.get('bonos_con_fecha_individual') or (data.get('filtro_temporal_estricto') and not (fixed_bonus(data, name) or period_confirmed(data, name))):
             recorded = dates(pd.Series([r.get('fecha') for r in rows], index=frame.index))
             frame = frame.loc[recorded.between(day(data['desde']), day(data['corte']))]

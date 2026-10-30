@@ -154,7 +154,8 @@ def _cover(prs, ctx: dict, picture: bytes, total: int, picture_width: float = 4.
         _picture(slide, LOGO, 0.48, 0.42, h=0.66)
     _text(slide, 0.6, 1.5, 4.4, 0.35, ctx["period_label"], size=13, color=theme.ORO, bold=True)
     title = ctx["title"]
-    _text(slide, 0.6, 1.88, 4.45, 1.55, title, size=32 if len(title) > 24 else 36, color="#FFFFFF", font=DISPLAY, bold=True,
+    title_size = 26 if len(title) > 48 else 32 if len(title) > 24 else 36
+    _text(slide, 0.6, 1.88, 4.45, 1.55, title, size=title_size, color="#FFFFFF", font=DISPLAY, bold=True,
           spacing=0.95)
     _box(slide, 0.6, 3.48, 0.9, 0.07, theme.ORO)
     _text(slide, 0.6, 3.62, 4.4, 0.32, f"{ctx['territory_label']} · {ctx['programs_label']}", size=13, color="#E4DBF3")
@@ -166,8 +167,10 @@ def _cover(prs, ctx: dict, picture: bytes, total: int, picture_width: float = 4.
     _slogan(slide, 0.6, 6.82, 4.5, size=10.5)
 
     _text(slide, 5.85, 0.62, 6.9, 0.5, "Cifras clave", size=24, color=theme.MORADO_900, font=DISPLAY, bold=True)
-    _text(slide, 5.85, 1.12, 6.9, 0.35, f"{ctx['module_label']} · {ctx['period_label']} · {ctx['territory_label']}",
-          size=13, color=theme.PIZARRA)
+    long_label = len(ctx["module_label"]) > 40
+    _text(slide, 5.85, 1.12, 6.9, 0.52 if long_label else 0.35,
+          f"{ctx['module_label']} · {ctx['period_label']} · {ctx['territory_label']}",
+          size=12 if long_label else 13, color=theme.PIZARRA)
     cards = ctx["kpis"][:4]
     gap = 0.28
     # Two columns of cards; an odd last card takes the whole row, so the grid never leaves an empty slot.

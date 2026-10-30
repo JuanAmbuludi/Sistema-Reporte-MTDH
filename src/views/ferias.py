@@ -25,8 +25,8 @@ DIMENSION_LABELS = {"sexo": "Sexo", "edad": "Grupo de edad", "sector": "Área de
 
 class FairView(AreaView):
     kind = id = "ferias"
-    label = "Ferias de Empleabilidad y Autoempleo"
-    file_id = "ferias_empleabilidad_autoempleo"
+    label = "Ferias de Inclusión Económica, Empleabilidad y Autoempleo"
+    file_id = "ferias_inclusion_economica_empleabilidad_autoempleo"
     category = ("tipo_capacitacion", "Tipo de capacitación", "Todos los tipos")
     weight = "participaciones"
     series_field, series_unit, series_title = "participaciones", "participaciones", "Participaciones en capacitación por mes"

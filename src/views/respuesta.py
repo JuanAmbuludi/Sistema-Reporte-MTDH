@@ -41,6 +41,15 @@ def _date(value) -> str:
     return pd.Timestamp(value).strftime("%d/%m/%Y")
 
 
+def alert_date(row) -> str:
+    if row.get("fecha_precision") == "mes_reporte":
+        moment = pd.Timestamp(row["fecha"])
+        return f"{ui._MONTHS_SHORT[moment.month - 1]} {moment.year} · mes de reporte"
+    if row.get("fecha_precision") == "intervalo":
+        return f"{ui._date_text(row['fecha'])} al {ui._date_text(row['fecha_hasta'])} · intervalo reportado"
+    return ui._date_text(row["fecha"]) if pd.notna(row["fecha"]) else str(row.get("fecha_texto", "Sin fecha diaria"))
+
+
 # Service of an alert when its unit is not in the inventory of the cut, from the wording of the source.
 _SERVICE_WORDS = [(("infantil", "cnh", "creciendo", "cdi"), "DII"), (("adult", "geront"), "PAM_SERV"), (("discapacidad",), "PCD_SERV"),
                   (("protecci",), "PE"), (("acompañamiento", "acompanamiento"), "AF")]
@@ -114,8 +123,7 @@ class Response:
         # Alerts and kits: their own dates, inside the reporting period and the period consulted.
         for key in ("alertas", "kits"):
             frame = national[key]
-            dates = enos.dates(frame.fecha)
-            national[key] = frame.loc[dates.between(max(self.start, self.first), min(self.end, self.last))].copy()
+            national[key] = frame.loc[enos.period_mask(frame, max(self.start, self.first), min(self.end, self.last))].copy()
         self.cuts = data["cortes"]
         self.available = {"gestionados": self._stage("gestionados", self.cuts.get("bonos_gestionados") or self.cuts.get("bonos")),
                           "articulacion": self._stage("articulacion", self.cuts.get("bonos"))}
@@ -217,7 +225,17 @@ class Response:
     def publication_text(self) -> str:
         """«Cifras tal como se reportaron el 27/10/2026» or, before the first publication, how the period is reconstructed."""
         if self.by_period:
-            return "Consulta por fecha de registro con las versiones más recientes de las bases disponibles."
+            text = "Consulta por fecha de registro con las versiones más recientes de las bases disponibles."
+            historical = self.data.get("alertas_historicas", {})
+            if historical and self.start.year <= 2024:
+                text += " Los meses de reporte y los intervalos se incluyen únicamente cuando el filtro contiene su rango completo."
+                for source in historical.get("antecedentes", []):
+                    text += (f" Los {ui.number(source['registros'])} nudos críticos y planes de acción de {source['anio']} "
+                             "tienen fechas de ejecución planificada, sin fecha de alerta; se conservan como antecedentes "
+                             "y no se suman al período de gobierno.")
+                for year, count in historical.get("sin_fecha_por_anio", {}).items():
+                    text += f" {count} registros de {year} con fecha ambigua permanecen fuera del total fechado."
+            return text
         day = pd.Timestamp(self.publication["dia"])
         if self.publication.get("exacta", True):
             return f"Cifras tal como se reportaron el {_date(day)}."
@@ -385,21 +403,25 @@ class Response:
 
 # --------------------------------------------------------------------------------------------------- charts
 def alerts_evolution(r: Response, height: int | None = None) -> go.Figure:
-    """Alerts registered each day from the first day of the follow-up (columns) and their running total (step line)."""
-    days = pd.date_range(r.since.normalize(), r.cut.normalize(), freq="D")
+    """Use monthly buckets when a source lacks the day or the history spans many months."""
+    monthly = alerts_evolution_monthly(r)
+    first = r.since.to_period("M").start_time if monthly else r.since.normalize()
+    days = pd.date_range(first, r.cut.normalize(), freq="MS" if monthly else "D")
     if not len(days):
         return _empty(go.Figure(), "Sin alertas en el periodo")
-    daily = (pd.to_datetime(r.alerts.fecha).dt.normalize().value_counts().reindex(days, fill_value=0) if not r.alerts.empty
-             else pd.Series(0, index=days))
+    recorded = pd.to_datetime(r.alerts.fecha)
+    buckets = recorded.dt.to_period("M").dt.start_time if monthly else recorded.dt.normalize()
+    daily = buckets.value_counts().reindex(days, fill_value=0)
     total = daily.cumsum()
-    labels = [f"{d.day} {ui._MONTHS_SHORT[d.month - 1]} {d.year}" for d in days]
+    labels = [f"{ui._MONTHS_SHORT[d.month - 1]} {d.year}" if monthly else f"{d.day} {ui._MONTHS_SHORT[d.month - 1]} {d.year}" for d in days]
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=days, y=total, mode="lines", name="Acumuladas", line=dict(color=theme.MORADO, width=2.4, shape="hv"), fill="tozeroy",
         fillcolor="rgba(118,87,185,.12)", customdata=labels,
         hovertemplate="<b>%{customdata}</b><br>%{y} alertas acumuladas<extra></extra>"))
     fig.add_trace(go.Bar(
-        x=days, y=daily, name="Registradas en el día", marker=dict(color=theme.ORO, cornerradius=3), width=86400000 * 0.8,
+        x=days, y=daily, name="Registradas en el mes" if monthly else "Registradas en el día",
+        marker=dict(color=theme.ORO, cornerradius=3), width=86400000 * (23 if monthly else 0.8),
         customdata=labels, hovertemplate="<b>%{customdata}</b><br>%{y} alertas registradas<extra></extra>"))
     for day, count in daily[daily > 0].items():
         fig.add_annotation(x=day, y=count, text=f"<b>+{count}</b>", showarrow=False, yshift=11, font=dict(size=11.5, color=theme.ORO_700),
@@ -409,13 +431,18 @@ def alerts_evolution(r: Response, height: int | None = None) -> go.Figure:
                        showarrow=False, xanchor="right", yshift=14, font=dict(size=12.5, color=theme.MORADO_900))
     fig.add_vline(x=days[0], line=dict(color=theme.LILA_200, width=1.2, dash="dot"))
     charts.base(fig, height or 260, dict(l=8, r=16, t=40, b=30))
-    ticks = list(pd.date_range(days[0], days[-1], freq="7D"))
-    fig.update_xaxes(range=[days[0] - pd.Timedelta(days=1), days[-1] + pd.Timedelta(days=1)], showgrid=False, tickvals=ticks,
-                     ticktext=[f"{t.day} {ui._MONTHS_SHORT[t.month - 1]}" for t in ticks], tickfont=dict(size=11))
+    ticks = list(pd.date_range(days[0], days[-1], freq="3MS" if monthly and len(days) > 18 else "MS" if monthly else "7D"))
+    margin = pd.Timedelta(days=18 if monthly else 1)
+    fig.update_xaxes(range=[days[0] - margin, days[-1] + margin], showgrid=False, tickvals=ticks,
+                     ticktext=[f"{ui._MONTHS_SHORT[t.month - 1]} {t.year}" if monthly else f"{t.day} {ui._MONTHS_SHORT[t.month - 1]}" for t in ticks], tickfont=dict(size=11))
     fig.update_yaxes(range=[0, peak * 1.3], showgrid=True, gridcolor="#F1EEF6", dtick=max(1, round(peak / 4)), tickfont=dict(size=11),
                      rangemode="tozero")
     fig.update_layout(bargap=0.1, legend=dict(orientation="h", y=1.14, x=0, traceorder="normal"))
     return fig
+
+
+def alerts_evolution_monthly(r: Response) -> bool:
+    return bool(r.alerts.fecha_precision.isin(("mes_reporte", "intervalo")).any() or (r.cut - r.since).days > 120)
 
 
 # ------------------------------------------------------------------------------ the visuals of the section
@@ -462,7 +489,7 @@ def alerts_units(r: Response) -> go.Figure:
         fig.add_trace(go.Scatter(
             x=[p["x"] for p in rows], y=[p["y"] for p in rows], mode="markers", name={"Creciendo con Nuestros Hijos (CNH)": "CNH", "Centros gerontológicos": "Gerontología", "Discapacidades · AHC": "AHC"}.get(service, service),
             marker=dict(symbol="square", size=30, color=SERVICE_TONES.get(service, theme.VIOLETA_500), line=dict(color="#FFFFFF", width=3)),
-            customdata=[[p["codigo"], ui._date_text(p["fecha"]) if pd.notna(p["fecha"]) else str(p.get("fecha_texto", "Sin fecha diaria")), p["unidad"], p["canton"], p["estado"], p["servicio"]] for p in rows],
+            customdata=[[p["codigo"], alert_date(p), p["unidad"], p["canton"], p["estado"], p["servicio"]] for p in rows],
             hovertemplate=("<b>%{customdata[0]}</b> · %{customdata[1]}<br>%{customdata[2]}<br>%{customdata[5]}"
                            "<br>%{y} · %{customdata[3]}<br>Estado: %{customdata[4]}<extra></extra>")))
     counts = alerts.provincia.value_counts()
@@ -661,7 +688,7 @@ def alerts_table(r: Response) -> None:
                    {"key": "afectacion_servicio", "label": "Afectación al servicio"},
                    {"key": "estado", "label": "Estado", "kind": "pill", "tones": STATUS_TONES},
                    {"key": "prioridad", "label": "Prioridad", "kind": "pill", "tones": PRIORITY_TONES}],
-                  [{**row, "fecha_texto": ui._date_text(row["fecha"]) if pd.notna(row["fecha"]) else str(row.get("fecha_texto", "Sin fecha diaria"))} for row in rows], min_width=980)
+                  [{**row, "fecha_texto": alert_date(row)} for row in rows], min_width=980)
 
 
 def kits_detail(r: Response) -> None:

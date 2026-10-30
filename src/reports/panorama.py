@@ -34,7 +34,7 @@ SECTIONS = [
     ("cdh", "Crédito de Desarrollo Humano", "coins"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
     ("laboral", "Empleo", "briefcase"),
-    ("ferias", "Ferias de Empleabilidad y Autoempleo", "graduation"),
+    ("ferias", "Ferias de Inclusión Económica, Empleabilidad y Autoempleo", "graduation"),
     # Contingencies and the budget close the report.
     ("contingencias", "Contingencias y compensaciones", "shield"),
     ("presupuesto", "Presupuesto", "landmark"),
@@ -170,7 +170,11 @@ def _block(key: str, label: str, icon: str, view) -> dict | None:
     if period is None:
         return None
     if key == "riesgos":
-        view.select(period, mode="periodo")
+        # Adding an archival alert source expands government queries; the monthly
+        # overview retains the operational history it already summarized.
+        operative = view._history().get("ventana_operativa", {})
+        scope = {"since": operative["desde"], "until": operative["hasta"]} if operative else {}
+        view.select(period, mode="periodo", **scope)
         period = view.period
     else:
         view.select(period)

@@ -341,8 +341,13 @@ class RiskView:
                     st.session_state[key] = max(first, min(value, last))
                 elif key not in st.session_state:
                     st.session_state[key] = value
-            st.button("Todo el historial", key="risk_all_history", type="tertiary",
-                      on_click=self._all_history, args=(first, last))
+            history, government = st.columns(2, gap="small")
+            with history:
+                st.button("Todo el historial", key="risk_all_history", type="tertiary",
+                          on_click=self._all_history, args=(first, last))
+            with government:
+                st.button("Período de gobierno", key="risk_government", type="tertiary",
+                          on_click=self._period, args=(max(first, min(date(2023, 11, 23), last)), last))
             left, right = st.columns(2, gap="small")
             with left:
                 since = st.date_input("Desde", key=keys[0], min_value=first, max_value=last, format="DD/MM/YYYY")
@@ -723,13 +728,14 @@ class RiskView:
         else:
             left, right = self._pair((1.6, 1))
             units = respuesta.alerts_units(r)
-            undated_count = int(pd.to_datetime(r.alerts.fecha, errors="coerce").isna().sum())
-            undated = (f"La evolución diaria incluye solo fechas exactas; {respuesta._n(undated_count, 'reporte')} sin día especificado."
+            undated_count = int(r.alerts.fecha_precision.eq("mes_reporte").sum())
+            undated = (f"{respuesta._n(undated_count, 'reporte')} con mes de reporte, sin día especificado. Se incluyen al consultar el mes completo."
                        if undated_count else "")
             # Both cards keep the same height: the evolution grows with the rows of the unit chart and its notes.
             height = None if compact() else int(units.layout.height) + 37 + (40 if undated else 0)
             with left, st.container(border=True, key="card_response_evolution"):
-                ui.chart_title("Evolución de las alertas", f"Registradas cada día y acumuladas desde el {r.since:%d/%m/%Y}")
+                frequency = "mes" if respuesta.alerts_evolution_monthly(r) else "día"
+                ui.chart_title("Evolución de las alertas", f"Registradas cada {frequency} y acumuladas desde el {r.since:%d/%m/%Y}")
                 show_chart(respuesta.alerts_evolution(r, height), "response_evolution")
             with right, st.container(border=True, key="card_response_units"):
                 ui.chart_title("Cada alerta, una unidad", "Por provincia · el color indica el servicio")

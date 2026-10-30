@@ -14,13 +14,13 @@ sys.path.insert(0, str(ROOT))
 
 
 def build_stamp():
-    paths = [f'data/enos_excel/{name}' for name in FILES]
+    paths = [f'data/enos_excel/{name}' for name in FILES] + ['data/processed/alertas_historicas.json']
     value = subprocess.check_output(['git', 'log', '-1', '--format=%cI', '--', *paths], cwd=ROOT, text=True).strip()
     if not value:
         raise ValueError('No se encontró la publicación de los Excel en Git.')
     moment = datetime.fromisoformat(value).astimezone(timezone.utc)
     return {'generado_utc': moment.isoformat(),
-            'criterio': 'Fecha y hora del último commit que actualizó las bases Excel ENOS.',
+            'criterio': 'Fecha y hora del último commit que actualizó las bases Excel o el histórico de alertas ENOS.',
             'archivos': {name: hashlib.sha256((FOLDER / name).read_bytes()).hexdigest() for name in FILES}}
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from src.data import MONTHS
 
-TITLE = "Ferias de Empleabilidad y Autoempleo"
+TITLE = "Ferias de Inclusión Económica, Empleabilidad y Autoempleo"
 SOURCE_LABELS = {
     "empleabilidad_autoempleo": "Empleabilidad y autoempleo",
     "inclusion_economica": "Inclusión económica",
