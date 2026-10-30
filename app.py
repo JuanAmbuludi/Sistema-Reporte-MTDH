@@ -39,6 +39,7 @@ from src.views.territorial import TerritorialView  # noqa: E402
 from src.views.riesgos import RiskView  # noqa: E402
 from src.views.cdh import CreditView  # noqa: E402
 from src.views.brigadas import BrigadeView  # noqa: E402
+from src.views.ferias import FairView  # noqa: E402
 
 ui.inject_styles()
 user = require_login()
@@ -97,7 +98,7 @@ if youth.catalog():
 labour = LabourView(bases["labour"])
 if labour.catalog():
     views["laboral"] = labour
-for area_key, area_view in (("cdh", CreditView()), ("brigadas", BrigadeView())):
+for area_key, area_view in (("cdh", CreditView()), ("brigadas", BrigadeView()), ("ferias", FairView())):
     if area_view.catalog():
         views[area_key] = area_view
 institutional = FinanceView(bases["budget"], metadata=bases["budget_manifest"]) if not bases["budget"].empty else None
@@ -174,7 +175,7 @@ PRODUCTS = {
 
 SCOPES = {"seccion": "Esta sección", "todas": "Todas las secciones"}
 SECTION_ICONS = {"transferencias": "hand-coins", "servicios": "users", "riesgos": "storm", "contingencias": "shield",
-                 "jovenes": "graduation", "laboral": "briefcase", "cdh": "coins", "brigadas": "users", "presupuesto": "landmark"}
+                 "jovenes": "graduation", "laboral": "briefcase", "cdh": "coins", "brigadas": "users", "ferias": "briefcase", "presupuesto": "landmark"}
 
 # Documents of a single territorial level name it in the file; the complete set needs no suffix.
 LEVEL_SUFFIX = {"provincia": "_provincias", "canton": "_cantones", "parroquia": "_parroquias"}
@@ -218,10 +219,10 @@ def report_center() -> None:
         if everything:
             from src.reports.periodo import MODES
             default = "Informe ejecutivo institucional" if span_mode == "mes" else MODES[span_mode]
-            st.caption({"mes": "Cuatro páginas como máximo, a nivel nacional: cada sección con su último corte, cuatro cifras clave, un "
+            st.caption({"mes": "Resumen nacional: cada sección con su último corte, cuatro cifras clave, un "
                                "gráfico propio y dos hallazgos. Las secciones no se suman entre sí.",
-                        "anual": "Cinco páginas: cifras clave de enero al último mes, cobertura de cada sección, gráficos mensuales y cuadros.",
-                        "gobierno": "Cinco páginas desde noviembre de 2023: cifras clave, desde y hasta cuándo hay información en cada "
+                        "anual": "Cifras clave de enero al último mes, cobertura de cada sección, gráficos mensuales y cuadros.",
+                        "gobierno": "Gestión desde noviembre de 2023: cifras clave, desde y hasta cuándo hay información en cada "
                                     "sección, gráficos por año o mes y cuadros."}[span_mode])
             title = st.text_input("Título", value=default, max_chars=80, key=f"report_title_all_{span_mode}").strip() or default
             ui.scope_chips([("Secciones", "Todas"), ("Territorio", "Nacional"),
@@ -233,7 +234,7 @@ def report_center() -> None:
                 view.report_options()
             ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
-        selection = f"todas-periodos-v2-{span_mode}-{version}" if everything else view.digest()
+        selection = f"todas-periodos-v3-{span_mode}-{version}" if everything else view.digest()
         digest = hashlib.sha256((selection + json.dumps({"title": title, "product": product, "area": file_id},
                                                          sort_keys=True)).encode("utf-8")).hexdigest()
         name = product.lower()

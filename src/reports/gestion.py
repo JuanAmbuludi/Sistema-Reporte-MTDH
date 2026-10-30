@@ -85,15 +85,21 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
         programs = programs.sort_values("usuarios", ascending=False)
         accrued, coded = float(programs.presupuesto_ejecutado.sum()), float(programs.presupuesto_codificado.sum())
         points = data.loc[data.seccion.eq(section)].groupby("periodo_id").usuarios.sum()
-        keep = [p for p in sorted(points.index) if (len(p) == 7 and start <= p <= end) or (yearly and len(p) == 4)]
-        first = float(points[[p for p in keep if len(p) == 7][0]]) if keep else 0
+        keep = [p for p in sorted(points.index) if len(p) == 7 and start <= p <= end]
+        first = float(points[keep[0]]) if keep else total_people
         change = total_people - first
+        # Users and units are stocks. A government chart shows one observed cut per
+        # year, never the sum of monthly users or a mix of annual and monthly cuts.
+        chart_periods = list({p[:4]: p for p in keep}.values()) if yearly else keep
+        stock_note = f"{_month(end).capitalize()} · {'+' if change >= 0 else '−'}{number(abs(change))} desde {_month(keep[0])}" if keep else _month(end).capitalize()
+        if yearly and section == "proteccion_integral":
+            stock_note = f"{_month(end).capitalize()} · usuarios del corte oficial"
         units = float(rows.unidades.sum()) if section == "proteccion_integral" else None
-        kpis = [_kpi(word, total_people, note=f"{_month(end).capitalize()} · {'+' if change >= 0 else '−'}{number(abs(change))} desde enero de {end[:4]}"),
+        kpis = [_kpi(word, total_people, note=stock_note),
                 *([_kpi("Unidades de atención", units, note=_month(end).capitalize())] if units else []),
                 _kpi(f"Presupuesto devengado {end[:4]}", accrued, "money", note=f"Enero a {MONTHS[int(end[5:]) - 1]}"),
                 _kpi("Ejecución presupuestaria", accrued / coded * 100 if coded else None, "rate", note=f"Codificado: USD {_money_m(coded)} M")]
-        if section == "bonos_pensiones":
+        if section == "bonos_pensiones" or yearly:
             kpis.append(_kpi(f"Presupuesto acumulado 2023–{end[:4]}", float(programs.monto_gobierno.sum()), "money", note="Gestión de gobierno"))
         columns = [("Bono o pensión" if section == "bonos_pensiones" else "Servicio", "programa", None, "text"),
                    (word, "usuarios", 70, "int"), ("Participación", "participacion", 62, "pct"),
@@ -101,14 +107,17 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                    (f"Devengado {end[:4]}", "presupuesto_ejecutado", 78, "mill"), ("Ejecución", "ejecucion", 58, "pct"),
                    *([(f"Acumulado 2023–{end[:4]}", "monto_gobierno", 96, "mill")] if yearly else [])]
         leader = programs.iloc[0] if not programs.empty else None
-        visual = {"kind": "columns", "title": f"{word} por " + ("periodo" if yearly else "mes"),
-                  "note": "2024 y 2025: referencia anual" if yearly else "Personas", "labels": [_short(p, yearly) for p in keep],
-                  "values": [float(points[p]) for p in keep],
+        visual = {"kind": "columns", "title": ("Coberturas reportadas" if yearly and section == "proteccion_integral" else f"{word} por corte"),
+                  "note": "Último mes disponible de cada año" if yearly else "Personas · corte mensual",
+                  "labels": [_short(p, yearly) for p in chart_periods],
+                  "values": [float(points[p]) for p in chart_periods],
                   "value_text": _people}
         findings = [{"icon": "award", "text": f"{leader.programa} reúne el {number(leader.participacion, 1)} % de los "
                                               f"{word.lower()}, con {number(leader.usuarios)} personas." if leader is not None else ""},
                     {"icon": "wallet", "text": f"De enero a {_month(end)} se devengaron USD {_money_m(accrued)} millones, el "
                                                f"{number(accrued / coded * 100 if coded else 0, 1)} % del presupuesto codificado."}]
+        if yearly and section == "proteccion_integral":
+            findings[1] = {"icon": "calendar", "text": "La serie histórica presenta coberturas reportadas por corte; una persona puede figurar en distintas modalidades. No se suman meses como personas únicas de la gestión."}
         blocks.append(_block(key, label, icon, span, kpis, visual,
                              {"title": "Cobertura y presupuesto por " + ("bono y pensión" if section == "bonos_pensiones" else "servicio"),
                               "note": f"Personas de {_month(end)} · montos en millones de USD",
@@ -116,7 +125,9 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
         deliveries.append({"what": label if section == "bonos_pensiones" else "Servicios de protección social",
                            "detail": ("personas con bono o pensión en " if section == "bonos_pensiones" else "personas atendidas en ")
                                      + MONTHS[int(end[5:]) - 1],
-                           "amount_people": total_people, "money": accrued, "money_word": "devengados",
+                           "amount_people": total_people,
+                           "money": float(programs.monto_gobierno.sum()) if yearly else accrued,
+                           "money_word": "acumulados en la gestión" if yearly else "devengados",
                            "icon": "hand-coins" if section == "bonos_pensiones" else "users",
                            "context": f"{len(programs)} bonos y pensiones" if section == "bonos_pensiones" else f"{number(units)} unidades de atención"})
         cover.append(_kpi("Beneficiarios de bonos y pensiones" if section == "bonos_pensiones" else "Usuarios de servicios sociales",
@@ -300,11 +311,12 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                     _kpi("Créditos para mujeres", women, "rate", note="Participación en los créditos"),
                     _kpi("Cartera vigente", float(cdh.loc[cdh.fuente.eq("vigente"), "creditos"].sum()),
                          note=f"USD {_money_m(cdh.loc[cdh.fuente.eq('vigente'), 'monto'].sum())} M al corte")]
-            visual = {"kind": "columns", "title": "Créditos desembolsados por mes", "note": "Créditos de Desarrollo Humano",
-                      "labels": [_short(p, yearly) for p in months.index], "values": [float(v) for v in months], "value_text": _people}
+            chart_months = months.groupby(months.index.str[:4]).sum() if yearly else months
+            visual = {"kind": "columns", "title": "Créditos desembolsados por " + ("año" if yearly else "mes"), "note": "Créditos de Desarrollo Humano",
+                      "labels": [p if yearly else _short(p) for p in chart_months.index], "values": [float(v) for v in chart_months], "value_text": _people}
             blocks.append(_block("cdh", "Crédito de Desarrollo Humano", "coins", span, kpis, visual, None,
                                  [{"icon": "users", "text": f"El {number(women, 1)} % de los créditos se entregó a mujeres." if women else ""},
-                                  {"icon": "coins", "text": f"Los usuarios del Bono de Desarrollo Humano recibieron el "
+                                  {"icon": "coins", "text": f"Los usuarios de {bonus.iloc[0].bono} recibieron el "
                                                             f"{number(bonus.iloc[0].participacion, 1)} % de los créditos."}]))
             deliveries.append({"what": "Crédito de Desarrollo Humano", "detail": "créditos desembolsados para emprender",
                                "amount_people": credits, "money": amount, "money_word": "desembolsados", "icon": "coins",
@@ -333,6 +345,16 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                "amount_people": attended, "money": None, "icon": "heart", "context": f"{brig.provincia.nunique()} provincias"})
             cover.append(_kpi("Personas atendidas en brigadas", attended, note=f"{number(len(brig))} brigadas", icon="heart"))
 
+    # ---------------------------------------------------- employability and economic inclusion
+    from .ferias import period_block
+    fair = period_block(start, end, span, yearly=yearly)
+    if fair:
+        blocks.append(fair)
+        for row in fair["source_totals"]:
+            deliveries.append({"what": row["label"], "detail": "registros de participación en capacitación",
+                               "amount_people": row["participaciones"], "money": None, "icon": "graduation",
+                               "context": "Fuente propia · sin sumar personas entre bases"})
+
     # --------------------------------------------------------------- employment and budget
     views = section_views(bases)
     for key, label, icon in (("laboral", "Empleo", "briefcase"),):
@@ -359,11 +381,12 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
         blocks.append(budget)
     accrued_total = sum(d["money"] or 0 for d in deliveries[:2])
     priority = ["Transferencias", "Servicios", "Kits", "Bono de contingencia", "Brigadas",
-                "Crédito", "Jóvenes", "Contingencias", "Compensaciones"]
+                "Crédito", "Jóvenes", "Empleabilidad", "Inclusión", "Contingencias", "Compensaciones"]
     deliveries.sort(key=lambda d: next((i for i, word in enumerate(priority) if d["what"].startswith(word)), len(priority)))
-    cover.insert(2, _kpi(f"Presupuesto devengado {end[:4]}", accrued_total, "money", note="Transferencias y servicios", icon="banknote"))
+    cover.insert(2, _kpi("Presupuesto acumulado de gobierno" if yearly else f"Presupuesto devengado {end[:4]}",
+                         accrued_total, "money", note="Transferencias y servicios", icon="banknote"))
     # The order of the report: coverage first, then El Niño and the brigades, then credit, contingencies, youth and employment.
-    order = ["transferencias", "servicios", "riesgos", "brigadas", "cdh", "jovenes", "laboral", "contingencias", "presupuesto"]
+    order = ["transferencias", "servicios", "riesgos", "brigadas", "cdh", "jovenes", "laboral", "ferias", "contingencias", "presupuesto"]
     blocks.sort(key=lambda b: order.index(b["key"]) if b["key"] in order else len(order))
     by_key = {b["key"]: b for b in blocks}
     picks = [("transferencias", 0), ("servicios", 0), ("brigadas", 0), ("cdh", 0), ("contingencias", 0)]
@@ -480,15 +503,23 @@ def generate(ctx: dict) -> bytes:
     width = W - 2 * M
     highlights_h = 30 - _highlights(c, ctx["highlights"], M, 0, width, measure=True)
     # Plan: the cover tells what was delivered; the sections follow; the highlights close the report.
-    pages, current, room = [[]], [], H - 78 - 20 - BOTTOM
+    first_cards = ctx["deliveries"][:10]
+    pages = [{"cover": True, "deliveries": first_cards, "blocks": []}]
+    remaining = ctx["deliveries"][10:]
+    room = 0
+    # Keep the established cards and their size. Additional deliveries flow onto
+    # the next page, where the section blocks can use the remaining space.
+    for offset in range(0, len(remaining), 10):
+        cards = remaining[offset:offset + 10]
+        pages.append({"cover": False, "deliveries": cards, "blocks": []})
+        room = H - 78 - 20 - BOTTOM - 22 - ((len(cards) + 1) // 2) * 109
     for block in ctx["blocks"]:
         height = _block_height(block, width)
-        if height > room and current:
-            pages.append(current)
-            current, room = [], H - 78 - 20 - BOTTOM
-        current.append(block)
+        if height > room:
+            pages.append({"cover": False, "deliveries": [], "blocks": []})
+            room = H - 78 - 20 - BOTTOM
+        pages[-1]["blocks"].append(block)
         room -= height
-    pages.append(current)
     closing_page = room < highlights_h
     total = len(pages) + (1 if closing_page else 0)
 
@@ -496,16 +527,19 @@ def generate(ctx: dict) -> bytes:
         c.setFillColor(colors.white)
         c.rect(0, 0, W, H, stroke=0, fill=1)
 
-    for number_, blocks in enumerate(pages, start=1):
+    for number_, page in enumerate(pages, start=1):
         blank()
         if number_ == 1:
             y = _band(c, ctx, H, emblem_png(), kind_label="Ministerio de Trabajo y Desarrollo Humano") - 26
             since = ctx["period_label"].lower().replace(" a ", " hasta ", 1)
             _heading(c, f"Gestión realizada desde {since}", M, y, width, "Cada entrega con su cantidad y su monto")
-            _deliveries(c, ctx["deliveries"], M, y - 22, width)
+            y = _deliveries(c, page["deliveries"], M, y - 22, width)
         else:
             y = _slim_band(c, ctx, ctx["title"], ctx["period_label"]) - 20
-        for block in blocks:
+            if page["deliveries"]:
+                _heading(c, "Gestión realizada en el periodo", M, y, width, "Continuación de las entregas")
+                y = _deliveries(c, page["deliveries"], M, y - 22, width)
+        for block in page["blocks"]:
             y = _draw_block(c, block, M, y, width)
         if number_ == len(pages) and not closing_page:
             _heading(c, "Aspectos destacados del periodo", M, y, width)

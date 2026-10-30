@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "generado_utc": "2026-10-30T14:37:15+00:00",
+  "inicio_publicado": "2023-11",
+  "fuentes": {
+    "inclusion_economica": {
+      "filas_fuente": 398055,
+      "registros": 176661,
+      "filas_anteriores_al_inicio": 221394,
+      "duplicados_eliminados": 0,
+      "desde_fuente": "2019-03",
+      "hasta_fuente": "2026-09",
+      "deduplicacion": "Sin identificador personal: se conservan filas demográficas coincidentes; no se interpretan como duplicados.",
+      "label": "Inclusión económica",
+      "archivo": "base_fase1(5).xlsx",
+      "sha256": "55cf63820398a160e7fbbf55e9d37266030f0f17dff037c9145e3f0ecb88ba9b",
+      "desde": "2023-11",
+      "hasta": "2026-09",
+      "unidad": "Registros de participación",
+      "alcance": "Registros de formación de fase 1. Las sesiones 3 y 4 corresponden al fortalecimiento para la inclusión económica; cada fila se cuenta una vez.",
+      "meses": 35,
+      "provincias": 24,
+      "sin_provincia_codificada": 0
+    },
+    "empleabilidad_autoempleo": {
+      "filas_fuente": 24198,
+      "registros": 11756,
+      "filas_periodo_antes_deduplicacion": 11759,
+      "filas_anteriores_al_inicio": 12439,
+      "duplicados_eliminados": 3,
+      "duplicados_identicos_fuente_completa": 15,
+      "desde_fuente": "2021-11",
+      "hasta_fuente": "2026-09",
+      "deduplicacion": "Se elimina solo la repetición exacta de todas las columnas de la fila nominal. No se deduplican distintas capacitaciones de una misma persona.",
+      "label": "Empleabilidad y autoempleo",
+      "archivo": "base_empleabilidad_autoempleo(2).csv",
+      "sha256": "eadd4012cd5b2abf6a5045c64caeac0cffc620a3b0e797f211b095fd391aad5e",
+      "desde": "2023-11",
+      "hasta": "2026-09",
+      "unidad": "Registros de participación",
+      "alcance": "Registros de participación en capacitación de empleabilidad y autoempleo por componente, modalidad e institución.",
+      "meses": 35,
+      "provincias": 22,
+      "sin_provincia_codificada": 0
+    }
+  },
+  "criterio_temporal": "Mes y año informados por la fuente; noviembre de 2023 se incluye completo porque no existe fecha diaria en fase 1.",
+  "criterio_conteo": "Registros de participación por línea de formación. No equivalen a personas únicas, número de ferias, emprendimientos creados ni colocaciones laborales.",
+  "cruce_fuentes": "Las fuentes se presentan separadas. Fase 1 no contiene identificador personal para deduplicar personas entre ambas líneas.",
+  "privacidad": "Solo agregados territoriales y perfiles por dimensión. No se publican nombres, cédulas, RUC, teléfonos ni emprendimientos individuales."
+}

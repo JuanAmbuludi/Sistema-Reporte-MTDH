@@ -24,7 +24,7 @@ from .context import INSTITUTION, PRODUCT, stamp
 LOG = logging.getLogger(__name__)
 SHORT = {"transferencias": "Transferencias", "servicios": "Servicios sociales", "riesgos": "ENOS", "contingencias": "Contingencias",
          "jovenes": "Jóvenes en Acción", "laboral": "Empleo", "presupuesto": "Presupuesto", "cdh": "Crédito de Desarrollo Humano",
-         "brigadas": "Brigadas sociales"}
+         "brigadas": "Brigadas sociales", "ferias": "Ferias"}
 TITLE = "Informe ejecutivo institucional"
 SECTIONS = [
     ("transferencias", "Transferencias monetarias no contributivas", "hand-coins"),
@@ -34,6 +34,7 @@ SECTIONS = [
     ("cdh", "Crédito de Desarrollo Humano", "coins"),
     ("jovenes", "Jóvenes en Acción", "graduation"),
     ("laboral", "Empleo", "briefcase"),
+    ("ferias", "Ferias de Empleabilidad y Autoempleo", "graduation"),
     # Contingencies and the budget close the report.
     ("contingencias", "Contingencias y compensaciones", "shield"),
     ("presupuesto", "Presupuesto", "landmark"),
@@ -72,6 +73,13 @@ def section_views(bases: dict) -> dict:
             if view.catalog():
                 views[key] = view
     except ImportError:  # noqa: PERF203 - the new areas are optional in older deployments
+        pass
+    try:
+        from src.views.ferias import FairView
+        fair = FairView()
+        if fair.catalog():
+            views["ferias"] = fair
+    except ImportError:
         pass
     return views
 
@@ -288,10 +296,14 @@ def build_panorama(bases: dict, title: str) -> dict:
     blocks = []
     for key, label, icon in SECTIONS:
         view = views.get(key)
-        if view is None:
+        if view is None and key != "ferias":
             continue
         try:
-            block = _budget_block(views) if key == "presupuesto" else _block(key, label, icon, view)
+            if key == "ferias":
+                from .ferias import latest_block
+                block = latest_block()
+            else:
+                block = _budget_block(views) if key == "presupuesto" else _block(key, label, icon, view)
         except Exception:  # noqa: BLE001 - one section without its data never stops the others
             LOG.exception("Sección sin resumen: %s", key)
             block = None
@@ -424,7 +436,7 @@ def _block_height(block: dict, width: float) -> float:
     w = _finding_width(block, width)
     findings = max([_finding_height(f["text"], w) for f in block["findings"]] or [0])
     # A block with five key figures takes a taller body, so every figure keeps its own line.
-    return 24 + block.get("body_h", BODY_H) + _table_height(block) + (max(28, findings + 11) + 8 if block["findings"] else 0) + 16
+    return _header_height(block, width) + block.get("body_h", BODY_H) + _table_height(block) + (max(28, findings + 11) + 8 if block["findings"] else 0) + 16
 
 
 def _cut_text(block: dict) -> str:
@@ -437,6 +449,13 @@ def _cut_text(block: dict) -> str:
     return f"{text} · {frequency}" if frequency else text
 
 
+def _header_height(block: dict, width: float) -> float:
+    from reportlab.pdfbase import pdfmetrics
+    cut_w = min(width * 0.52, pdfmetrics.stringWidth(_cut_text(block), "Text", 7))
+    title_w = pdfmetrics.stringWidth(block["label"], "Display-Bold", 10.6)
+    return 36 if title_w > width - cut_w - 34 else 24
+
+
 def _draw_block(c, block: dict, x: float, top: float, width: float) -> float:
     """A section: its name and cut, its key figures beside its own chart, and its two leading findings."""
     from .pdf import C, INK, MUTED, NIGHT, _badge, _clip
@@ -445,14 +464,15 @@ def _draw_block(c, block: dict, x: float, top: float, width: float) -> float:
     c.setFont("Display-Bold", 10.6)
     cut = _cut_text(block)
     cut_w = min(width * 0.52, c.stringWidth(cut, "Text", 7))
-    c.drawString(x + 24, top - 11.5, _clip(block["label"], "Display-Bold", 10.6, width - cut_w - 34))
+    extended = _header_height(block, width) == 36
+    c.drawString(x + 24, top - 11.5, _clip(block["label"], "Display-Bold", 10.6, width - 24 if extended else width - cut_w - 34))
     c.setFillColor(MUTED)
     c.setFont("Text", 7)
-    c.drawRightString(x + width, top - 11, _clip(cut, "Text", 7, width * 0.52))
+    c.drawRightString(x + width, top - (24 if extended else 11), _clip(cut, "Text", 7, width - 24 if extended else width * 0.52))
     c.setStrokeColor(C(theme.LILA_200))
     c.setLineWidth(0.7)
-    c.line(x, top - 18, x + width, top - 18)
-    body = top - 26
+    c.line(x, top - (30 if extended else 18), x + width, top - (30 if extended else 18))
+    body = top - (38 if extended else 26)
     body_h = block.get("body_h", BODY_H)
     if block.get("visual"):
         _kpi_list(c, block["kpis"], x, body, KPI_W, body_h)
@@ -522,7 +542,7 @@ def generate_panorama_pdf(ctx: dict) -> bytes:
     pages.append(current)
     cuts_h = 0  # The cut and frequency of each section already head its block: no closing table.
     total = len(pages) + (1 if room < cuts_h and len(pages) < MAX_PAGES else 0)
-    total = min(total, MAX_PAGES)
+    # Every new section is paginated; the printed total must match the pages drawn.
     for number, blocks in enumerate(pages, start=1):
         c.setFillColor(colors.white)
         c.rect(0, 0, W, H, stroke=0, fill=1)
