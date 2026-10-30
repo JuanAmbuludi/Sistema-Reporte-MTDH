@@ -123,7 +123,8 @@ def history_paths() -> list[Path]:
     from src import enos_excel
     paths = [path for pattern in (SNAPSHOT, CONTINUITY) for _date, path in publications(pattern)]
     brigades = FOLDER / "brigadas_emergencia.json"
-    return paths + ([brigades] if brigades.exists() else []) + enos_excel.paths(FOLDER)
+    stamp = enos_excel.directory(FOLDER) / enos_excel.STAMP
+    return paths + ([brigades] if brigades.exists() else []) + enos_excel.paths(FOLDER) + ([stamp] if stamp.exists() else [])
 
 
 def history() -> dict:
@@ -169,6 +170,9 @@ def history() -> dict:
     # retain their original records and metadata.
     from src import enos_excel
     data = enos_excel.overlay(data, FOLDER)
+    source_updated = enos_excel.updated_at(FOLDER)
+    if source_updated:
+        data['generado_utc'] = source_updated
     if enos_excel.read(FOLDER, 'alertas') is not None:
         data['alertas'] = [row for row in data['alertas'] if included(row, data)]
     from src import brigadas

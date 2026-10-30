@@ -13,9 +13,12 @@ from functools import lru_cache
 from pathlib import Path
 
 import openpyxl
+import hashlib
+import json
 
 FILES = {name: f"{name}.xlsx" for name in ("alertas", "kits", "unidades_suspendidas", "contingencias")}
 FORMAT = "ENOS_EXCEL_1"
+STAMP = 'actualizacion.json'
 ALERT_FIELDS = ["codigo", "fecha", "provincia", "canton", "estado", "prioridad", "tipo_alerta", "codigo_ua",
                 "unidad", "servicio", "afectados_fuente", "afectacion_servicio_confirmada", "afectacion_servicio", "incluir"]
 KIT_FIELDS = ["id_kobo", "fecha", "provincia", "canton", "kits", "familias", "incluir"]
@@ -39,6 +42,23 @@ def paths(processed: Path) -> list[Path]:
         missing = [name for name in FILES.values() if not (folder / name).exists()]
         raise ValueError('La base Excel está incompleta. Faltan: ' + ', '.join(missing))
     return present
+
+
+def updated_at(processed: Path) -> str | None:
+    """Publication time of these exact Excel bytes, independent of source cuts."""
+    folder = directory(processed)
+    path = folder / STAMP
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding='utf-8'))
+    for name in FILES.values():
+        source = folder / name
+        if not source.exists() or data.get('archivos', {}).get(name) != hashlib.sha256(source.read_bytes()).hexdigest():
+            return None
+    value = data['generado_utc']
+    if datetime.fromisoformat(value).tzinfo is None:
+        raise ValueError('El sello de actualización ENOS requiere una zona horaria.')
+    return value
 
 
 def _error(kind, row, message):

@@ -1,6 +1,8 @@
 """Excel reconciliation protects identities, stock cuts and collected balances."""
 from copy import deepcopy
 from datetime import datetime
+import hashlib
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -145,6 +147,34 @@ class ExcelRegisters(unittest.TestCase):
 
 
 class RealWorkbooks(unittest.TestCase):
+    def test_publication_stamp_changes_only_current_history_metadata(self):
+        with patch.object(excel, 'updated_at', return_value=None):
+            previous = enos.history()
+        with patch.object(excel, 'updated_at', return_value='2026-10-30T02:26:51+00:00'):
+            current = enos.history()
+        self.assertEqual(current['generado_utc'], '2026-10-30T02:26:51+00:00')
+        current['generado_utc'] = previous['generado_utc']
+        self.assertEqual(current, previous)
+        self.assertNotEqual(enos.load(enos.in_force(enos.SNAPSHOT)[0])['generado_utc'], '2026-10-30T02:26:51+00:00')
+
+    def test_stale_stamp_is_not_assigned_to_different_excel_bytes(self):
+        with TemporaryDirectory() as temporary:
+            processed = Path(temporary) / 'data/processed'
+            folder = excel.directory(processed)
+            folder.mkdir(parents=True)
+            hashes = {}
+            for name in excel.FILES.values():
+                binary = (excel.directory(enos.FOLDER) / name).read_bytes()
+                (folder / name).write_bytes(binary)
+                hashes[name] = hashlib.sha256(binary).hexdigest()
+            metadata = {'generado_utc':'2026-10-30T02:26:51+00:00', 'archivos':hashes}
+            stamp = folder / excel.STAMP
+            stamp.write_text(json.dumps(metadata))
+            self.assertEqual(excel.updated_at(processed), metadata['generado_utc'])
+            metadata['archivos']['kits.xlsx'] = 'obsolete'
+            stamp.write_text(json.dumps(metadata))
+            self.assertIsNone(excel.updated_at(processed))
+
     def test_current_workbooks_are_typed_and_validate_without_changes(self):
         current = {kind:(excel.directory(enos.FOLDER) / name).read_bytes() for kind,name in excel.FILES.items()}
         snapshot = enos.load(enos.in_force(enos.SNAPSHOT)[0])

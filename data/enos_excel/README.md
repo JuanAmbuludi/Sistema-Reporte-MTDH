@@ -2,6 +2,8 @@
 
 Estas cuatro bases contienen la información vigente y alimentan las consultas **Por período** del tablero, incluidos sus PDF y Excel. Las cifras y el diseño se conservaron en la migración. Los **Reportes publicados** y sus documentos aprobados mantienen sus datos originales.
 
+El sello **Actualizado el** muestra la fecha y hora real de la última publicación de estos Excel, en horario de Ecuador. GitHub lo actualiza automáticamente después de validar una carga. La fecha de corte de Control describe la fuente y se conserva por separado.
+
 ## Cada vez que llegue información
 
 1. Descargue de esta carpeta la versión vigente del archivo que necesita. En GitHub, abra el archivo y pulse **Download raw file**. Trabaje sobre esa copia para conservar lo ya registrado.
