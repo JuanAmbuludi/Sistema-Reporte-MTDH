@@ -26,7 +26,7 @@ def block() -> dict | None:
         {"label": "Monto acreditado", "value": stats["monto_acreditado"], "kind": "money", "decimals": 1, "note": "Fase 4 · sin fecha de corte"},
         {"label": "Monto no acreditado", "value": stats["monto_no_acreditado"], "kind": "money", "decimals": 1, "note": "Fase 4 · sin fecha de corte"},
     ]
-    entity_rows = entities.to_dict("records")
+    entity_rows = jovenes_fase4.display_entities(entities).to_dict("records")
     entity_rows.append({"entidad": "Total de la fuente", "autorizados": stats["autorizados"],
                         "acreditadas": stats["acreditadas"], "no_acreditadas": stats["no_acreditadas"],
                         "tasa_acreditacion": stats["tasa_acreditacion"], "selected": True})

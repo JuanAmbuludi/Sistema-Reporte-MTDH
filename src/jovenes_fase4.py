@@ -15,6 +15,27 @@ REJECTION_COLUMNS = ["entidad", "codigo_rechazo", "motivo", "transferencias"]
 RATE_FIELDS = {"tasa_autorizacion": ("autorizados", "seleccionados"),
                "tasa_acreditacion": ("acreditadas", "autorizados"),
                "tasa_no_acreditacion": ("no_acreditadas", "autorizados")}
+ENTITY_NAMES = {
+    "MIT": "Ministerio de Infraestructura y Tecnología",
+    "MINEDEC": "Ministerio de Educación, Deporte y Cultura",
+    "MSP": "Ministerio de Salud Pública",
+    "SNGR": "Secretaría Nacional de Gestión de Riesgos",
+    "MAE": "Ministerio de Ambiente y Energía",
+    "MDEP": "Ministerio de Desarrollo Económico y Productivo",
+    "MDG": "Ministerio de Gobierno",
+}
+
+
+def entity_name(code: str) -> str:
+    """Display names; source codes remain stable identifiers for filtering."""
+    return ENTITY_NAMES.get(code, code)
+
+
+def display_entities(frame: pd.DataFrame) -> pd.DataFrame:
+    """Expand institution labels on a copy without changing source identifiers."""
+    result = frame.copy()
+    result["entidad"] = result.entidad.map(entity_name)
+    return result
 
 
 @lru_cache(maxsize=4)

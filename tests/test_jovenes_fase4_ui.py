@@ -51,14 +51,20 @@ def test_snapshot_exports_keep_source_totals_dates_and_percentage_units():
         assert len(pdf) == 2
         for value in ["700.000", "685.867", "14.021", "Jóvenes en Acción", "Fase 4", "sin fecha de corte"]:
             assert value in text
+        for name in source.ENTITY_NAMES.values():
+            assert name in text
+        for block in pdf[1].get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                for span in line["spans"]:
+                    assert 0 <= span["bbox"][0] < span["bbox"][2] <= pdf[1].rect.width
         assert "Año a la fecha" not in text and "año None" not in text
     slides = Presentation(BytesIO(generate_pptx(context)))
     assert len(slides.slides) == 3
     book = openpyxl.load_workbook(BytesIO(generate_xlsx(context)), data_only=True)
     assert book.sheetnames == view.sheets()
     all_cells = [cell for row in book["Pagos y montos"].iter_rows(values_only=True) for cell in row]
-    assert sum(value in all_cells for value in view.payments.entidad) == 7
-    mit_row = next(row for row in book["Entidades"].iter_rows(values_only=True) if "MIT" in row)
+    assert sum(source.entity_name(value) in all_cells for value in view.payments.entidad) == 7
+    mit_row = next(row for row in book["Entidades"].iter_rows(values_only=True) if source.entity_name("MIT") in row)
     expected = float(view.payments.set_index("entidad").loc["MIT", "tasa_acreditacion"]) / 100
     assert any(isinstance(value, float) and value == pytest.approx(expected) for value in mit_row)
 
@@ -79,11 +85,12 @@ def test_program_subsection_filters_exports_and_returns_to_unchanged_prior_phase
     assert "685.867" in _markdown(app) and "14.021" in _markdown(app)
     assert not any(widget.key in ("period_year", "period_month") for widget in app.segmented_control)
     assert len(app.get("plotly_chart")) == 6
+    assert app.multiselect(key="youth4_entities").options == [source.entity_name(code) for code in source.entities()]
     app.multiselect(key="youth4_entities").set_value(["MIT"]).run()
     assert not app.exception
     expected = source.summary(["MIT"])
     assert ui.number(expected["acreditadas"]) in _markdown(app)
-    assert app.dataframe[0].value.entidad.tolist() == ["MIT"]
+    assert app.dataframe[0].value.entidad.tolist() == [source.entity_name("MIT")]
     app.segmented_control(key="youth4_level").set_value("Por motivo").run()
     assert not app.exception
     assert app.dataframe[0].value.transferencias.sum() == expected["no_acreditadas"]
@@ -101,7 +108,7 @@ def test_program_subsection_filters_exports_and_returns_to_unchanged_prior_phase
         elif product == "Libro de datos":
             book = openpyxl.load_workbook(BytesIO(content), data_only=True)
             cells = {str(cell) for row in book["Entidades"].iter_rows(values_only=True) for cell in row if cell is not None}
-            assert set(source.entities()) & cells == {"MIT"}
+            assert {source.entity_name(code) for code in source.entities()} & cells == {source.entity_name("MIT")}
     app.segmented_control(key="workspace").set_value("Tablero").run()
     app.segmented_control(key="youth_section").set_value("fases").run()
     assert not app.exception

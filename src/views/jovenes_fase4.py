@@ -1,6 +1,8 @@
 """Separate fourth-phase payment monitoring, with no inferred calendar cut."""
 from __future__ import annotations
 
+from textwrap import wrap
+
 import pandas as pd
 import streamlit as st
 
@@ -13,6 +15,10 @@ TRANSFERS = Indicator("transferencias", "Transferencias", "count", "send", "tran
 ACCREDITATION = Indicator("tasa_acreditacion", "Acreditación", "rate", "target", "%")
 SNAPSHOT = {"id": "fase4", "stamp": "fase4_monitoreo", "year": None, "month": None,
             "label": "Fase 4 · Monitoreo sin fecha de corte"}
+
+
+def _entity_labels(codes) -> list[str]:
+    return ["<br>".join(wrap(source.entity_name(code), 25, break_long_words=False)) for code in codes]
 
 
 class PhaseFourView(AreaView):
@@ -44,7 +50,8 @@ class PhaseFourView(AreaView):
         key = "youth4_entities"
         if key in st.session_state:
             st.session_state[key] = [value for value in st.session_state[key] if value in options]
-        self.entities = st.multiselect("Entidad ejecutora", options, placeholder="Todas las entidades", key=key)
+        self.entities = st.multiselect("Entidad ejecutora", options, format_func=source.entity_name,
+                                       placeholder="Todas las entidades", key=key)
         if self.entities:
             st.button("Restablecer filtros", icon=":material/restart_alt:", type="tertiary", key="youth4_reset",
                       on_click=self._clear)
@@ -59,7 +66,7 @@ class PhaseFourView(AreaView):
         if self.payments.empty:
             return False
         self.metadata = selected["metadata"]
-        self.territory_label = (self.entities[0] if len(self.entities) == 1 else f"{len(self.entities)} entidades ejecutoras"
+        self.territory_label = (source.entity_name(self.entities[0]) if len(self.entities) == 1 else f"{len(self.entities)} entidades ejecutoras"
                                 if self.entities else "Todas las entidades")
         self.programs_label = "Fase 4 · Monitoreo"
         self.context_label = f"{self.programs_label} · {self.territory_label}"
@@ -130,13 +137,15 @@ class PhaseFourView(AreaView):
         left, right = st.columns(2, gap="medium")
         with left, st.container(border=True, key="card_youth4_entities"):
             ui.chart_title("Autorizadas y acreditadas", "Transferencias por entidad ejecutora")
-            show_chart(charts.grouped_bars(list(rows.entidad), [
+            show_chart(charts.grouped_bars(_entity_labels(rows.entidad), [
                 ("Autorizadas", list(rows.autorizados), theme.LILA_300),
                 ("Acreditadas", list(rows.acreditadas), theme.MORADO)], money=False), "youth4_entities_chart")
         with right, st.container(border=True, key="card_youth4_rates"):
             rates = rows.sort_values("tasa_acreditacion", ascending=False)
             ui.chart_title("Tasa de acreditación", "Acreditadas sobre autorizadas · porcentaje")
-            show_chart(charts.ranked_bars(list(rates.entidad), list(rates.tasa_acreditacion), ACCREDITATION), "youth4_rates")
+            show_chart(charts.ranked_bars(_entity_labels(rates.entidad), list(rates.tasa_acreditacion), ACCREDITATION,
+                                          hover=list(rates.entidad.map(source.entity_name)),
+                                          height=max(300, len(rates) * 64 + 46)), "youth4_rates")
 
         ui.section_heading("Transferencias no acreditadas", "Motivos reportados y distribución por entidad", "shield")
         left, right = st.columns(2, gap="medium")
@@ -152,7 +161,9 @@ class PhaseFourView(AreaView):
         with right, st.container(border=True, key="card_youth4_rejected_entities"):
             rejected = rows.sort_values("no_acreditadas", ascending=False)
             ui.chart_title("No acreditadas por entidad", "Número de transferencias")
-            show_chart(charts.ranked_bars(list(rejected.entidad), list(rejected.no_acreditadas), TRANSFERS,
+            show_chart(charts.ranked_bars(_entity_labels(rejected.entidad), list(rejected.no_acreditadas), TRANSFERS,
+                                          hover=list(rejected.entidad.map(source.entity_name)),
+                                          height=max(300, len(rejected) * 64 + 46),
                                           share_total=s["no_acreditadas"], share_label="de las no acreditadas"), "youth4_rejected_entities")
         self._table()
         st.caption("Fuente: monitoreo del cuarto período. Las transferencias de esta fase se presentan por separado de las fases 1–3; "
@@ -160,21 +171,23 @@ class PhaseFourView(AreaView):
 
     def detail(self, level: str) -> tuple[pd.DataFrame, dict, list[tuple]]:
         if level == "entidad":
-            rows = self.payments.copy()
-            fields = [("Entidad", "entidad", "text", 20), ("Seleccionados", "seleccionados", "int", 16),
+            rows = source.display_entities(self.payments)
+            fields = [("Entidad", "entidad", "text", 52), ("Seleccionados", "seleccionados", "int", 16),
                       ("Autorizados", "autorizados", "int", 16), ("Acreditadas", "acreditadas", "int", 16),
                       ("No acreditadas", "no_acreditadas", "int", 16), ("Acreditación", "tasa_acreditacion", "pct", 16),
                       ("Monto autorizado (USD)", "monto_autorizado", "usd", 23),
                       ("Monto acreditado (USD)", "monto_acreditado", "usd", 23),
                       ("Monto no acreditado (USD)", "monto_no_acreditado", "usd", 24)]
         else:
-            rows = self.causes.copy() if level == "motivo" else self.rejections.copy()
-            fields = ([] if level == "motivo" else [("Entidad", "entidad", "text", 18)]) + [
+            rows = self.causes.copy() if level == "motivo" else source.display_entities(self.rejections)
+            fields = ([] if level == "motivo" else [("Entidad", "entidad", "text", 52)]) + [
                 ("Código", "codigo_rechazo", "text", 12), ("Motivo", "motivo", "text", 65),
                 ("Transferencias", "transferencias", "int", 18)]
             if level == "motivo":
                 fields.append(("Participación", "participacion", "pct", 18))
         columns = {field: (label, "money" if kind == "usd" else kind) for label, field, kind, _ in fields}
+        if "entidad" in columns:
+            columns["entidad"] = ("Entidad", "text", 370)
         return rows, columns, fields
 
     def _table(self) -> None:
@@ -211,6 +224,7 @@ class PhaseFourView(AreaView):
 
     def report_parts(self) -> dict:
         s, rows, causes = self.stats, self.payments, self.causes
+        display_rows = source.display_entities(rows).to_dict("records")
         entity_cols = [("Entidad", "entidad", "text"), ("Autorizadas", "autorizados", "int"),
                        ("Acreditadas", "acreditadas", "int"), ("No acreditadas", "no_acreditadas", "int"),
                        ("Acreditación", "tasa_acreditacion", "pct")]
@@ -226,16 +240,17 @@ class PhaseFourView(AreaView):
                                            f"{ui.number(s['monto_no_acreditado'], 2)}."},
                 {"icon": "clock", "text": "Monitoreo independiente de la fase 4. La fuente no especifica fecha de corte."}],
             "charts": [{"title": "Acreditaciones por entidad", "note": "Transferencias acreditadas · fase 4", "unit": "transferencias",
-                        "rows": [{"name": row.entidad, "value": row.acreditadas} for row in rows.itertuples()]},
+                        "rows": [{"name": source.entity_name(row.entidad), "short_name": row.entidad,
+                                  "value": row.acreditadas} for row in rows.itertuples()]},
                        {"title": "Motivos de rechazo", "note": "Transferencias no acreditadas", "unit": "transferencias",
                         "rows": [{"name": row.motivo.capitalize(), "value": row.transferencias} for row in causes.itertuples()]}],
-            "tables": [{"key": "entidad", "label": "Entidades", "columns": entity_cols, "rows": rows.to_dict("records")},
+            "tables": [{"key": "entidad", "label": "Entidades", "columns": entity_cols, "rows": display_rows},
                        {"key": "motivo", "label": "Motivos", "columns": [field[:3] for field in cause_fields],
-                        "rows": causes.to_dict("records")},
+                        "rows": causes.to_dict("records"), "pdf_widths": {"codigo_rechazo": 40}},
                        {"key": "pagos", "label": "Pagos y montos", "columns": [field[:3] for field in all_fields],
-                        "rows": rows.to_dict("records")},
+                        "rows": display_rows},
                        {"key": "detalle", "label": "Entidad y motivo", "columns": [field[:3] for field in detail_fields],
-                        "rows": self.rejections.to_dict("records")}],
+                        "rows": source.display_entities(self.rejections).to_dict("records")}],
             "definitions": [("Seleccionados y autorizados", "Conteos de jóvenes reportados por entidad ejecutora en el cuarto período."),
                             ("Transferencias acreditadas", "Transferencias con acreditación reportada en la fuente; no se suman a personas únicas de otras fases."),
                             ("Transferencias no acreditadas", "Autorizadas sin acreditación; los motivos de rechazo concilian con este total."),
@@ -249,4 +264,4 @@ class PhaseFourView(AreaView):
         return context
 
     def digest(self) -> str:
-        return fingerprint(self.payments, self.rejections, self.metadata, tuple(self.entities), "youth4-v1")
+        return fingerprint(self.payments, self.rejections, self.metadata, tuple(self.entities), source.ENTITY_NAMES, "youth4-v2")

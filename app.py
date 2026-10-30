@@ -234,7 +234,7 @@ def report_center() -> None:
                 view.report_options()
             ui.scope_chips(view.scope_items())
         # A fresh fingerprint prevents a previously generated download from surviving a change of selection.
-        selection = f"todas-periodos-v5-{span_mode}-{version}" if everything else view.digest()
+        selection = f"todas-periodos-v6-{span_mode}-{version}" if everything else view.digest()
         digest = hashlib.sha256((selection + json.dumps({"title": title, "product": product, "area": file_id},
                                                          sort_keys=True)).encode("utf-8")).hexdigest()
         name = product.lower()

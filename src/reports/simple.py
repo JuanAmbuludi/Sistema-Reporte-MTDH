@@ -38,7 +38,7 @@ def render_pdf(c, ctx, pages):
     y = _kpis(c, ctx, _band(c, ctx, H, None) - 18) - 30
     first, second = ctx["charts"][:2]
     _heading(c, first["title"], M, y, half, first.get("note", ""))
-    _columns(c, [r["name"][:3] for r in first["rows"]], [r["value"] for r in first["rows"]], M, y - 22, half, 170,
+    _columns(c, [r.get("short_name", r["name"][:3]) for r in first["rows"]], [r["value"] for r in first["rows"]], M, y - 22, half, 170,
              highlight=len(first["rows"]) - 1, label_size=7,
              value_text=lambda v: f"{number(v / 1000, 0)} mil" if v >= 10000 else number(v))
     _heading(c, second["title"], M + half + 22, y, half, second.get("note", ""))
@@ -54,7 +54,8 @@ def render_pdf(c, ctx, pages):
         rows = table["rows"][:24]
         widths = {"int": 74, "usd": 96, "pct": 64}
         formatted = [{k: _text(r.get(k), kind) for _h, k, kind in table["columns"]} for r in rows]
-        columns = [(h, k, None if kind == "text" else widths[kind], "text") for h, k, kind in table["columns"]]
+        columns = [(h, k, table.get("pdf_widths", {}).get(k, None if kind == "text" else widths[kind]), "text")
+                   for h, k, kind in table["columns"]]
         _heading(c, f"Por {table['label'].lower()}", M, y, full, ctx.get("tables_note", "Año a la fecha de la consulta"))
         y = _table(c, M, y - 13, full, columns, formatted, row_h=14.2) - 26
         if y < 140:
