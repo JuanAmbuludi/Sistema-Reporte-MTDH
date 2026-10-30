@@ -63,6 +63,7 @@ class PhaseFourView(AreaView):
     def prepare(self) -> bool:
         selected = source.select(self.entities or None)
         self.payments, self.rejections, self.stats = selected["pagos"], selected["rechazos"], selected["resumen"]
+        self.rejections["motivo"] = self.rejections.motivo.map(source.reason_label)
         if self.payments.empty:
             return False
         self.metadata = selected["metadata"]
@@ -155,7 +156,7 @@ class PhaseFourView(AreaView):
             if causes.empty:
                 st.caption("La selección no registra transferencias no acreditadas.")
             else:
-                labels = [name.capitalize() if len(name) < 54 else name[:51].capitalize() + "…" for name in causes.motivo]
+                labels = [name if len(name) < 54 else name[:51] + "…" for name in causes.motivo]
                 show_chart(charts.ranked_bars(labels, list(causes.transferencias), TRANSFERS, hover=list(causes.motivo),
                                               share_total=s["no_acreditadas"], share_label="de las no acreditadas"), "youth4_causes")
         with right, st.container(border=True, key="card_youth4_rejected_entities"):
@@ -243,7 +244,7 @@ class PhaseFourView(AreaView):
                         "rows": [{"name": source.entity_name(row.entidad), "short_name": row.entidad,
                                   "value": row.acreditadas} for row in rows.itertuples()]},
                        {"title": "Motivos de rechazo", "note": "Transferencias no acreditadas", "unit": "transferencias",
-                        "rows": [{"name": row.motivo.capitalize(), "value": row.transferencias} for row in causes.itertuples()]}],
+                        "rows": [{"name": row.motivo, "value": row.transferencias} for row in causes.itertuples()]}],
             "tables": [{"key": "entidad", "label": "Entidades", "columns": entity_cols, "rows": display_rows},
                        {"key": "motivo", "label": "Motivos", "columns": [field[:3] for field in cause_fields],
                         "rows": causes.to_dict("records"), "pdf_widths": {"codigo_rechazo": 40}},
@@ -264,4 +265,4 @@ class PhaseFourView(AreaView):
         return context
 
     def digest(self) -> str:
-        return fingerprint(self.payments, self.rejections, self.metadata, tuple(self.entities), source.ENTITY_NAMES, "youth4-v2")
+        return fingerprint(self.payments, self.rejections, self.metadata, tuple(self.entities), source.ENTITY_NAMES, "youth4-v3")

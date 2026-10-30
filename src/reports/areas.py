@@ -318,7 +318,7 @@ def contingency_context(view, *, title: str) -> dict:
         ],
         "sources": [("Beneficiarios, habilitaciones y cobros", "Bases del Ministerio de Trabajo y Desarrollo Humano", ""),
                     ("Pagos acreditados", "Sistema de transferencias del Ministerio", ""),
-                    ("Presupuesto aprobado y devengado", "Ejecución presupuestaria del presupuesto social", "")],
+                    ("Presupuesto aprobado y devengado", "Ejecución presupuestaria del presupuesto de programas y servicios", "")],
     })
     return ctx
 
@@ -393,7 +393,7 @@ def youth_context(view, *, title: str) -> dict:
         ],
         "sources": [("Fases del programa", "Indicadores publicados por el Ministerio (SGDE)", f"{SGDE}/datos/kpis/jovenes_accion/periodos.csv"),
                     ("Pagos acreditados", "Sistema de transferencias del Ministerio", ""),
-                    ("Presupuesto devengado", "Ejecución presupuestaria del presupuesto social", "")],
+                    ("Presupuesto devengado", "Ejecución presupuestaria del presupuesto de programas y servicios", "")],
     })
     return ctx
 
@@ -586,7 +586,7 @@ def social_budget_context(view, *, title: str) -> dict:
             spent = program["accrued"] or 0
             program["average"] = spent / elapsed
             program["required"] = max(0.0, program["balance"] or 0) / remaining
-    insights = [{"icon": "target", "text": f"El presupuesto social devengado de {view.span} suma USD {millions(stats['accrued'])} millones, el "
+    insights = [{"icon": "target", "text": f"El devengado de programas y servicios de {view.span} suma USD {millions(stats['accrued'])} millones, el "
                                            f"{pct(stats['execution'])} del presupuesto aprobado de USD {millions(stats['approved'])} millones; "
                                            f"el ritmo uniforme del año es del {pct(stats['pace'])}."}]
     selected = next((i for i, m in enumerate(months) if m["selected"]), None)
@@ -627,7 +627,7 @@ def social_budget_context(view, *, title: str) -> dict:
         "kpis": kpis, "stats": stats, "programs": programs, "months": months, "groups": groups, "closing": closing,
         "matrix": {"months": matrix_months, "rows": matrix_rows}, "span": view.span, "insights": insights,
         "definitions": [
-            ("Presupuesto aprobado", "Asignación aprobada del año para cada programa del presupuesto social (grupos de gasto 58, 57 y 78)."),
+            ("Presupuesto aprobado", "Asignación aprobada del año para cada programa o servicio (grupos de gasto 58, 57 y 78)."),
             ("Perímetro institucional", "La fuente integra ejecución MDH de enero a julio de 2026 y MTDH desde agosto. Es distinta de la publicación fiscal SGDE."),
             ("Mecanismos de compensación", "La fuente indica que transporte, migrantes retornados y compensación diésel no son administrados por el MTDH."),
             ("Presupuesto devengado del mes", "Obligaciones de pago reconocidas en el mes."),
@@ -636,6 +636,6 @@ def social_budget_context(view, *, title: str) -> dict:
             ("Ritmo uniforme del año", "Una doceava parte del presupuesto por mes: la ejecución esperada si el gasto fuera parejo."),
             ("Saldo por devengar", "Presupuesto aprobado menos devengado acumulado."),
         ],
-        "sources": [("Presupuesto aprobado y devengado", "Ejecución presupuestaria del presupuesto social del Ministerio", "")],
+        "sources": [("Presupuesto aprobado y devengado", "Ejecución presupuestaria del presupuesto de programas y servicios del Ministerio", "")],
     })
     return ctx

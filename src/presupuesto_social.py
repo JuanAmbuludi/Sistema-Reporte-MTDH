@@ -104,7 +104,7 @@ def read_approved(path):
             "planificado_total_hoja": str(money(sheet.cell(t, 4).value)),
             "diferencia_redondeo_planificado": str(planned-money(sheet.cell(t, 4).value)),
             "asignaciones_compartidas": [k for k,v in allocations.items() if "," in v["programas"]],
-            "universo": "Grupos de gasto 58, 57 y 78 del presupuesto social; no es todo el presupuesto institucional."}
+            "universo": "Grupos de gasto 58, 57 y 78 del presupuesto de programas y servicios; no es todo el presupuesto institucional."}
     finally:
         book.close()
 

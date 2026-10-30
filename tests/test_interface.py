@@ -223,12 +223,12 @@ def test_budget_offers_the_institutional_and_the_social_budget():
     app = _logged_in_app()
     app.segmented_control(key="module").set_value("presupuesto").run()
     assert not app.exception
-    assert app.segmented_control(key="budget_universe").options == ["Fiscal", "Social", "Gobierno"]
+    assert app.segmented_control(key="budget_universe").options == ["Fiscal", "Programas y servicios", "Gobierno"]
     app.segmented_control(key="budget_universe").set_value("social").run()
     assert not app.exception
     assert len(app.segmented_control(key="period_month").options) == 9
     html = _markdown(app)
-    for expected in ["Presupuesto social", "1.715,7", "1.261,8", "73,5", "Ritmo necesario de octubre a diciembre",
+    for expected in ["Presupuesto de programas y servicios", "1.715,7", "1.261,8", "73,5", "Ritmo necesario de octubre a diciembre",
                      "Por programa presupuestario", "Ejecución acumulada por mes"]:
         assert expected in html, expected
     app.multiselect(key="social_groups").set_value(["BDH_BDHV"]).run()
@@ -259,7 +259,7 @@ def test_executive_summary_of_every_section_fits_three_pages():
     assert text.count("Plan ENOS") == 1 and "UA expuestas" not in text
     for chart in ["Beneficiarios por provincia", "Usuarios por servicio", "Alertas por provincia",
                   "Monto entregado por mes", "Jóvenes con pago acreditado por mes", "Contratos vigentes por rama de actividad",
-                  "Ejecución del presupuesto social"]:
+                  "Ejecución de programas y servicios"]:
         assert chart in text, chart
 
 

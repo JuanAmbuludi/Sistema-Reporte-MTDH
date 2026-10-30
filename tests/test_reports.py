@@ -73,7 +73,7 @@ def social():
     view = SocialBudgetView(*presupuesto_social.load_social_budget())
     view.select(view.catalog()[0])
     assert view.prepare()
-    return view.report_context("Presupuesto social")
+    return view.report_context("Presupuesto de programas y servicios")
 
 
 def _period(data, period_id):
@@ -340,7 +340,7 @@ def test_social_budget_exports_read_the_pace_of_the_year(social):
     assert round(social["stats"]["execution"], 1) == 73.5 and len(social["programs"]) == 13
     assert round(social["closing"]["required"] / 1e6, 1) == 151.3
     text = _pdf_text(generate_pdf(social), pages=2)
-    for expected in ["Presupuesto social", "USD 1.715,7 M", "Presupuesto devengado por mes", "Ritmo necesario de octubre a diciembre",
+    for expected in ["Presupuesto de programas y servicios", "USD 1.715,7 M", "Presupuesto devengado por mes", "Ritmo necesario de octubre a diciembre",
                      "Devengado de cada programa por mes", "Bono de Desarrollo Humano (BDH y BDHV)"]:
         assert expected in text, expected
     deck, texts = _deck_texts(generate_pptx(social))

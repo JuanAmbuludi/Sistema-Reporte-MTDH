@@ -164,8 +164,8 @@ class FinanceView:
             return (f"Presupuesto de transferencias y servicios en la gestión de gobierno: el acumulado de {FIRST_YEAR} a {year - 1} "
                     f"más el presupuesto ejecutado en {year} al corte, que ya forma parte del acumulado. Incluye programas "
                     "históricos sin cobertura actual.")
-        return (f"Presupuesto fiscal institucional publicado por SGDE, con corte al {self.cut_text}. El presupuesto social "
-                "MDH–MTDH se presenta en Social: son universos distintos y no se suman.")
+        return (f"Presupuesto fiscal institucional publicado por SGDE, con corte al {self.cut_text}. El presupuesto de programas y servicios "
+                "MDH–MTDH se presenta en Programas y servicios: son universos distintos y no se suman.")
 
     def hero_copy(self):
         year = self.period["year"]

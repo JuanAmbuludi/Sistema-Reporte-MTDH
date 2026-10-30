@@ -291,7 +291,7 @@ class SocialBudgetView:
 
     def __init__(self, groups: pd.DataFrame, programs: pd.DataFrame):
         self.groups, self.programs_rows = groups, programs
-        self.label = "Presupuesto social"
+        self.label = "Presupuesto de programas y servicios"
         self._catalog = []
         for period_id in sorted(groups.periodo_id.unique(), reverse=True) if not groups.empty else []:
             year, month = map(int, period_id.split("-"))
@@ -465,7 +465,7 @@ class SocialBudgetView:
         with st.container(border=True, key="card_social_detail"):
             ui.data_table(frame, columns, height=min(640, 35 * (len(frame) + 1) + 3), key="social_table",
                           bar="participacion" if "participacion" in columns else None)
-            download_table(frame, layout, title="Presupuesto social", subtitle=f"{self.context_label} · {name.lower()}",
+            download_table(frame, layout, title="Presupuesto de programas y servicios", subtitle=f"{self.context_label} · {name.lower()}",
                            period_label=self.period["label"], file_name=f"MTDH_cuadro_presupuesto_social_{self.period['id']}.xlsx",
                            key="social_xlsx", share_fields=("participacion", "porcentaje_ejecucion"))
 
@@ -505,14 +505,14 @@ class SocialBudgetView:
         return self.series_svg(night=False, width=300, height=170)
 
     def digest(self) -> str:
-        return fingerprint(self.month, self.series, tuple(self.chosen))
+        return fingerprint(self.month, self.series, tuple(self.chosen), self.label)
 
     def report_context(self, title: str) -> dict:
         from src.reports.areas import social_budget_context
         return social_budget_context(self, title=title)
 
 
-UNIVERSES = {"institucional": "Fiscal", "social": "Social", "gobierno": "Gobierno"}
+UNIVERSES = {"institucional": "Fiscal", "social": "Programas y servicios", "gobierno": "Gobierno"}
 
 
 class BudgetArea:

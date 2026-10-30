@@ -5,6 +5,7 @@ from copy import deepcopy
 from functools import lru_cache
 import json
 from pathlib import Path
+import re
 
 import pandas as pd
 
@@ -29,6 +30,12 @@ ENTITY_NAMES = {
 def entity_name(code: str) -> str:
     """Display names; source codes remain stable identifiers for filtering."""
     return ENTITY_NAMES.get(code, code)
+
+
+def reason_label(value: str) -> str:
+    """Sentence case for display, preserving the source's institutional acronyms."""
+    text = str(value).capitalize()
+    return re.sub(r"\b(ruc|bce)\b", lambda match: match.group().upper(), text, flags=re.IGNORECASE)
 
 
 def display_entities(frame: pd.DataFrame) -> pd.DataFrame:

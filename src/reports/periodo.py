@@ -198,13 +198,13 @@ def gather(bases: dict, mode: str) -> dict:
         months = year_rows.groupby("periodo_id")[["devengado_mes", "devengado_acumulado"]].sum()
         approved = float(groups.loc[groups.periodo_id.eq(end), "presupuesto_aprobado"].sum())
         executed = float(months.devengado_acumulado.iloc[-1]) if not months.empty else 0.0
-        section["charts"].append({"title": f"Presupuesto social devengado por mes, {end[:4]}", "note": "Millones de USD",
+        section["charts"].append({"title": f"Devengado de programas y servicios por mes, {end[:4]}", "note": "Millones de USD",
                                   "labels": [_short(p) for p in months.index], "values": list(months.devengado_mes), "money": True})
-        out["kpis"].append({"label": f"Ejecución del presupuesto social {end[:4]}", "value": executed / approved * 100 if approved else None,
+        out["kpis"].append({"label": f"Ejecución de programas y servicios {end[:4]}", "value": executed / approved * 100 if approved else None,
                             "kind": "rate", "decimals": 1, "icon": "target", "note": f"USD {millions(executed, 1)} M devengados"})
-        section["note_budget"] = (f"Presupuesto social {end[:4]}: USD {millions(executed, 1)} millones devengados de USD "
+        section["note_budget"] = (f"Presupuesto de programas y servicios {end[:4]}: USD {millions(executed, 1)} millones devengados de USD "
                                   f"{millions(approved, 1)} millones aprobados ({number(executed / approved * 100 if approved else 0, 1)} %).")
-        out["coverage"].append(("Presupuesto social", _month(months.index.min()) if not months.empty else "—", _month(end),
+        out["coverage"].append(("Presupuesto de programas y servicios", _month(months.index.min()) if not months.empty else "—", _month(end),
                                 "Grupos 58, 57 y 78"))
     gov = bases.get("government_budget")
     if gov is not None and not gov.empty:
@@ -436,9 +436,9 @@ def extras(bases: dict, figures: dict) -> dict:
         year_rows = _within(groups, f"{end[:4]}-01", end)
         approved = float(groups.loc[groups.periodo_id.eq(end), "presupuesto_aprobado"].sum())
         accrued = float(year_rows.groupby("periodo_id").devengado_acumulado.sum().iloc[-1]) if not year_rows.empty else 0.0
-        budget["gauges"].append({"value": accrued / approved * 100 if approved else 0, "pace": pace, "label": "Presupuesto social",
+        budget["gauges"].append({"value": accrued / approved * 100 if approved else 0, "pace": pace, "label": "Presupuesto de programas y servicios",
                                  "sub": f"USD {millions(accrued, 1)} M de USD {millions(approved, 1)} M"})
-        out["timeline"].append(("Presupuesto social", f"{end[:4]}-01", end))
+        out["timeline"].append(("Presupuesto de programas y servicios", f"{end[:4]}-01", end))
     fiscal = bases.get("budget")
     if fiscal is not None and not fiscal.empty:
         coded, accrued = float(fiscal.codificado.sum()), float(fiscal.devengado.sum())

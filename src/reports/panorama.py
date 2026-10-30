@@ -275,12 +275,12 @@ def _budget_block(views: dict) -> dict | None:
         social.select(social_period)
         if social.prepare():
             stats = social.stats
-            kpis.append(_card("Ejecución del presupuesto social", stats["execution"], rate=True,
+            kpis.append(_card("Ejecución de programas y servicios", stats["execution"], rate=True,
                               note=f"Devengado: USD {_number(stats['accrued'] / 1e6, 1)} M", icon="target"))
-            context = social.report_context("Presupuesto social")
+            context = social.report_context("Presupuesto de programas y servicios")
             visual = _visual("presupuesto_social", context)
             if visual:
-                visual["title"] = "Ejecución del presupuesto social"
+                visual["title"] = "Ejecución de programas y servicios"
             text = next((i["text"] for i in context.get("insights", []) if i.get("text")), "")
             if text:
                 findings.append({"icon": "trending-up", "text": text})

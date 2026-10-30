@@ -16,6 +16,7 @@ def block() -> dict | None:
     stats = jovenes_fase4.summary()
     reasons = (jovenes_fase4.rejections().groupby(["codigo_rechazo", "motivo"], as_index=False)
                .transferencias.sum().sort_values("transferencias", ascending=False))
+    reasons["motivo"] = reasons.motivo.map(jovenes_fase4.reason_label)
     failed = float(stats["no_acreditadas"])
     reasons["participacion"] = reasons.transferencias / failed * 100 if failed else 0
     kpis = [
