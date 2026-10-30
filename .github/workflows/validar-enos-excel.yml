@@ -1,9 +1,9 @@
 name: Validar bases Excel ENOS
 on:
   push:
-    paths: ['data/enos_excel/*.xlsx', 'src/enos*.py', 'scripts/ingesta_enos_excel.py', 'scripts/validar_enos_excel.py', 'scripts/actualizar_sello_enos.py', 'tests/test_enos_excel.py', '.github/workflows/validar-enos-excel.yml']
+    paths: ['data/enos_excel/*.xlsx', 'data/processed/brigadas_emergencia.json', 'data/processed/seguimiento_enos_*.json', 'data/processed/continuidad_servicios_*.json', 'src/enos*.py', 'scripts/ingesta_enos_excel.py', 'scripts/validar_enos_excel.py', 'scripts/actualizar_sello_enos.py', 'tests/test_enos_excel.py', '.github/workflows/validar-enos-excel.yml']
   pull_request:
-    paths: ['data/enos_excel/*.xlsx', 'src/enos*.py', 'scripts/ingesta_enos_excel.py', 'scripts/validar_enos_excel.py', 'scripts/actualizar_sello_enos.py', 'tests/test_enos_excel.py', '.github/workflows/validar-enos-excel.yml']
+    paths: ['data/enos_excel/*.xlsx', 'data/processed/brigadas_emergencia.json', 'data/processed/seguimiento_enos_*.json', 'data/processed/continuidad_servicios_*.json', 'src/enos*.py', 'scripts/ingesta_enos_excel.py', 'scripts/validar_enos_excel.py', 'scripts/actualizar_sello_enos.py', 'tests/test_enos_excel.py', '.github/workflows/validar-enos-excel.yml']
 permissions:
   contents: write
 concurrency:
@@ -26,7 +26,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           python scripts/actualizar_sello_enos.py
-          git add data/enos_excel/actualizacion.json
+          git add data/enos_excel/actualizacion.json data/enos_excel/validado.json.gz
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -12,8 +12,8 @@ def row_keys(kind, rows):
         field = 'codigo' if kind == 'alertas' else 'id_kobo'
         return {excel._identifier(row[field]) for _, row in rows}
     if kind == 'unidades_suspendidas':
-        return {(excel._date(row['corte_fuente'], 'corte_fuente'), excel._identifier(row['id_unidad'])) for _, row in rows}
-    return {(excel._date(row['corte'], 'corte')[:10], excel._text(row['provincia']), excel._text(row['evento'])) for _, row in rows}
+        return {excel._identifier(row['id_unidad']) for _, row in rows}
+    return {(excel._text(row['provincia']), excel._text(row['evento'])) for _, row in rows}
 
 
 def build(snapshot, continuity, current_files, uploads):
@@ -37,14 +37,12 @@ def build(snapshot, continuity, current_files, uploads):
         after = excel.overlay(snapshot, processed)
         after_units = excel.observations(processed, continuity)[-1]
         for kind in uploads:
-            cut, _, rows = excel.read(processed, kind)
-            old_cut, _, old_rows = originals[kind]
-            if cut < old_cut:
-                raise ValueError(f'{excel.FILES[kind]}: el corte retrocede. Descargue la versión vigente.')
+            _, _, rows = excel.read(processed, kind)
+            _, _, old_rows = originals[kind]
             missing = row_keys(kind, old_rows) - row_keys(kind, rows)
             if missing:
                 raise ValueError(f'{excel.FILES[kind]}: faltan {len(missing)} filas ya registradas. '
-                                 'Conserve los identificadores y cortes anteriores; use incluir=No o Reanudada según corresponda.')
+                                 'Conserve los identificadores; use incluir=No o Reanudada según corresponda.')
         cuts = [excel.read(processed, kind)[0][:10] for kind in excel.FILES]
     since, until = snapshot.get('desde', enos.START), max(cuts)
     active = [r for r in after['alertas'] if since <= r['fecha'] <= until]

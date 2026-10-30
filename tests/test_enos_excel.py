@@ -3,6 +3,7 @@ from copy import deepcopy
 from datetime import datetime
 import hashlib
 import json
+import gzip
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -131,11 +132,24 @@ class ExcelRegisters(unittest.TestCase):
 
     def test_new_inventory_must_retain_prior_ids_and_not_duplicate_units(self):
         self.rows['unidades_suspendidas'].append({**self.unit, 'corte_fuente':'2026-10-30', 'id_unidad':'U2'})
-        with self.assertRaisesRegex(ValueError, 'incompleto'):
+        with self.assertRaisesRegex(ValueError, 'dos identificadores'):
             self.units()
         self.rows['unidades_suspendidas'][-1]['corte_fuente'] = '2026-10-28'
-        with self.assertRaisesRegex(ValueError, 'duplicado'):
+        with self.assertRaisesRegex(ValueError, 'dos identificadores'):
             self.units()
+
+    def test_partial_reopening_keeps_unchanged_units_in_the_stock(self):
+        self.rows['unidades_suspendidas'].append({**self.unit, 'id_unidad':'U2', 'unidad':'Otra unidad'})
+        self.rows['unidades_suspendidas'].append({**self.unit, 'corte_fuente':'2026-10-30', 'estado':'Reanudada'})
+        observations = self.units()
+        self.assertEqual([len(r['detalle']) for r in observations], [2, 1])
+        self.assertEqual(observations[-1]['detalle'][0]['unidad'], 'Otra unidad')
+
+    def test_partial_provincial_balance_does_not_remove_other_provinces(self):
+        self.rows['contingencias'].append({**self.bonus, 'provincia':'El Oro'})
+        self.rows['contingencias'].append({**self.bonus, 'corte':'2026-10-30', 'nucleos_habilitados':12})
+        result = self.overlay()
+        self.assertEqual({r['provincia']:r['personas'] for r in result['bonos']['articulacion']}, {'Guayas':12,'El Oro':10})
 
     def test_only_part_of_excel_database_cannot_silently_fall_back(self):
         with TemporaryDirectory() as tmp:
@@ -149,9 +163,9 @@ class ExcelRegisters(unittest.TestCase):
 class RealWorkbooks(unittest.TestCase):
     def test_publication_stamp_changes_only_current_history_metadata(self):
         with patch.object(excel, 'updated_at', return_value=None):
-            previous = enos.history()
+            previous = enos.history(live=True)
         with patch.object(excel, 'updated_at', return_value='2026-10-30T02:26:51+00:00'):
-            current = enos.history()
+            current = enos.history(live=True)
         self.assertEqual(current['generado_utc'], '2026-10-30T02:26:51+00:00')
         current['generado_utc'] = previous['generado_utc']
         self.assertEqual(current, previous)
@@ -185,7 +199,7 @@ class RealWorkbooks(unittest.TestCase):
         self.assertTrue(report['auditoria']['brigadas_sin_modificar'])
         for kind in excel.FILES:
             _, control, rows = excel.read(enos.FOLDER, kind)
-            self.assertIsInstance(control['corte'], datetime)
+            self.assertEqual(excel.read(enos.FOLDER, kind)[0], max(excel._date(row[{'alertas':'fecha','kits':'fecha','unidades_suspendidas':'corte_fuente','contingencias':'corte'}[kind]],'fecha') for _,row in rows))
             self.assertTrue(rows)
         self.assertTrue(set(excel.paths(enos.FOLDER)).issubset(enos.history_paths()))
 
@@ -194,6 +208,52 @@ class RealWorkbooks(unittest.TestCase):
         enos.history()
         enos.continuity_at('2099-01-01')
         self.assertEqual(before, {path:enos.fingerprint(path) for path in before})
+
+
+class PublishedSafety(unittest.TestCase):
+    def setUp(self):
+        self.temporary = TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.processed = Path(self.temporary.name) / 'data/processed'
+        self.processed.mkdir(parents=True)
+        self.folder = excel.directory(self.processed)
+        self.folder.mkdir()
+        for name in excel.FILES.values():
+            (self.folder / name).write_bytes((excel.directory(enos.FOLDER) / name).read_bytes())
+        self.data = enos.history(live=True)
+        self.observations = enos._editable_observations(live=True)
+        self.publication = {'formato':'ENOS_VALIDADO_1','datos':self.data,'observaciones':self.observations,
+                            'fuentes':excel.source_hashes(self.processed),'identificadores':excel.registry_ids(self.processed)}
+        self.save()
+
+    def save(self):
+        (self.folder / excel.VALIDATED).write_bytes(gzip.compress(json.dumps(self.publication).encode(),mtime=0))
+
+    def test_validated_data_are_unchanged_when_inputs_match(self):
+        with patch.object(enos, 'FOLDER', self.processed):
+            self.assertEqual(enos.history(), self.data)
+        self.assertFalse(excel.published(self.processed)['pendiente'])
+
+    def test_broken_excel_keeps_previous_counts_and_shows_pending_validation(self):
+        (self.folder / 'kits.xlsx').write_bytes(b'corrupted upload')
+        with patch.object(enos, 'FOLDER', self.processed):
+            shown = enos.history()
+            self.assertTrue(shown.pop('carga_pendiente'))
+            self.assertEqual(shown, self.data)
+            self.assertEqual(enos.continuity_at(self.data['corte']), self.observations[-1])
+            enos.history_paths()  # export cache can still be computed
+
+    def test_deleted_excel_keeps_last_valid_publication_available(self):
+        (self.folder / 'unidades_suspendidas.xlsx').unlink()
+        with patch.object(enos, 'FOLDER', self.processed):
+            self.assertTrue(enos.history()['carga_pendiente'])
+            enos.history_paths()
+
+    def test_identifiers_added_after_migration_cannot_silently_disappear(self):
+        self.publication['identificadores']['kits'].append('PREVIOUSLY-VALIDATED-ID')
+        self.save()
+        with self.assertRaisesRegex(ValueError, 'identificadores'):
+            excel.check_retention(self.processed)
 
 
 if __name__ == '__main__':

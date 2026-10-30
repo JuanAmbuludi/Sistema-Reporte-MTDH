@@ -10,8 +10,9 @@ from src import enos, enos_excel
 def validate():
     if len(enos_excel.paths(enos.FOLDER)) != 4:
         raise ValueError('Faltan las cuatro bases de data/enos_excel.')
-    data = enos.history()
-    units = enos._editable_observations()[-1]
+    enos_excel.check_retention(enos.FOLDER)
+    data = enos.history(live=True)
+    units = enos._editable_observations(live=True)[-1]
     enabled, collected = data['bonos']['articulacion'], data['bonos']['gestionados']
     for closed in enos.ledger().get('cerrados', {}).values():
         for name, expected in closed.items():

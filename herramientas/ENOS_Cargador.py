@@ -203,7 +203,7 @@ with st.sidebar:
                           help="Permiso exclusivamente para el repositorio Sistema-Reporte-MTDH.")
     now = datetime.now(ZONE).date()
     report_date = unit_cut = now
-    st.caption("Las fechas se toman de Control y de las filas de cada Excel.")
+    st.caption("Solo complete Datos. Los cortes se calculan a partir de las fechas de las filas; no edite Control.")
     st.caption("El token no se publica en GitHub. No adjunte información personal sin autorización institucional.")
     st.divider()
     st.caption("Repositorio: JuanAmbuludi / Sistema-Reporte-MTDH")

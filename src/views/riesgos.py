@@ -542,9 +542,11 @@ class RiskView:
         r = self.response
         updated = long_date(datetime.fromisoformat(r.data["generado_utc"]).astimezone(ECUADOR)) if r else ""
         cut = f"Respuesta al {r.end:%d/%m/%Y}" if r else "Sin seguimiento disponible"
+        frequency = ('Carga pendiente de validación · se muestran los últimos datos validados'
+                     if r and r.data.get('carga_pendiente') else 'Según cortes recibidos')
         return {"cut": cut, "updated": updated, "short": cut,
                 "line": cut + (f" · Actualizado el {updated}" if updated else ""),
-                "frequency": "Según cortes recibidos", "frequency_short": "según cortes recibidos"}
+                "frequency": frequency, "frequency_short": frequency.lower()}
 
     def national_table(self) -> pd.DataFrame:
         """Exposure of every province (service and threat filters) with the actions of the Ministry in it."""

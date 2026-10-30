@@ -2,9 +2,9 @@
   "generado_utc": "2026-10-30T02:26:51+00:00",
   "criterio": "Fecha y hora del último commit que actualizó las bases Excel ENOS.",
   "archivos": {
-    "alertas.xlsx": "33bddbfbce17ce602b2a664110bae1c0f6674dfe01ea18f69ffcdd035d943fd2",
-    "kits.xlsx": "d759eb767dea9f9272ac2bfb5dadd936060ae9f66f33fdc862a028eefdbf6196",
-    "unidades_suspendidas.xlsx": "bff3117cb5b4d0143be19937b9967b18080fc71a530c3b82a67926c0aca860a0",
-    "contingencias.xlsx": "808105342fb5352668d852b872951a588ff2b2d64ede3c04cd6ca985a0551198"
+    "alertas.xlsx": "3b5761b34788f95807cfeaf9d1c3453ef8a0ab84cfb40e4bb94c8ba82c41eca5",
+    "kits.xlsx": "c391846dd6bdb5e42b551ff04e0ecd6f9b188ba23d6c83d936a3a62c967454ed",
+    "unidades_suspendidas.xlsx": "44231b8f4dfe1d808cc1172c0e21e9c851b18201c5b1f9d75c452139e0ec2691",
+    "contingencias.xlsx": "8c6db1741638462e9b50f27b2c8c201b08fb2d8001fc77d9478bd53344050197"
   }
 }

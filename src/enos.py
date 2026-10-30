@@ -124,10 +124,11 @@ def history_paths() -> list[Path]:
     paths = [path for pattern in (SNAPSHOT, CONTINUITY) for _date, path in publications(pattern)]
     brigades = FOLDER / "brigadas_emergencia.json"
     stamp = enos_excel.directory(FOLDER) / enos_excel.STAMP
-    return paths + ([brigades] if brigades.exists() else []) + enos_excel.paths(FOLDER) + ([stamp] if stamp.exists() else [])
+    validated = enos_excel.directory(FOLDER) / enos_excel.VALIDATED
+    return paths + ([brigades] if brigades.exists() else []) + enos_excel.paths(FOLDER, strict=False) + [p for p in (stamp, validated) if p.exists()]
 
 
-def history() -> dict:
+def history(*, live=False) -> dict:
     """Current known event history, reconciled by source ID before applying dates.
 
     Daily publications remain immutable. A newer version of an ID replaces the
@@ -135,6 +136,13 @@ def history() -> dict:
     explicitly marked as a complete replacement replaces its own register.
     Continuity and the bonus are observations/balances, never summed over cuts.
     """
+    from src import enos_excel
+    issued = None if live else enos_excel.published(FOLDER)
+    if issued:
+        data = issued['datos']
+        if issued['pendiente']:
+            data['carga_pendiente'] = True
+        return data
     found = publications()
     if not found:
         raise ValueError("No hay bases de seguimiento disponibles.")
@@ -211,7 +219,7 @@ def history() -> dict:
         cut = continuity_cut(continuity(path))
         if cut is not None:
             recorded_days.append(day(cut))
-    for observation in _editable_observations():
+    for observation in _editable_observations(live=live):
         recorded_days.append(day(continuity_cut(observation)))
     if not recorded_days:
         raise ValueError("Las bases no contienen registros con fecha para consultar.")
@@ -249,8 +257,11 @@ def continuity_at(until) -> dict:
     return max(available, key=lambda item: (item[0], item[1], item[2]))[3]
 
 
-def _editable_observations() -> list[dict]:
+def _editable_observations(*, live=False) -> list[dict]:
     from src import enos_excel
+    issued = None if live else enos_excel.published(FOLDER)
+    if issued:
+        return issued['observaciones']
     latest = in_force(CONTINUITY)[0]
     base = continuity(latest) if latest else {}
     return enos_excel.observations(FOLDER, base)

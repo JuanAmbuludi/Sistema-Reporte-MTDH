@@ -15,10 +15,12 @@ from pathlib import Path
 import openpyxl
 import hashlib
 import json
+import gzip
 
 FILES = {name: f"{name}.xlsx" for name in ("alertas", "kits", "unidades_suspendidas", "contingencias")}
 FORMAT = "ENOS_EXCEL_1"
 STAMP = 'actualizacion.json'
+VALIDATED = 'validado.json.gz'
 ALERT_FIELDS = ["codigo", "fecha", "provincia", "canton", "estado", "prioridad", "tipo_alerta", "codigo_ua",
                 "unidad", "servicio", "afectados_fuente", "afectacion_servicio_confirmada", "afectacion_servicio", "incluir"]
 KIT_FIELDS = ["id_kobo", "fecha", "provincia", "canton", "kits", "familias", "incluir"]
@@ -35,10 +37,10 @@ def directory(processed: Path) -> Path:
     return Path(processed).parent / "enos_excel"
 
 
-def paths(processed: Path) -> list[Path]:
+def paths(processed: Path, *, strict=True) -> list[Path]:
     folder = directory(processed)
     present = [folder / filename for filename in FILES.values() if (folder / filename).exists()]
-    if present and len(present) != len(FILES):
+    if strict and present and len(present) != len(FILES):
         missing = [name for name in FILES.values() if not (folder / name).exists()]
         raise ValueError('La base Excel está incompleta. Faltan: ' + ', '.join(missing))
     return present
@@ -59,6 +61,49 @@ def updated_at(processed: Path) -> str | None:
     if datetime.fromisoformat(value).tzinfo is None:
         raise ValueError('El sello de actualización ENOS requiere una zona horaria.')
     return value
+
+
+def source_hashes(processed: Path) -> dict:
+    root = Path(processed).parent.parent
+    sources = paths(processed) + list(Path(processed).glob('seguimiento_enos_*.json')) + list(Path(processed).glob('continuidad_servicios_*.json'))
+    brigades = Path(processed) / 'brigadas_emergencia.json'
+    if brigades.exists():
+        sources.append(brigades)
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(sources)}
+
+
+def published(processed: Path) -> dict | None:
+    """The last fully validated publication stays available during a bad upload."""
+    path = directory(processed) / VALIDATED
+    if not path.exists():
+        return None
+    publication = json.loads(gzip.decompress(path.read_bytes()))
+    if publication.get('formato') != 'ENOS_VALIDADO_1':
+        raise ValueError('Publicación validada ENOS no reconocida.')
+    try:
+        pending = publication['fuentes'] != source_hashes(processed)
+    except (OSError, ValueError):
+        pending = True
+    publication['pendiente'] = pending
+    return publication
+
+
+def registry_ids(processed: Path) -> dict:
+    fields = {'alertas':'codigo', 'kits':'id_kobo', 'unidades_suspendidas':'id_unidad', 'contingencias':'provincia'}
+    return {kind: sorted({_identifier(row[field]) for _, row in read(processed, kind)[2]})
+            for kind, field in fields.items()}
+
+
+def check_retention(processed: Path):
+    previous = published(processed)
+    if not previous:
+        return
+    current = registry_ids(processed)
+    for kind, identifiers in previous.get('identificadores', {}).items():
+        missing = set(identifiers) - set(current[kind])
+        if missing:
+            raise ValueError(f'{FILES[kind]}: se borraron {len(missing)} identificadores ya registrados. '
+                             'Descargue la versión vigente y conserve las filas anteriores.')
 
 
 def _error(kind, row, message):
@@ -132,7 +177,6 @@ def _read(path: str, modified: int, size: int):
         kind = control.get("tipo")
         if kind not in FILES or control.get("formato") != FORMAT:
             raise ValueError(f"{Path(path).name}: formato o tipo no reconocido.")
-        cut = _date(control.get("corte"), f"{Path(path).name} · Control · corte")
         table = book["Datos"]
         headers = [_text(v) for v in next(table.iter_rows(min_row=1, max_row=1, values_only=True))]
         while headers and not headers[-1]:
@@ -148,6 +192,13 @@ def _read(path: str, modified: int, size: int):
             if any(cell.value is not None for cell in cells[len(headers):]):
                 _error(kind, number, "hay valores fuera de las columnas establecidas.")
             rows.append((number, dict(zip(headers, [c.value for c in cells]))))
+        # Source dates belong to the records. Control is a calculated aid, not
+        # a second mandatory field the operator must remember to maintain.
+        date_field = {'alertas':'fecha', 'kits':'fecha', 'unidades_suspendidas':'corte_fuente', 'contingencias':'corte'}[kind]
+        recorded = [_date(row[date_field], f'{Path(path).name} · fila {line} · {date_field}') for line, row in rows]
+        if not recorded:
+            raise ValueError(f'{Path(path).name}: Datos está vacío; conserve el histórico.')
+        cut = max(recorded)
         return kind, cut, control, rows
     finally:
         book.close()
@@ -252,12 +303,17 @@ def overlay(data: dict, processed: Path) -> dict:
             raise ValueError('contingencias.xlsx: falta el saldo provincial. No se interpreta una hoja vacía como cero.')
         latest = max(groups)
         previous_provinces = {r['provincia'] for r in data['bonos'].get('articulacion', [])}
+        ledger = {}
         for when, balances in sorted(groups.items()):
-            provinces = {p for p, _, _ in balances}
-            if previous_provinces - provinces:
-                raise ValueError(f'contingencias.xlsx: corte {when} incompleto. Conserve todas las provincias, incluso con saldo cero.')
-            previous_provinces = provinces
-        values = groups[latest]
+            provinces = dict.fromkeys(p for p, _, _ in balances)
+            for province in provinces:
+                revised = [r for r in balances if r[0] == province]
+                if any(event == 'Todos los eventos' for _, event, _ in revised) and len(revised) > 1:
+                    raise ValueError(f'contingencias.xlsx: {province} mezcla un total con sus eventos; duplicaría el saldo.')
+                ledger[province] = revised
+        if previous_provinces - set(ledger):
+            raise ValueError('contingencias.xlsx: faltan provincias del histórico. Conserve sus filas, incluso con saldo cero.')
+        values = [row for balances in ledger.values() for row in balances]
         for province in {p for p, _, _ in values}:
             events = [e for p, e, _ in values if p == province]
             if 'Todos los eventos' in events and len(events) > 1:
@@ -278,7 +334,7 @@ def overlay(data: dict, processed: Path) -> dict:
 
 
 def observations(processed: Path, base: dict | None = None) -> list[dict]:
-    """One full stock per observed cut. Reopened units do not remain suspended."""
+    """Replay unit changes by stable ID; unchanged units retain their last state."""
     paths(processed)
     workbook = read(processed, 'unidades_suspendidas')
     if workbook is None:
@@ -286,17 +342,19 @@ def observations(processed: Path, base: dict | None = None) -> list[dict]:
     cut, control, rows = workbook
     base = base or {}
     previous = {(r['provincia'],r['canton'],r['servicio'],r['unidad']): r for r in base.get('detalle', [])}
-    groups, seen, units_seen, ids_by_cut = {}, set(), set(), {}
+    groups, seen, units_seen, identities = {}, set(), set(), {}
     for line, row in rows:
         when = _check_date(row['corte_fuente'], cut, 'unidades_suspendidas', line, 'corte_fuente')
         identifier = _identifier(row['id_unidad'])
         if not identifier:
             _error('unidades_suspendidas', line, 'id_unidad es obligatorio y debe conservarse al cambiar de corte.')
         _unique(seen, (when, identifier), 'unidades_suspendidas', line)
-        ids_by_cut.setdefault(when, set()).add(identifier)
         key = tuple(_text(row[field]) for field in ('provincia','canton','servicio','unidad'))
         if not all(key):
             _error('unidades_suspendidas', line, 'provincia, cantón, servicio y unidad son obligatorios.')
+        if key in identities and identities[key] != identifier:
+            _error('unidades_suspendidas', line, 'la misma unidad tiene dos identificadores. Conserve id_unidad.')
+        identities[key] = identifier
         _unique(units_seen, (when, *key), 'unidades_suspendidas', line)
         service, program = _text(row['servicio']), _text(row['programa_id'])
         if SERVICES.get(service) != program:
@@ -306,20 +364,24 @@ def observations(processed: Path, base: dict | None = None) -> list[dict]:
             _error('unidades_suspendidas', line, 'estado debe ser Suspendida, Suspendida presencial o Reanudada.')
         group = groups.setdefault(when, [])
         coverage = _number(row['cobertura'], f'fila {line} · cobertura', integer=True)
-        if state == 'Reanudada':
-            continue
         record = deepcopy(previous.get(key, {}))
         record.update({f: _text(row[f]) for f in UNIT_FIELDS if f not in ('id_unidad','corte_fuente','cobertura')})
         record.update(codigo_ua=_identifier(row['codigo_ua']), corte_fuente=when, cobertura=coverage, unidades=1)
-        group.append(record)
+        group.append((identifier, record))
     if not groups:
         raise ValueError('unidades_suspendidas.xlsx: falta el corte. Para informar cero, marque las unidades como Reanudada.')
     result = []
-    previous_ids = set()
-    for when, details in sorted(groups.items()):
-        if previous_ids - ids_by_cut[when]:
-            raise ValueError(f'unidades_suspendidas.xlsx: corte {when} incompleto. Copie el inventario anterior y marque Reanudada cuando corresponda.')
-        previous_ids = ids_by_cut[when]
+    stock = {}
+    seeded = False
+    for when, changes in sorted(groups.items()):
+        if not seeded and str(base.get('corte', '9999'))[:10] <= when[:10]:
+            stock.update({identities[key]: deepcopy(record) for key, record in previous.items() if key in identities})
+            seeded = True
+        stock.update(changes)
+        details = [deepcopy(row) for row in stock.values() if row['estado'] != 'Reanudada']
+        keys = [(r['provincia'], r['canton'], r['servicio'], r['unidad']) for r in details]
+        if len(keys) != len(set(keys)):
+            raise ValueError('unidades_suspendidas.xlsx: la misma unidad aparece activa con dos identificadores.')
         counts = Counter((r['provincia'],r['servicio'],r['programa_id'],r['estado']) for r in details)
         observation = deepcopy(base)
         observation.update(corte=when, detalle=details,
@@ -327,6 +389,6 @@ def observations(processed: Path, base: dict | None = None) -> list[dict]:
             fuentes_por_provincia={r['provincia']:when for r in details})
         if details != base.get('detalle'):
             observation.setdefault('validacion', {}).update(registros_detalle=len(details), suspendidas_total=len(details),
-                cobertura_total=sum(r['cobertura'] for r in details), criterio='Inventario completo del corte en unidades_suspendidas.xlsx; no se suman cortes.')
+                cobertura_total=sum(r['cobertura'] for r in details), criterio='Último estado por ID hasta el corte; las unidades sin cambio conservan su estado. No se suman cortes.')
         result.append(observation)
     return result
