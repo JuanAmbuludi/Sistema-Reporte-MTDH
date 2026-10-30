@@ -144,16 +144,30 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
 
     # ------------------------------------------------------------------------------ El Niño (ENOS)
     try:
-        from .enos_scope import response_view, bonus_scope
+        from .enos_scope import response_view
         risk = response_view(start, end)
         if risk is not None:
             r = risk.response
             kits = (r.kits.groupby(["provincia_codigo", "provincia"], as_index=False).agg(kits=("kits", "sum"), familias=("familias", "sum"))
                     .sort_values("kits", ascending=False))
-            bono = r.articulation.groupby("provincia", as_index=False).agg(bono_familias=("personas", "sum"), bono_monto=("monto", "sum"))
+            # These cards are a reference at the bonus source's own cut, not the
+            # government's dated total. Never label a filtered cohort as the full balance.
+            latest = response_view()
+            bonus = latest.response if latest is not None else r
+            bonus_cut = pd.Timestamp(bonus.cuts["bonos"]).normalize()
+            bonus_outside = not r.start <= bonus_cut <= r.end
+            reference_prefix = "Referencia al" if latest is not None else "Cohorte del período · corte"
+            bonus_reference = f"{reference_prefix} {bonus_cut:%d/%m/%Y}" + (" · fuera del período" if bonus_outside else "")
+            managed_cut = pd.Timestamp(bonus.cuts.get("bonos_gestionados") or bonus.cuts["bonos"]).normalize()
+            managed_reference = (f"{reference_prefix} {managed_cut:%d/%m/%Y}"
+                                 + (" · fuera del período" if not r.start <= managed_cut <= r.end else ""))
+            collected = bonus.data.get("bonos_presentacion", {}).get("cobro_confirmado", False)
+            bonus_dates = pd.to_datetime(bonus.articulation.get("fecha", pd.Series(dtype=str)), errors="coerce").dropna()
+            bonus_coverage = (f"Habilitaciones del {bonus_dates.min():%d/%m/%Y} al {bonus_dates.max():%d/%m/%Y}. "
+                              if not bonus_dates.empty else "")
+            bono = bonus.articulation.groupby("provincia", as_index=False).agg(bono_familias=("personas", "sum"), bono_monto=("monto", "sum"))
             # Historical alerts use their event dates inside the report period.
             # An empty period never borrows alerts from a later reporting cut.
-            latest = response_view() if not r.available["continuidad"] else None
             alert_rows = r.alerts
             alerts_available = not alert_rows.empty
             alert_span = _alert_span(alert_rows)
@@ -186,7 +200,7 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                   "familias": float(table.familias.sum()), "bono_familias": float(table.bono_familias.sum()),
                                   "bono_monto": float(table.bono_monto.sum()), "selected": True})
             alert_note = alert_span.capitalize() if alerts_available else "Sin registros disponibles para el período"
-            delivered = r.managed
+            delivered = bonus.managed
             delivered_people = int(delivered.personas.sum())
             delivered_amount = float(delivered.monto.sum())
             total_kits = float(r.kits_total)
@@ -199,8 +213,8 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                for n, v in zip(kits.provincia.head(5), kits.kits.head(5))]}
             kpis = [_kpi("Alertas registradas", float(len(alert_rows)) if alerts_available else None, note=alert_note),
                     _kpi("Kits entregados", total_kits, note=kit_scope),
-                    _kpi("Familias · bono de contingencia", float(r.articulation.personas.sum()), note="Habilitadas al pago · acumulado confirmado"),
-                    _kpi("Monto · bono de contingencia", float(r.articulation.monto.sum()), "money", note=bonus_scope(r), decimals=2),
+                    _kpi("Habilitados · bono de contingencia", float(bonus.articulation.personas.sum()), note=bonus_reference),
+                    _kpi("Monto habilitado · bono de contingencia", float(bonus.articulation.monto.sum()), "money", note=bonus_reference, decimals=2),
                     _kpi("Unidades suspendidas", float(continuity.closed_units) if continuity is not None else None,
                          note=f"Corte {closed_cut:%d/%m/%Y}" if closed_cut is not None else "Sin corte territorial")]
             continuity_text = (f"{'Al ' + format(closed_cut, '%d/%m/%Y') + ', ' if closed_cut is not None else ''}"
@@ -214,17 +228,19 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                 continuity_text = (f"Se registran {number(len(alert_rows))} alertas {alert_span}, según sus fechas disponibles."
                                    + precision_note + " " + continuity_text)
             dated_note = " La matriz de 2023 contiene fechas previstas de ejecución, sin fechar las alertas." if yearly else ""
-            findings = [{"icon": "calendar", "text": f"{bonus_scope(r)}. El bono se conserva como referencia y no se contabiliza como pago del período." + dated_note},
+            bonus_result = (f"{number(delivered_people)} personas cobraron USD {number(delivered_amount, 2)} al corte; no equivale a fechas de pago. "
+                            if collected else "")
+            findings = [{"icon": "calendar", "text": f"{bonus_reference}. {bonus_coverage}{bonus_result}"
+                         "La fuente del bono no acredita el acumulado de toda la gestión." + dated_note},
                         {"icon": "shield", "text": continuity_text}]
             table_title = "Alertas, unidades suspendidas, kits y bono por provincia"
             blocks.append(_block("riesgos", "Plan ENOS: respuesta ante el Fenómeno El Niño", "storm",
                                  r.scope_text(), kpis, visual,
                                  {"title": table_title,
-                                  "note": (f"Alertas y kits del período · UA al {closed_cut:%d/%m/%Y}"
-                                           if closed_outside and closed_cut is not None else "Alertas y kits del período"),
+                                  "note": f"Bono: referencia al {bonus_cut:%d/%m/%Y}" + (" · fuera del período" if bonus_outside else ""),
                                   "columns": [("Provincia", "provincia", None, "text"), ("Alertas", "alertas", 42, "int"),
                                               ("UA suspendidas", "suspendidas", 62, "int"), ("Kits entregados", "kits", 62, "int"),
-                                              ("Familias con kit", "familias", 64, "int"), ("Familias con bono", "bono_familias", 70, "int"),
+                                              ("Familias con kit", "familias", 64, "int"), ("Habilitados", "bono_familias", 70, "int"),
                                               ("Monto del bono (USD)", "bono_monto", 84, "usd")],
                                   "rows": province_rows}, findings))
             if alerts_available:
@@ -233,17 +249,19 @@ def build(bases: dict, mode: str, title: str = "") -> dict:
                                    "context": alert_span.capitalize()})
             deliveries += [{"what": "Kits humanitarios · Fenómeno El Niño", "detail": "kits entregados a familias afectadas",
                             "amount_people": total_kits, "money": None, "icon": "life-buoy", "context": f"{kit_provinces} provincias priorizadas"},
-                           {"what": "Bono de contingencia · referencia", "detail": "familias habilitadas al pago",
-                            "amount_people": float(r.articulation.personas.sum()), "money": float(r.articulation.monto.sum()),
-                            "money_word": "en articulación", "icon": "hand-coins", "context": f"Acumulado al {r.cut_text('bonos')}"}]
+                           {"what": "Bono de contingencia · habilitados", "detail": "personas habilitadas al pago",
+                            "amount_people": float(bonus.articulation.personas.sum()), "money": float(bonus.articulation.monto.sum()),
+                            "money_word": "habilitados", "icon": "hand-coins", "context": bonus_reference}]
             if not delivered.empty:
-                deliveries.append({"what": "Bono de contingencia · pago gestionado", "detail": "núcleos familiares con pago gestionado",
-                                   "amount_people": float(delivered_people), "money": delivered_amount, "money_word": "gestionados",
-                                   "icon": "banknote", "context": f"Corte {r.cut_text('bonos_gestionados')}"})
+                deliveries.append({"what": "Bono de contingencia · " + ("cobrados" if collected else "pago gestionado"),
+                                   "detail": "personas con cobro confirmado" if collected else "núcleos familiares con pago gestionado",
+                                   "amount_people": float(delivered_people), "money": delivered_amount,
+                                   "money_word": "cobrados" if collected else "gestionados", "icon": "banknote", "context": managed_reference})
             cover.append(_kpi("Kits entregados · Plan ENOS", total_kits, note=f"{kit_provinces} provincias", icon="life-buoy"))
             highlights.append({"icon": "life-buoy", "text": f"Ante el Fenómeno El Niño se entregaron {number(total_kits)} kits en {kit_provinces} "
                                                             f"provincias durante el período. El bono de referencia mantiene "
-                                                            f"{number(r.articulation.personas.sum())} familias al {r.cut_text('bonos')}."})
+                                                            f"{number(bonus.articulation.personas.sum())} habilitados. {bonus_reference}; "
+                                                            "no es el acumulado de toda la gestión."})
     except Exception:  # noqa: BLE001 - one section without its data never stops the report
         LOG.exception("Plan ENOS sin datos para el informe de gestión")
 

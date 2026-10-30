@@ -21,6 +21,7 @@
 - La matriz 2024 incluye fechas exactas, un intervalo explícito de dos días y registros con solo mes de reporte. Los intervalos se incluyen únicamente cuando la consulta abarca su rango completo. No se presentan como alertas ocurridas el primer día del mes ni se añaden a una evolución diaria con fecha inventada.
 - Los nudos críticos de 2023 tienen fechas previstas de ejecución de planes, no fechas de registro de alertas. Se conservan como antecedente agregado, fuera del conteo fechado de gobierno. Las fechas malformadas o ambiguas de 2024 quedan documentadas para revisión y no se imputan.
 - La sección ENOS del boletín de gobierno cuenta las alertas dentro del período solicitado; no sustituye un período vacío por alertas posteriores. El boletín mensual conserva la ventana operativa previa a la incorporación del archivo histórico.
+- En los boletines de gobierno y anual, las dos tarjetas del bono son referencias de la base completa al corte propio, expresamente fuera del período cuando corresponde: habilitados y cobros confirmados. No se presenta una cohorte filtrada hasta septiembre como acumulado al 29 de octubre ni se atribuye la base parcial al total de la gestión. La tabla provincial concilia con la misma referencia; alertas y kits siguen filtrados por el período. El filtro temporal del tablero ENOS conserva su comportamiento por fecha de habilitación.
 
 ## Jóvenes en Acción: monitoreo de fase 4
 

@@ -94,3 +94,30 @@ def test_alert_caption_preserves_the_end_of_monthly_and_interval_records():
                          {"fecha": "2024-07-15", "fecha_hasta": "2024-07-16"},
                          {"fecha": "2024-07-12", "fecha_hasta": None}])
     assert gestion._alert_span(rows) == "del 01/04/2024 al 16/07/2024"
+
+
+@pytest.mark.parametrize("mode,alerts", [("gobierno", 1699), ("anual", 1176)])
+def test_bonus_reference_uses_its_full_cut_without_expanding_dated_actions(bases, mode, alerts):
+    from src.reports.enos_scope import response_view
+
+    report = gestion.build(bases, mode)
+    cards = {d["what"]: d for d in report["deliveries"]}
+    enabled = cards["Bono de contingencia · habilitados"]
+    collected = cards["Bono de contingencia · cobrados"]
+    assert (enabled["amount_people"], enabled["money"]) == (1720, pytest.approx(521322.45))
+    assert (collected["amount_people"], collected["money"]) == (692, pytest.approx(209776.23))
+    for card in [enabled, collected]:
+        assert card["context"] == "Referencia al 29/10/2026 · fuera del período"
+    block = next(b for b in report["blocks"] if b["key"] == "riesgos")
+    rows = block["table"]["rows"]
+    assert sum(r["bono_familias"] or 0 for r in rows[:-1] if pd.notna(r["bono_familias"])) == rows[-1]["bono_familias"] == 1720
+    assert rows[-1]["bono_monto"] == pytest.approx(521322.45)
+    assert rows[-1]["alertas"] == alerts
+    assert rows[-1]["kits"] == 4938
+    findings = " ".join(f["text"] for f in block["findings"])
+    assert "25/09/2026 al 29/10/2026" in findings
+    assert "no acredita el acumulado de toda la gestión" in findings
+    # The underlying dashboard query must still honor the actual habilitation dates.
+    dated = response_view("2023-11", "2026-09").response
+    assert dated.articulation.personas.sum() == dated.managed.personas.sum() == 1
+    assert dated.articulation.monto.sum() == pytest.approx(302.94)
