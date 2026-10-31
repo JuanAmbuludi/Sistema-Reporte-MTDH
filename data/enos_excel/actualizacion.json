@@ -1,16 +1,16 @@
 {
-  "generado_utc": "2026-10-30T15:09:07+00:00",
+  "generado_utc": "2026-10-31T00:25:11+00:00",
   "criterio": "Último cambio real en registros o cortes de las fuentes ENOS; guardar, formatear o validar sin cambios no modifica la fecha.",
   "archivos": {
-    "alertas.xlsx": "3b5761b34788f95807cfeaf9d1c3453ef8a0ab84cfb40e4bb94c8ba82c41eca5",
+    "alertas.xlsx": "81a463fdfdeb2ff440f56593ce0f0466d1599d7caaa9c4131a76cb28c035459d",
     "kits.xlsx": "c391846dd6bdb5e42b551ff04e0ecd6f9b188ba23d6c83d936a3a62c967454ed",
     "unidades_suspendidas.xlsx": "44231b8f4dfe1d808cc1172c0e21e9c851b18201c5b1f9d75c452139e0ec2691",
     "contingencias.xlsx": "86cc55d880182b81b1512a2b4fc2845348cec79c5c9c5e60dd4c755dab6b8f4b"
   },
   "fuentes": {
     "data/enos_excel/alertas.xlsx": {
-      "contenido_sha256": "91f5f4fdd43c2f683a3a1a44f989b64c2ff54a53136985e86204306a7ef5634d",
-      "actualizado_utc": "2026-10-30T02:40:39+00:00"
+      "contenido_sha256": "8fc7d85677fb24b0f65c8cda03cb430232ddac1ecaaadfa59c5a31183324f337",
+      "actualizado_utc": "2026-10-31T00:25:11+00:00"
     },
     "data/enos_excel/contingencias.xlsx": {
       "contenido_sha256": "2c4ebe519a75e5247777f73ec3bdbaeed00f801529a00ed5eefcf35791044f88",
